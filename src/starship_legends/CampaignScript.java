@@ -8,15 +8,17 @@ import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.DeployedFleetMemberAPI;
 import com.fs.starfarer.api.combat.EngagementResultAPI;
+import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 
 import java.util.*;
 
 public class CampaignScript extends BaseCampaignEventListener implements EveryFrameScript {
-    static void log(String message) { if(ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) Global.getLogger(CampaignScript.class).info(message); }
+    static void log(String message) { if(true) Global.getLogger(CampaignScript.class).info(message); }
 
     static final float AVG_TIME_BETWEEN_REP_CHANGES = 10f;
+    static final String NEW_LINE = "\n    ";
 
     public CampaignScript() { super(true); }
 
@@ -78,7 +80,9 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
                         * Global.getSector().getPlayerStats().getLevel();
                 float fractionDamageTaken = originalHullFractions.get(ship.getId()) - ship.getStatus().getHullFraction();
-                float damageDealtRatio = fpWorthOfDamageDealt.get(ship) / Math.max(1, ship.getDeploymentCostSupplies());
+                float damageDealtRatio = fpWorthOfDamageDealt.containsKey(ship)
+                        ? fpWorthOfDamageDealt.get(ship) / Math.max(1, ship.getDeploymentCostSupplies())
+                        : 0;
                 PersonAPI captain = ship.getCaptain() == null || ship.getCaptain().isDefault()
                         ? originalCaptains.get(ship.getId())
                         : ship.getCaptain();
@@ -90,76 +94,56 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         ? ModPlugin.TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_CIVILIAN_SHIPS
                         : ModPlugin.TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_COMBAT_SHIPS;
 
-                //float combatScore =
+                float bonusChance = ModPlugin.BASE_CHANCE_TO_BE_BONUS;
+
+                if(deployed) {
+                    bonusChance = bonusChance
+                            + difficulty * ModPlugin.BONUS_CHANCE_BATTLE_DIFFICULTY_MULTIPLIER
+                            - fractionDamageTaken * ModPlugin.BONUS_CHANCE_DAMAGE_TAKEN_MULTIPLIER
+                            + Math.max(0, damageDealtRatio - 1) * ModPlugin.BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER;
+                } else bonusChance *= ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER;
 
                 String msg = "Rolling reputation for " + ship.getShipName() + " (" + ship.getHullSpec().getHullName() + ")"
-                        + "\n    Chance of gaining new trait: " + (int)(traitChance * 100) + "% - ";
+                        + NEW_LINE + "Chance of Gaining New Trait: " + (int)(traitChance * 100) + "% - ";
 
                 if (rand.nextFloat() <= traitChance) {
-                    RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
+                    boolean traitIsBonus = rand.nextFloat() < bonusChance;
 
                     msg += "SUCCEEDED";
-                    if(deployed) msg += "\n      Battle Difficulty: " + difficulty
-                            + "\n           Damage Taken: " + fractionDamageTaken + " of total hull lost"
-                            + "\n           Damage Dealt: " + damageDealtRatio + " of own supply cost worth of damage";
 
-                    float malusChance = !deployed
-                            ? ModPlugin.CHANCE_OF_MALUS_WHILE_IN_RESERVE
-                            : ModPlugin.CHANCE_OF_MALUS_AT_NO_HULL_LOST + fractionDamageTaken
-                            * (ModPlugin.CHANCE_OF_MALUS_AT_HALF_HULL_LOST - ModPlugin.CHANCE_OF_MALUS_AT_NO_HULL_LOST);
+                    if(deployed) msg += NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED")
+                            + NEW_LINE + "    Battle Difficulty: " + difficulty
+                            + NEW_LINE + "    Damage Taken: " + fractionDamageTaken + " of total hull lost"
+                            + NEW_LINE + "    Damage Dealt: " + damageDealtRatio + " of own supply cost worth of damage";
 
-                    //if(wasDeployed && difficulty > 1) malusChance *= (1 / (1 - difficulty)) * ModPlugin.MALUS_CHANCE_REDUCTION_FOR_DIFFICULT_BATTLES;
-
-
-                    boolean traitIsBad = rand.nextFloat() < Math.min(malusChance, ModPlugin.CHANCE_OF_MALUS_AT_HALF_HULL_LOST);
-
-                    msg += "             Bonus chance: " + (int)(100 - malusChance * 100) + "% - " + (traitIsBad ? "FAILED" : "SUCCEEDED");
-
-                    repChange.newTrait = Trait.chooseTrait(ship, rand, fractionDamageTaken, damageDealtRatio,
-                            difficulty, deployed, disabled, msg);
+                    repChange.newTrait = Trait.chooseTrait(ship, rand, !traitIsBonus, fractionDamageTaken,
+                            damageDealtRatio, deployed, disabled);
                 } else msg += "FAILED";
 
-                log("    " + ship.getHullId() + " " + fractionDamageTaken + " " + deployed + " " + captain.getNameString());
-
-                if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM
-                        && deployed
-                        && RepRecord.existsFor(ship)
-                        && captain != null
+                if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && deployed && RepRecord.existsFor(ship) && captain != null
                         && !captain.isDefault()) {
 
                     RepRecord rep = RepRecord.get(ship);
-                    int opinionOfOfficer = rep.getOpinionOfOfficer(captain);
-                    float improveLoyaltyChance = ModPlugin.IMPROVE_LOYALTY_CHANCE_MULTIPLIER;
+                    LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
+                    float loyaltyAdjustChance = (bonusChance - 0.65f) + (1 + rep.getLoyaltyMultiplier(captain));
 
-                    if(ModPlugin.MAX_HULL_FRACTION_LOST_FOR_LOYALTY_INCREASE > 0) {
-                        improveLoyaltyChance *= 1 - fractionDamageTaken / ModPlugin.MAX_HULL_FRACTION_LOST_FOR_LOYALTY_INCREASE;
-                    }
+                    if(loyaltyAdjustChance > 0.1f && !ll.isAtBest()) {
+                        loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULTIPLIER;
+                        boolean success = rand.nextFloat() <= loyaltyAdjustChance;
+                        msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
-                    if(ModPlugin.SCALE_LOYALTY_INCREASE_CHANCE_BY_BATTLE_DIFFICULTY) improveLoyaltyChance *= difficulty;
+                        if(success) repChange.captainOpinionChange = 1;
+                    } else if(loyaltyAdjustChance < 0.1f && !ll.isAtWorst()) {
+                        loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
+                        loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULTIPLIER;
+                        boolean success = rand.nextFloat() <= loyaltyAdjustChance;
+                        msg += NEW_LINE + "Loyalty Reduction Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
-                    switch (opinionOfOfficer) {
-                        case -2: improveLoyaltyChance *= 0.25f; break;
-                        case -1: improveLoyaltyChance *= 0.25f; break;
-                        case 0: improveLoyaltyChance *= 0.25f; break;
-                        case 1: improveLoyaltyChance *= 0.05f; break;
-                        case 2: default: improveLoyaltyChance = 0; break;
-                    }
-
-                    msg += "    Chance of Loyalty increase: " + (int)(improveLoyaltyChance * 100) + "%";
-
-                    if (difficulty >= ModPlugin.MIN_BATTLE_DIFFICULTY_REQUIRED_FOR_LOYALTY_INCREASE
-                            && fractionDamageTaken <= ModPlugin.MAX_HULL_FRACTION_LOST_FOR_LOYALTY_INCREASE
-                            && rand.nextFloat() <= improveLoyaltyChance) {
-
-                        repChange.captainOpinionChange = 1;
-                        //rep.adjustOpinionOfOfficer(captain, 1);
-                    } else if (rand.nextFloat() <= fractionDamageTaken * ModPlugin.CHANCE_OF_LOYALTY_DECREASE_AT_ALL_HULL_LOST
-                            && opinionOfOfficer > -2) {
-
-                        repChange.captainOpinionChange = -1;
-                        //rep.adjustOpinionOfOfficer(captain, -1);
+                        if(success) repChange.captainOpinionChange = 1;
                     }
                 }
+
+                if(ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) log(msg);
 
                 if(repChange.hasAnyChanges()) pendingRepChanges.val.add(repChange);
             }
@@ -214,17 +198,28 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         }
     }
 
-//    @Override
-//    public void reportPlayerActivatedAbility(AbilityPlugin ability, Object param) {
-//        Random rand = new Random();
-//        FleetDataAPI fleet = Global.getSector().getPlayerFleet().getFleetData();
-//
-//        for(FleetMemberAPI ship : fleet.getMembersListCopy()) {
-//            RepChange d = new RepChange(ship, ship.getCaptain());
-//            d.newTrait = Trait.chooseTrait(ship, rand, ability.getId().startsWith("sun") ? 1 : 0, 0, true, false);
-//            d.apply();
-//        }
-//    }
+    @Override
+    public void reportPlayerActivatedAbility(AbilityPlugin ability, Object param) {
+        if(false) return;
+
+        Random rand = new Random();
+        FleetDataAPI fleet = Global.getSector().getPlayerFleet().getFleetData();
+
+        for(FleetMemberAPI ship : fleet.getMembersListCopy()) {
+            RepChange d = new RepChange(ship, ship.getCaptain());
+
+            switch (ability.getId()) {
+                case "distress_call": d.newTrait = Trait.chooseTrait(ship, rand, true, 0.5f, 0, true, false); break; // Good combat trait
+                case "interdiction_pulse": d.newTrait = Trait.chooseTrait(ship, rand, false, 0.5f, 0, true, false); break; // Bad combat trait
+                case "sustained_burn": d.newTrait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, false, false); break; // Reserved trait
+                case "emergency_burn": d.newTrait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, true, true); break; // Disabled trait
+                case "sensor_burst": d.captainOpinionChange = 1; break;
+                case "go_dark": d.captainOpinionChange = -1; break;
+            }
+
+            d.apply();
+        }
+    }
 
     @Override
     public boolean isDone() { return false; }

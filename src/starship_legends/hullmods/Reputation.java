@@ -9,10 +9,7 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import starship_legends.ModPlugin;
-import starship_legends.Saved;
-import starship_legends.Trait;
-import starship_legends.RepRecord;
+import starship_legends.*;
 
 import java.awt.*;
 import java.util.HashMap;
@@ -51,9 +48,8 @@ public class Reputation extends BaseHullMod {
             int loyaltyEffectAdjustment = 0;
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault() && !isFighter) {
-                int opinionOfOfficer = rep.getOpinionOfOfficer(captain);
-                loyaltyEffectAdjustment = Math.abs(opinionOfOfficer) > 1 ? (int)Math.signum(opinionOfOfficer) : 0;
-                stats.getCRLossPerSecondPercent().modifyPercent(id, rep.getCRDecayAdjustmentOfOfficer(captain));
+                loyaltyEffectAdjustment = rep.getLoyaltyLevel(captain).getTraitAdjustment();
+                stats.getCRLossPerSecondPercent().modifyPercent(id, rep.getLoyaltyLevel(captain).getCrDecayMult());
             }
 
             for(Trait trait : rep.getTraits()) {
@@ -268,7 +264,7 @@ public class Reputation extends BaseHullMod {
 //            if(!RepRecord.existsFor(ship)) throw new RuntimeException("Reputation hullmod exists without RepRecord entry for ship");
 
             RepRecord rep = RepRecord.get(ship);
-            Trait.Teir previousTeir = Trait.Teir.Unknown;
+            Trait.Teir previousTeir = Trait.Teir.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = ship.getMutableStats().getMinCrewMod().computeEffective(ship.getHullSpec().getMinCrew()) > 0;
@@ -277,39 +273,22 @@ public class Reputation extends BaseHullMod {
                     Misc.getGrayColor(), Misc.getGrayColor(), ship.getName());
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && !ship.getCaptain().isDefault()) {
-                int opinionOfOfficer = rep.getOpinionOfOfficer(ship.getCaptain());
-                String standing;
-                Color clr = opinionOfOfficer < 0
+                loyaltyEffectAdjustment = rep.getLoyaltyLevel(ship.getCaptain()).getTraitAdjustment();
+                LoyaltyLevel ll = rep.getLoyaltyLevel(ship.getCaptain());
+                Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
                         ? Misc.getNegativeHighlightColor()
                         : Misc.getHighlightColor();
-
-                loyaltyEffectAdjustment = Math.abs(opinionOfOfficer) > 1 ? (int)Math.signum(opinionOfOfficer) : 0;
-
-                switch (opinionOfOfficer) {
-                    case -2: standing = "openly insubordinate"; break;
-                    case -1: standing = "doubtful"; break;
-                    case 0: standing = "indifferent"; break;
-                    case 1: standing = "loyal"; break;
-                    case 2: standing = "fiercely loyal"; break;
-                    default: standing = "[LOYALTY RANGE EXCEEDED]"; break;
-                }
-
                 String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + ship.getName()
-                        + " is %s " + (opinionOfOfficer == -1 ? "of" : "to")
+                        + " is %s " + ll.getPreposition()
                         + " its captain, " + ship.getCaptain().getNameString().trim();
+                String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
 
-                switch (opinionOfOfficer) {
-                    case -2: message += ", increasing CR decay rate by %s and %s the ship's traits."; break;
-                    case -1: message += ", increasing CR decay rate by %s."; break;
-                    case 0: message += "."; break;
-                    case 1: message += ", reducing CR decay rate by %s."; break;
-                    case 2: message += ", reducing CR decay rate by %s and %s the ship's traits."; break;
-                    default: standing += "[LOYALTY RANGE EXCEEDED]"; break;
-                }
+                if(ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
+                else if(ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
+                else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
-                tooltip.beginImageWithText(ship.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr, standing,
-                        (int)Math.abs(rep.getCRDecayAdjustmentOfOfficer(ship.getCaptain())) + "%",
-                        opinionOfOfficer < 0 ? "worsening" : "improving");
+                tooltip.beginImageWithText(ship.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
+                        ll.getName(), (int)Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc());
                 tooltip.addImageWithText(8);
             }
 

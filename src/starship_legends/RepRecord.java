@@ -20,7 +20,7 @@ public class RepRecord {
         if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Famous;
         if(count > 1 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Wellknown;
         if(count > 0 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Notable;
-        else return Trait.Teir.Unknown;
+        else return Trait.Teir.UNKNOWN;
     }
 
     private List<Trait> traits = new ArrayList<>();
@@ -34,19 +34,16 @@ public class RepRecord {
         return getTraits().size() >= Trait.getTraitLimit();
     }
 
-    public int getOpinionOfOfficer(PersonAPI officer) {
-        return opinionsOfOfficers.containsKey(officer.getId())
-                ? opinionsOfOfficers.get(officer.getId())
-                : 0;
-    }
-
-    public float getCRDecayAdjustmentOfOfficer(PersonAPI officer) {
-        return (ModPlugin.COMBAT_READINESS_DECAY_PERCENT_MODIFIER_PER_LOYALTY_LEVEL * -getOpinionOfOfficer(officer));
+    public LoyaltyLevel getLoyaltyLevel(PersonAPI officer) {
+        int index = opinionsOfOfficers.containsKey(officer.getId())
+                ? opinionsOfOfficers.get(officer.getId()) + ModPlugin.LOYALTY_LIMIT
+                : ModPlugin.LOYALTY_LIMIT;
+        return LoyaltyLevel.values()[index];
     }
 
     public void adjustOpinionOfOfficer(PersonAPI officer, int adjustment) {
         int currentVal = opinionsOfOfficers.containsKey(officer.getId()) ? opinionsOfOfficers.get(officer.getId()) : 0;
-        int newVal = Math.max(Math.min(currentVal + adjustment, 2), -2);
+        int newVal = Math.max(Math.min(currentVal + adjustment, ModPlugin.LOYALTY_LIMIT), -ModPlugin.LOYALTY_LIMIT);
 
         opinionsOfOfficers.put(officer.getId(), newVal);
     }
@@ -57,12 +54,9 @@ public class RepRecord {
 
     public float getLoyaltyMultiplier(PersonAPI captain) {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
-        int loyaltyEffectAdjustment = 0;
-
-        if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-            int opinionOfOfficer = getOpinionOfOfficer(captain);
-            loyaltyEffectAdjustment = Math.abs(opinionOfOfficer) > 1 ? (int)Math.signum(opinionOfOfficer) : 0;
-        }
+        int loyaltyEffectAdjustment = (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault())
+                ? getLoyaltyLevel(captain).getTraitAdjustment()
+                : 0;
 
         for(Trait trait : getTraits()) {
             if (traitsLeft <= 0) break;

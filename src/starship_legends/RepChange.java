@@ -58,30 +58,17 @@ public class RepChange {
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             rep.adjustOpinionOfOfficer(captain, captainOpinionChange);
 
-            String standing, change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-
-            switch (rep.getOpinionOfOfficer(captain)) {
-                case -2: standing = "openly insubordinate"; break;
-                case -1: standing = "doubtful"; break;
-                case 0: standing = "indifferent"; break;
-                case 1: standing = "loyal"; break;
-                case 2: standing = "fiercely loyal"; break;
-                default: standing = "[LOYALTY RANGE EXCEEDED]"; break;
-            }
+            String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
 
             intel.addLine("The crew of the %s has %s %s and is now %s.", Misc.getTextColor(),
-                    new String[] { ship.getShipName(), change, captain.getNameString(), standing},
+                    new String[] { ship.getShipName(), change, captain.getNameString(), rep.getLoyaltyLevel(captain).getName().toLowerCase() },
                     Misc.getTextColor(), Misc.getTextColor(), Misc.getTextColor(),
                     captainOpinionChange < 0 ? Misc.getNegativeHighlightColor() : Misc.getHighlightColor());
         }
 
         if(showNotification) {
-//            ship.setSpriteOverride(ship.getHullSpec().getSpriteName());
-//            ship.setOverrideSpriteSize(new Vector2f(400, 400));
-//            intel.setIcon(ship.getSpriteOverride());
             intel.setSound("ui_intel_something_posted");
             intel.setIcon(ship.getHullSpec().getSpriteName());
-            //Global.getSector().getCampaignUI().addMessage(intel, CommMessageAPI.MessageClickAction.REFIT_TAB);
             Global.getSector().getCampaignUI().addMessage(intel, CommMessageAPI.MessageClickAction.REFIT_TAB, ship);
         }
 
@@ -97,7 +84,7 @@ public class RepChange {
         Trait.Teir teir = RepRecord.get(ship).getTeir();
         ShipVariantAPI v;
 
-        if(teir == Trait.Teir.Unknown) return;
+        if(teir == Trait.Teir.UNKNOWN) return;
 
         if(ship.getVariant().isStockVariant()) {
             v = ship.getVariant().clone();

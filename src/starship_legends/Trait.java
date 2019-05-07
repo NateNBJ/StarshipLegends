@@ -1,6 +1,5 @@
 package starship_legends;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
@@ -17,7 +16,7 @@ import java.util.Set;
 
 public class Trait {
     public enum Teir {
-        Unknown, Notable, Wellknown, Famous, Legendary;
+        Notable, Wellknown, Famous, Legendary, UNKNOWN;
 
         long xpToGuaranteeNewTrait = 1;
         float effectMultiplier = 0;
@@ -83,25 +82,14 @@ public class Trait {
 
     public static int getTraitLimit() { return ModPlugin.TRAITS_PER_TIER * ModPlugin.TIER_COUNT; }
 
-    public static Trait chooseTrait(FleetMemberAPI ship, Random rand, float fractionDamageTaken, float damageDealtRatio,
-                                    float difficulty, boolean wasDeployed, boolean wasDisabled, String msg) {
+    public static Trait chooseTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, float fractionDamageTaken,
+                                    float damageDealtRatio, boolean wasDeployed, boolean wasDisabled) {
 
         RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
 
         if(rep.hasMaximumTraits()) return null;
 
         WeightedRandomPicker<TraitType> picker = TraitType.getPickerCopy(wasDisabled);
-        float malusChance = !wasDeployed
-                ? ModPlugin.CHANCE_OF_MALUS_WHILE_IN_RESERVE
-                : ModPlugin.CHANCE_OF_MALUS_AT_NO_HULL_LOST + fractionDamageTaken
-                    * (ModPlugin.CHANCE_OF_MALUS_AT_HALF_HULL_LOST - ModPlugin.CHANCE_OF_MALUS_AT_NO_HULL_LOST);
-
-        //if(wasDeployed && difficulty > 1) malusChance *= (1 / (1 - difficulty)) * ModPlugin.MALUS_CHANCE_REDUCTION_FOR_DIFFICULT_BATTLES;
-
-
-        boolean traitIsBad = rand.nextFloat() < Math.min(malusChance, ModPlugin.CHANCE_OF_MALUS_AT_HALF_HULL_LOST);
-
-        msg += "             Bonus chance: " + (int)(100 - malusChance * 100) + "% - " + (traitIsBad ? "FAILED" : "SUCCEEDED");
 
         for(Trait trait : rep.getTraits()) picker.remove(trait.getType());
 
@@ -200,6 +188,6 @@ public class Trait {
         float baseBonus = (getType().getBaseBonus()
                 * (getTags().contains(TraitType.Tags.FLAT_EFFECT) ? Reputation.getFlatEffectMult(hullSize) : 1));
         return baseBonus * effectSign * teir.getEffectMultiplier()
-                + baseBonus * loyaltyEffectAdjustment * ModPlugin.OFFICER_ADJUSTMENT_TO_TRAIT_EFFECT_MULTIPLIER;
+                + baseBonus * loyaltyEffectAdjustment;
     }
 }
