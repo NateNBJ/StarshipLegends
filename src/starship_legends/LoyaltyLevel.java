@@ -29,8 +29,9 @@ public enum LoyaltyLevel {
         return baseWorsenChance;
     }
     public int getTraitAdjustment() { return traitAdjustment; }
-    public boolean isAtBest() { return this == FIERCELY_LOYAL; }
-    public boolean isAtWorst() { return this == OPENLY_INSUBORDINATE; }
+    public boolean isAtBest() { return getIndex() == ModPlugin.LOYALTY_LIMIT; }
+    public boolean isAtWorst() { return getIndex() == -ModPlugin.LOYALTY_LIMIT; }
+    public int getIndex() { return ordinal() - ModPlugin.LOYALTY_LIMIT; }
 
     public void init(JSONObject o) throws JSONException {
         name = o.getString("name");

@@ -14,8 +14,9 @@ import starship_legends.hullmods.Reputation;
 public class RepChange {
     FleetMemberAPI ship;
     PersonAPI captain;
-    int captainOpinionChange;
-    Trait newTrait;
+    int captainOpinionChange, shuffleSign = 0, damageTakenPercent = 0, damageDealtPercent = 0;
+    Trait trait;
+    boolean deployed;
 
     public RepChange(FleetMemberAPI ship, PersonAPI captain) {
         this.ship = ship;
@@ -23,10 +24,11 @@ public class RepChange {
     }
 
     public boolean hasAnyChanges() {
-        return newTrait != null || (captainOpinionChange != 0 && captain != null && !captain.isDefault());
+        return trait != null || (captainOpinionChange != 0 && captain != null && !captain.isDefault());
     }
 
     public boolean apply() {
+        if(!hasAnyChanges()) return false;
         if(ship == null) throw new RuntimeException("RepChange ship is null");
         if(!RepRecord.existsFor(ship)) throw new RuntimeException("Ship with RepChange has no RepRecord");
 
@@ -36,7 +38,7 @@ public class RepChange {
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
 
         for(Trait t : rep.getTraits()) {
-            if(newTrait != null && t.getType() == newTrait.getType()) return false;
+            if(trait != null && t.getType() == trait.getType()) return false;
         }
 
         if(pf != null && ModPlugin.SHOW_REPUTATION_CHANGE_NOTIFICATIONS) {
@@ -48,20 +50,29 @@ public class RepChange {
             }
         }
 
-        if(newTrait != null) {
-            rep.getTraits().add(newTrait);
-            intel.addLine("The %s has gained a reputation for %s %s.", Misc.getTextColor(),
-                    new String[] { ship.getShipName(), newTrait.getDescPrefix(ship.getMinCrew() > 0), newTrait.getName(ship.getMinCrew() > 0).toLowerCase() },
-                    Misc.getTextColor(), Misc.getTextColor(), newTrait.getHighlightColor());
+        if(trait != null) {
+            if(shuffleSign == 0) {
+                rep.getTraits().add(trait);
+                intel.addLine("The %s has gained a reputation for %s %s.", Misc.getTextColor(),
+                        new String[]{ship.getShipName(), trait.getDescPrefix(ship.getMinCrew() > 0), trait.getName(ship.getMinCrew() > 0).toLowerCase()},
+                        Misc.getTextColor(), Misc.getTextColor(), trait.getHighlightColor());
+            } else {
+                rep.getTraits().add(trait);
+                intel.addLine("Trait shuffle");
+                // TODO
+            }
         }
 
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
+            LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
+            int llSign = (int)Math.signum(ll.getIndex());
+            String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
+            String merelyMaybe = (llSign != 0 && llSign != captainOpinionChange) ? "merely " : "";
+
             rep.adjustOpinionOfOfficer(captain, captainOpinionChange);
 
-            String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-
-            intel.addLine("The crew of the %s has %s %s and is now %s.", Misc.getTextColor(),
-                    new String[] { ship.getShipName(), change, captain.getNameString(), rep.getLoyaltyLevel(captain).getName().toLowerCase() },
+            intel.addLine("The crew of the %s has %s %s and is now " + merelyMaybe + "%s.", Misc.getTextColor(),
+                    new String[] { ship.getShipName(), change, captain.getNameString().trim(), rep.getLoyaltyLevel(captain).getName().toLowerCase() },
                     Misc.getTextColor(), Misc.getTextColor(), Misc.getTextColor(),
                     captainOpinionChange < 0 ? Misc.getNegativeHighlightColor() : Misc.getHighlightColor());
         }

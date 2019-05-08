@@ -77,7 +77,7 @@ public class RepRecord {
         RepRecord rr = RepRecord.get(ship);
         int increase = 1;
 
-        for (RepChange c : CampaignScript.pendingRepChanges.val) if(c.ship == ship && c.newTrait != null) increase++;
+        for (RepChange c : CampaignScript.pendingRepChanges.val) if(c.ship == ship && c.trait != null) increase++;
 
         return getTeirFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
     }

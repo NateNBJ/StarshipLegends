@@ -100,8 +100,9 @@ public class ModPlugin extends BaseModPlugin {
         x.alias("sun_sl_rc", RepChange.class);
         x.aliasAttribute(RepChange.class, "ship", "s");
         x.aliasAttribute(RepChange.class, "captain", "c");
-        x.aliasAttribute(RepChange.class, "newTrait", "t");
+        x.aliasAttribute(RepChange.class, "trait", "t");
         x.aliasAttribute(RepChange.class, "captainOpinionChange", "o");
+        x.aliasAttribute(RepChange.class, "shuffleSign", "d");
     }
 
     public static boolean settingsHaveBeenRead() { return settingsAreRead; }

@@ -8,9 +8,8 @@ import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.DeployedFleetMemberAPI;
 import com.fs.starfarer.api.combat.EngagementResultAPI;
-import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.util.WeightedRandomPicker;
+import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 
 import java.util.*;
 
@@ -58,12 +57,17 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 enemyFP = 0;
                 return;
             }
-
+            //Global.getSector().getIntelManager().getIntel(this.getClass()).get(0)
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
             Random rand = new Random();
             FleetDataAPI fleet = Global.getSector().getPlayerFleet().getFleetData();
 
             if(xpEarned <= 0) return;
+
+            BaseIntelPlugin report = new BattleReport();
+
+
+
 
             boolean rsIsAvailable = Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector");
             float difficulty = rsIsAvailable
@@ -104,28 +108,54 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 } else bonusChance *= ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER;
 
                 String msg = "Rolling reputation for " + ship.getShipName() + " (" + ship.getHullSpec().getHullName() + ")"
+                        + NEW_LINE + "Battle Difficulty: " + difficulty
+                        + NEW_LINE + "Damage Taken: " + fractionDamageTaken + " of total hull lost"
+                        + NEW_LINE + "Damage Dealt: " + damageDealtRatio + " of own supply cost worth of damage"
                         + NEW_LINE + "Chance of Gaining New Trait: " + (int)(traitChance * 100) + "% - ";
+
 
                 if (rand.nextFloat() <= traitChance) {
                     boolean traitIsBonus = rand.nextFloat() < bonusChance;
 
-                    msg += "SUCCEEDED";
+                    msg += "SUCCEEDED"
+                            + NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED");
 
-                    if(deployed) msg += NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED")
-                            + NEW_LINE + "    Battle Difficulty: " + difficulty
-                            + NEW_LINE + "    Damage Taken: " + fractionDamageTaken + " of total hull lost"
-                            + NEW_LINE + "    Damage Dealt: " + damageDealtRatio + " of own supply cost worth of damage";
-
-                    repChange.newTrait = Trait.chooseTrait(ship, rand, !traitIsBonus, fractionDamageTaken,
+                    repChange.trait = Trait.chooseTrait(ship, rand, !traitIsBonus, fractionDamageTaken,
                             damageDealtRatio, deployed, disabled);
-                } else msg += "FAILED";
+                } else {
+                    msg += "FAILED";
+
+                    float shuffleChance = Math.abs(bonusChance - 0.5f);
+
+                    if(shuffleChance > 0.1f && RepRecord.existsFor(ship)) {
+                        int sign = (int)Math.signum(bonusChance - 0.5f);
+                        RepRecord rep = RepRecord.get(ship);
+
+                        msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
+                                + (int)(shuffleChance * 100) + " - ";
+
+                        if(rep.getTraits().size() <= 2) {
+                            msg += "TOO FEW TRAITS";
+                        } if(rand.nextFloat() <= shuffleChance) {
+                            msg += "SUCCEEDED";
+
+                            int i = (int)(Math.floor(Math.pow(rand.nextFloat(), 2) * rep.getTraits().size()));
+                            i = Math.min(i, rep.getTraits().size() - 1);
+
+                            repChange.trait = rep.getTraits().get(i);
+                            repChange.shuffleSign = sign;
+                        } else {
+                            msg += "FAILED";
+                        }
+                    }
+                }
 
                 if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && deployed && RepRecord.existsFor(ship) && captain != null
                         && !captain.isDefault()) {
 
                     RepRecord rep = RepRecord.get(ship);
                     LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
-                    float loyaltyAdjustChance = (bonusChance - 0.65f) + (1 + rep.getLoyaltyMultiplier(captain));
+                    float loyaltyAdjustChance = (bonusChance - 0.5f) + rep.getLoyaltyMultiplier(captain);
 
                     if(loyaltyAdjustChance > 0.1f && !ll.isAtBest()) {
                         loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULTIPLIER;
@@ -147,6 +177,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if(repChange.hasAnyChanges()) pendingRepChanges.val.add(repChange);
             }
+
+            Global.getSector().getIntelManager().addIntel(report);
 
             playerFP = 0;
             enemyFP = 0;
@@ -200,7 +232,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     @Override
     public void reportPlayerActivatedAbility(AbilityPlugin ability, Object param) {
-        if(false) return;
+        if(true) return;
 
         Random rand = new Random();
         FleetDataAPI fleet = Global.getSector().getPlayerFleet().getFleetData();
@@ -209,10 +241,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             RepChange d = new RepChange(ship, ship.getCaptain());
 
             switch (ability.getId()) {
-                case "distress_call": d.newTrait = Trait.chooseTrait(ship, rand, true, 0.5f, 0, true, false); break; // Good combat trait
-                case "interdiction_pulse": d.newTrait = Trait.chooseTrait(ship, rand, false, 0.5f, 0, true, false); break; // Bad combat trait
-                case "sustained_burn": d.newTrait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, false, false); break; // Reserved trait
-                case "emergency_burn": d.newTrait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, true, true); break; // Disabled trait
+                case "distress_call": d.trait = Trait.chooseTrait(ship, rand, true, 0.5f, 0, true, false); break; // Good combat trait
+                case "interdiction_pulse": d.trait = Trait.chooseTrait(ship, rand, false, 0.5f, 0, true, false); break; // Bad combat trait
+                case "sustained_burn": d.trait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, false, false); break; // Reserved trait
+                case "emergency_burn": d.trait = Trait.chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, true, true); break; // Disabled trait
                 case "sensor_burst": d.captainOpinionChange = 1; break;
                 case "go_dark": d.captainOpinionChange = -1; break;
             }

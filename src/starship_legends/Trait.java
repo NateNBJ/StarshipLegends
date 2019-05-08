@@ -94,7 +94,7 @@ public class Trait {
         for(Trait trait : rep.getTraits()) picker.remove(trait.getType());
 
         for(RepChange change : CampaignScript.pendingRepChanges.val) {
-            if(change.ship == ship && change.newTrait != null) picker.remove(change.newTrait.getType());
+            if(change.ship == ship && change.trait != null) picker.remove(change.trait.getType());
         }
 
         while(!picker.isEmpty()) {
