@@ -28,6 +28,7 @@ public class Trait {
         public String getHullModID() {
             return "sun_sl_" + this.name().toLowerCase();
         }
+        public String getIconPath() { return "sun_sl/graphics/hullmods/" + name().toLowerCase() + ".png";}
         public String getDisplayName() {
             return this == Wellknown ? "Well-known" : name();
         }
@@ -82,64 +83,6 @@ public class Trait {
 
     public static int getTraitLimit() { return ModPlugin.TRAITS_PER_TIER * ModPlugin.TIER_COUNT; }
 
-    public static Trait chooseTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, float fractionDamageTaken,
-                                    float damageDealtRatio, boolean wasDeployed, boolean wasDisabled) {
-
-        RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
-
-        if(rep.hasMaximumTraits()) return null;
-
-        WeightedRandomPicker<TraitType> picker = TraitType.getPickerCopy(wasDisabled);
-
-        for(Trait trait : rep.getTraits()) picker.remove(trait.getType());
-
-        for(RepChange change : CampaignScript.pendingRepChanges.val) {
-            if(change.ship == ship && change.trait != null) picker.remove(change.trait.getType());
-        }
-
-        while(!picker.isEmpty()) {
-            TraitType type = picker.pickAndRemove();
-            Trait trait = type.getTrait(traitIsBad);
-            boolean traitIsRelevant = true;
-            ShieldAPI.ShieldType shieldType = ship.getHullSpec().getShieldType();
-
-            for(String tag : type.getTags()) {
-                switch (tag) {
-                    case TraitType.Tags.CARRIER:
-                        if(!ship.isCarrier()) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.SHIELD:
-                        if(shieldType != ShieldAPI.ShieldType.FRONT && shieldType != ShieldAPI.ShieldType.OMNI)
-                            traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.CLOAK:
-                        if(shieldType != ShieldAPI.ShieldType.PHASE) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.SALVAGE_GANTRY:
-                        if(!ship.getVariant().hasHullMod("repair_gantry")) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.NO_AI:
-                        if(ship.getMinCrew() <= 0) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.DEFENSE:
-                        if(traitIsBad && fractionDamageTaken < 0.05f) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.ATTACK:
-                        if(traitIsBad && damageDealtRatio > 1) traitIsRelevant = false;
-                        break;
-                }
-            }
-
-            boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
-                    && !traitIsBad && rand.nextFloat() <= 0.75f;
-
-            if(trait != null && traitIsRelevant && !skipCombatLogisticsMismatch)
-                return trait;
-        }
-
-        return null;
-    }
-
     String typeID;
     int effectSign;
 
@@ -152,6 +95,10 @@ public class Trait {
 
     public String getName(boolean requiresCrew) {
         return getType().getName(effectSign < 0, requiresCrew);
+    }
+
+    public String getLowerCaseName(boolean requiresCrew) {
+        return getType().getName(effectSign < 0, requiresCrew).toLowerCase().replace("ai persona", "AI persona");
     }
 
     public String getDescPrefix(boolean requiresCrew) {

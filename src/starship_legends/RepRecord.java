@@ -2,7 +2,9 @@ package starship_legends;
 
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import starship_legends.hullmods.Reputation;
 
 import java.util.*;
 
@@ -15,6 +17,18 @@ public class RepRecord {
     public static RepRecord get(String shipID) { return INSTANCE_REGISTRY.val.get(shipID); }
     public static RepRecord get(ShipAPI ship) { return get(ship.getFleetMemberId()); }
     public static RepRecord get(FleetMemberAPI ship) { return get(ship.getId()); }
+    public static void deleteFor(FleetMemberAPI ship) {
+        INSTANCE_REGISTRY.val.remove(ship.getId());
+
+        Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
+
+        ShipVariantAPI v = ship.getVariant();
+        v.removePermaMod("sun_sl_notable");
+        v.removePermaMod("sun_sl_wellknown");
+        v.removePermaMod("sun_sl_famous");
+        v.removePermaMod("sun_sl_legendary");
+
+    }
     public static Trait.Teir getTeirFromTraitCount(int count) {
         if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Legendary;
         if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Famous;
@@ -32,6 +46,12 @@ public class RepRecord {
 
     public boolean hasMaximumTraits() {
         return getTraits().size() >= Trait.getTraitLimit();
+    }
+
+    public boolean hasTrait(Trait trait) {
+        for(Trait t : traits) if(t.equals(trait)) return true;
+
+        return false;
     }
 
     public LoyaltyLevel getLoyaltyLevel(PersonAPI officer) {
@@ -52,7 +72,7 @@ public class RepRecord {
 
     public Trait.Teir getTeir() { return getTeirFromTraitCount(traits.size()); }
 
-    public float getLoyaltyMultiplier(PersonAPI captain) {
+    public float getLoyaltyBonus(PersonAPI captain) {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
         int loyaltyEffectAdjustment = (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault())
                 ? getLoyaltyLevel(captain).getTraitAdjustment()
@@ -63,12 +83,12 @@ public class RepRecord {
 
             traitsLeft--;
 
-            if(trait.getType().equals("loyalty") || trait.getType().equals("loyalty_ai")) {
-                return 1 + trait.getEffect(RepRecord.getTeirFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, null) * 0.01f;
+            if(trait.getType().equals("loyalty")) {
+                return trait.getEffect(RepRecord.getTeirFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, null) * 0.01f;
             }
         }
 
-        return 1;
+        return 0;
     }
 
     public static float getXpToGuaranteeNewTrait(FleetMemberAPI ship) {

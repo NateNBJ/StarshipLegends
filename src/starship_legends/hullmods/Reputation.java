@@ -1,17 +1,21 @@
 package starship_legends.hullmods;
 
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.CargoAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.BaseHullMod;
 import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.*;
 
 import java.awt.*;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +38,12 @@ public class Reputation extends BaseHullMod {
 
     public static void addShipOfNote(FleetMemberAPI ship) {
         shipsOfNote.val.put(ship.getVariant().getHullVariantId(), ship);
+    }
+    public static void removeShipOfNote(String shipID) {
+        shipsOfNote.val.remove(shipID);
+    }
+    public static Collection<FleetMemberAPI> getShipsOfNote() {
+        return shipsOfNote.val.values();
     }
 
     void applyEffects(String shipID, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {

@@ -38,6 +38,8 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
     @Override
     public void advance(float amount, List<InputEventAPI> events) {
+        CampaignScript.collectRealSnapshotInfoIfNeeded();
+
         CombatEngineAPI engine = Global.getCombatEngine();
 
         if(!damageHasBeenLogged && engine != null && engine.isCombatOver() && Global.getCombatEngine().isInCampaign()

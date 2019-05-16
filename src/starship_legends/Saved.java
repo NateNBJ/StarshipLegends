@@ -1,10 +1,8 @@
 package starship_legends;
 
 import com.fs.starfarer.api.Global;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 
 public class Saved<T> {
     static final String PREFIX = "sun_sl_";
@@ -19,16 +17,21 @@ public class Saved<T> {
         for(Saved saved : instanceRegistry.values()) {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
                 saved.val = Global.getSector().getPersistentData().get(saved.key);
+            } else if(saved.val.getClass().isPrimitive()) {
+                saved.val = saved.defaultVal;
+            } else if(saved.val instanceof Collection) {
+                ((Collection)saved.val).clear();
             }
         }
     }
 
-    public T val;
+    public T val, defaultVal;
     private String key;
 
     public Saved(String key, T defaultValue) {
         this.key = PREFIX + key;
         this.val = defaultValue;
+        this.defaultVal = defaultValue;
         instanceRegistry.put(this.key, this);
     }
 }
