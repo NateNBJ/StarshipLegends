@@ -6,9 +6,7 @@ import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
-import com.fs.starfarer.api.combat.DeployedFleetMemberAPI;
-import com.fs.starfarer.api.combat.EngagementResultAPI;
-import com.fs.starfarer.api.combat.ShieldAPI;
+import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import starship_legends.hullmods.Reputation;
@@ -28,25 +26,30 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     Random rand = new Random();
     Set<FleetMemberAPI> deployedShips = new HashSet<>();
     Set<FleetMemberAPI> disabledShips = new HashSet<>();
+
     static Map<String, Float> originalHullFractions = new HashMap<>();
     static Map<String, PersonAPI> originalCaptains = new HashMap<>();
-    static Map<FleetMemberAPI, Float> fpWorthOfDamageDealt = new HashMap<>();
+    static Map<String, Float> fpWorthOfDamageDealt = new HashMap<>();
+    static Map<String, String> wingSourceMap = new HashMap<>();
+    static CombatDamageData damageData = null;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
     static Saved<Float> timeUntilNextChange = new Saved<>("timeUntilNextChange", AVG_TIME_BETWEEN_REP_CHANGES);
     static Saved<HashMap<String, Integer>> dayMothballed = new Saved<>("dayMothballed", new HashMap<String, Integer>());
 
-    public static void recordDamage(FleetMemberAPI ship, float fpWorthOfDamage) {
+    public static void recordDamage(String shipID, float fpWorthOfDamage) {
         if(fpWorthOfDamage > 0) {
-            if (!fpWorthOfDamageDealt.containsKey(ship)) fpWorthOfDamageDealt.put(ship, fpWorthOfDamage);
-            else fpWorthOfDamageDealt.put(ship, fpWorthOfDamageDealt.get(ship) + fpWorthOfDamage);
+            if (!fpWorthOfDamageDealt.containsKey(shipID)) fpWorthOfDamageDealt.put(shipID, fpWorthOfDamage);
+            else fpWorthOfDamageDealt.put(shipID, fpWorthOfDamageDealt.get(shipID) + fpWorthOfDamage);
         }
     }
 
-    public static void collectRealSnapshotInfoIfNeeded() {
+    public static void collectRealSnapshotInfoIfNeeded(CombatDamageData dd) {
         if(Global.getSector() == null || Global.getSector().getPlayerFleet() == null) return;
 
-        if(originalHullFractions.isEmpty()) {
+        if(damageData == null) {
+            damageData = dd;
+
             for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
                 originalHullFractions.put(ship.getId(), ship.getStatus().getHullFraction());
                 originalCaptains.put(ship.getId(), ship.getCaptain());
@@ -61,6 +64,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 reset();
                 return;
             }
+
+            compileDamageDealt();
 
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
 
@@ -85,9 +90,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 float xpToGuarantee = RepRecord.getXpToGuaranteeNewTrait(ship);
                 float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
                         * Global.getSector().getPlayerStats().getLevel();
-                rc.damageTakenFraction = originalHullFractions.get(ship.getId()) - ship.getStatus().getHullFraction();
-                rc.damageDealtPercent = fpWorthOfDamageDealt.containsKey(ship)
-                        ? fpWorthOfDamageDealt.get(ship) / Math.max(1, ship.getDeploymentCostSupplies())
+                rc.damageTakenFraction = rc.deployed
+                        ? Math.max(0, originalHullFractions.get(ship.getId()) - ship.getStatus().getHullFraction())
+                        : 0;
+                rc.damageDealtPercent = fpWorthOfDamageDealt.containsKey(ship.getId()) && rc.deployed
+                        ? Math.max(0, fpWorthOfDamageDealt.get(ship.getId()) / Math.max(1, ship.getDeploymentCostSupplies()))
                         : 0;
                 float xp = rc.deployed ? xpEarned : Math.min(xpEarned, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
                 float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
@@ -125,7 +132,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 } else {
                     msg += "FAILED";
 
-                    float shuffleChance = Math.abs(bonusChance - 0.5f);
+                    float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER;
 
                     if(shuffleChance > 0.05f && RepRecord.existsFor(ship) && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f);
@@ -240,7 +247,52 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         return null;
     }
 
+    void compileDamageDealt() {
+        Set<String> playerShips = new HashSet<>();
+        for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            playerShips.add(ship.getId());
+        }
+
+        for (Map.Entry<FleetMemberAPI, CombatDamageData.DealtByFleetMember> e : damageData.getDealt().entrySet()) {
+
+            String sourceID = e.getKey().isFighterWing() && wingSourceMap.containsKey(e.getKey().getId())
+                    ? wingSourceMap.get(e.getKey().getId())
+                    : e.getKey().getId();
+
+            Global.getLogger(this.getClass()).info("Recording damage for " + e.getKey().getHullId() + " from " + sourceID + " " + wingSourceMap.containsKey(e.getKey().getId()) + " - " + e.getKey().getId());
+
+            if (playerShips.contains(sourceID)) {
+                CampaignScript.recordDamage(sourceID, getFpWorthOfDamageDealt(e.getValue()));
+            }
+        }
+    }
+
+    float getFpWorthOfDamageDealt(CombatDamageData.DealtByFleetMember dmgBy) {
+        if(dmgBy == null || dmgBy.getDamage().isEmpty()) return 0;
+
+        float acc = 0;
+
+        for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : dmgBy.getDamage().entrySet()) {
+            FleetMemberAPI target = e.getKey();
+            float dmg = e.getValue().hullDamage;
+            float hp = target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
+
+            if(target.isAlly() || target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1)
+                continue;
+
+            String msg = dmgBy.getMember().getHullId() + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId();
+            Global.getLogger(this.getClass()).info(msg);
+
+            acc += (dmg / hp) * target.getDeploymentCostSupplies();
+        }
+
+        Global.getLogger(this.getClass()).info("Total FP worth of damage: " + acc);
+
+        return acc;
+    }
+
     void reset() {
+        damageData = null;
         playerFP = 0;
         enemyFP = 0;
         originalHullFractions.clear();
@@ -318,18 +370,18 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         try {
             int day = Global.getSector().getClock().getDay();
 
-            for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
+            for (FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
                 if (ship.isMothballed() && RepRecord.existsFor(ship)) {
                     if (!dayMothballed.val.containsKey(ship.getId())) {
-                        log("Mothballed");
+                        //log("Mothballed");
                         dayMothballed.val.put(ship.getId(), day);
                     } else if (day > dayMothballed.val.get(ship.getId()) + ModPlugin.DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION * RepRecord.get(ship).getTraits().size()) {
-                        log("Reputation removed");
+                        //log("Reputation removed");
                         dayMothballed.val.remove(ship.getId());
                         RepRecord.deleteFor(ship);
                     }
                 } else if (dayMothballed.val.containsKey(ship.getId())) {
-                    log("No longer mothballed");
+                    //log("No longer mothballed");
                     dayMothballed.val.remove(ship.getId());
                 }
             }

@@ -5,57 +5,66 @@ import com.fs.starfarer.api.campaign.CombatDamageData;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
-import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.combat.CombatEngine;
+import com.fs.starfarer.combat.CombatFleetManager;
 
 import java.util.*;
 
 public class CombatPlugin implements EveryFrameCombatPlugin {
     boolean damageHasBeenLogged = false;
 
-    float getFpWorthOfDamageDealt(CombatDamageData.DealtByFleetMember dmgBy) {
-        if(dmgBy == null || dmgBy.getDamage().isEmpty()) return 0;
-
-        float acc = 0;
-
-        for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : dmgBy.getDamage().entrySet()) {
-            FleetMemberAPI target = e.getKey();
-            float dmg = e.getValue().hullDamage;
-            float hp = target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
-
-            if(target.isAlly() || target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1)
-                continue;
-
-            //String msg = name + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId();
-            //Global.getLogger(this.getClass()).info(msg);
-            //Global.getCombatEngine().getCombatUI().addMessage(1, Misc.getTextColor(), msg);
-
-            acc += (dmg / hp) * target.getDeploymentCostSupplies();
-        }
-
-        return acc;
-    }
+    int tick = 0;
 
     @Override
     public void advance(float amount, List<InputEventAPI> events) {
-        CampaignScript.collectRealSnapshotInfoIfNeeded();
+        try {
+            CombatEngineAPI engine = Global.getCombatEngine();
 
-        CombatEngineAPI engine = Global.getCombatEngine();
+            if (engine == null || !engine.isInCampaign() || Global.getSector() == null || Global.getSector().getPlayerFleet() == null)
+                return;
 
-        if(!damageHasBeenLogged && engine != null && engine.isCombatOver() && Global.getCombatEngine().isInCampaign()
-                && Global.getSector() != null && Global.getSector().getPlayerFleet() != null) {
+            CampaignScript.collectRealSnapshotInfoIfNeeded(engine.getDamageData());
 
-            Set<FleetMemberAPI> playerShips = new HashSet<>(Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy());
 
-            for(Map.Entry<FleetMemberAPI, CombatDamageData.DealtByFleetMember> e : Global.getCombatEngine().getDamageData().getDealt().entrySet()) {
-                if(playerShips.contains(e.getValue().getMember())) {
-                    CampaignScript.recordDamage(e.getValue().getMember(), getFpWorthOfDamageDealt(e.getValue()));
+            if (tick++ % 300 == 0) {
+                for (ShipAPI ship : engine.getShips()) {
+                    FleetMemberAPI fm = getFleetMember(ship);
+
+                    if (!ship.isFighter() || ship.getWing() == null || fm == null) continue;
+
+                    String key = fm.getId();
+
+                    if (!CampaignScript.wingSourceMap.containsKey(key)) {
+                        Global.getLogger(this.getClass()).info(ship.getHullSpec().getHullId() + " - " + key + " - " + ship.getWing().getSourceShip().getFleetMemberId());
+                        CampaignScript.wingSourceMap.put(key, ship.getWing().getSourceShip().getFleetMemberId());
+                    }
                 }
+
             }
 
-            damageHasBeenLogged = true;
-        }
-
+//            if (!damageHasBeenLogged && damageData.isCombatOver()) {
+//
+//                Set<String> playerShips = new HashSet<>();
+//                for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+//                    playerShips.add(ship.getId());
+//                }
+//
+//                for (Map.Entry<FleetMemberAPI, CombatDamageData.DealtByFleetMember> e : damageData.getDamageData().getDealt().entrySet()) {
+//
+//                    String sourceID = e.getKey().isFighterWing() && wingSourceMap.containsKey(e.getKey().getId())
+//                            ? wingSourceMap.get(e.getKey().getId())
+//                            : e.getKey().getId();
+//
+//                    Global.getLogger(this.getClass()).info("Recording damage for " + e.getKey().getHullId() + " from " + sourceID + " " + wingSourceMap.containsKey(e.getKey().getId()) + " - " + e.getKey().getId());
+//
+//                    if (playerShips.contains(sourceID)) {
+//                        CampaignScript.recordDamage(sourceID, getFpWorthOfDamageDealt(e.getValue()));
+//                    }
+//                }
+//
+//                damageHasBeenLogged = true;
+//            }
+        } catch (Exception e) { ModPlugin.reportCrash(e); }
 //
 //        projectilesThatHitThisFrame.clear();
 ////null).getDamageTo(null).hullDamage;
@@ -86,6 +95,22 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 //        }
     }
 
+    public FleetMemberAPI getFleetMember(ShipAPI ship) {
+        FleetMemberAPI fleetMember = null;
+
+        CombatFleetManager manager = CombatEngine.getInstance().getFleetManager(ship.getOriginalOwner());
+        if (manager != null && manager.getDeployedFleetMemberEvenIfDisabled(ship) != null) {
+            fleetMember = manager.getDeployedFleetMemberEvenIfDisabled(ship).getMember();
+            if (fleetMember != null) {
+                if (ship.getOriginalOwner() == 0) {
+                    fleetMember.setOwner(0);
+                } else if (ship.getOriginalOwner() == 1) {
+                    fleetMember.setOwner(1);
+                }
+            }
+        }
+        return fleetMember;
+    }
 
 //    static Map<ShipAPI, Float> hullLevelLastFrame = new HashMap<>();
 //

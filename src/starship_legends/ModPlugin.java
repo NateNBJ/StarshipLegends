@@ -3,13 +3,16 @@ package starship_legends;
 import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Set;
 
 public class ModPlugin extends BaseModPlugin {
@@ -47,6 +50,7 @@ public class ModPlugin extends BaseModPlugin {
             BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER = 0.25f,
             BONUS_CHANCE_DAMAGE_DEALT_MIN_THRESHOLD = 1.0f,
             BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER = 1.0f,
+                    TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER = 1.0f,
 
             IMPROVE_LOYALTY_CHANCE_MULTIPLIER = 1.0f,
             WORSEN_LOYALTY_CHANCE_MULTIPLIER = 1.0f;
@@ -91,6 +95,16 @@ public class ModPlugin extends BaseModPlugin {
                 Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
             }
 
+            // Remove RepRecords with no traits
+            try {
+                for(FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
+                    if(!RepRecord.existsFor(ship) || RepRecord.get(ship).getTraits().isEmpty()) {
+                        RepRecord.deleteFor(ship);
+                    }
+                }
+            } catch (Exception e) {
+                Global.getLogger(this.getClass()).info("Failed to remove RepRecords without traits!");
+            }
 
             // Compile existing RepChanges into a battle report
             try {
@@ -169,6 +183,7 @@ public class ModPlugin extends BaseModPlugin {
             BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER = (float) cfg.getDouble("bonusChanceDamageDealtMultiplier");
             BONUS_CHANCE_DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("bonusChanceDamageDealtMinThreshold");
             BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER = (float) cfg.getDouble("bonusChanceForReservedShipsMultiplier");
+            TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER = (float) cfg.getDouble("traitPositionChangeChanceMultiplier");
 
             IMPROVE_LOYALTY_CHANCE_MULTIPLIER = (float) cfg.getDouble("improveLoyaltyChanceMultiplier");
             WORSEN_LOYALTY_CHANCE_MULTIPLIER = (float) cfg.getDouble("worsenLoyaltyChanceMultiplier");
