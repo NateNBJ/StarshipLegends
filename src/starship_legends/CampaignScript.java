@@ -60,7 +60,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportBattleOccurred(CampaignFleetAPI primaryWinner, BattleAPI battle) {
         try {
-            if (!battle.isPlayerInvolved()) {
+            if (!battle.isPlayerInvolved() || damageData == null) {
                 reset();
                 return;
             }
@@ -248,7 +248,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     }
 
     void compileDamageDealt() {
+        if(damageData == null || damageData.getDealt() == null) return;
+
         Set<String> playerShips = new HashSet<>();
+
         for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
             playerShips.add(ship.getId());
         }

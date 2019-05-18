@@ -13,6 +13,7 @@ public class Saved<T> {
             Global.getSector().getPersistentData().put(saved.key, saved.val);
         }
     }
+
     static void loadPersistentData() {
         for(Saved saved : instanceRegistry.values()) {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
