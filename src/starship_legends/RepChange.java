@@ -25,12 +25,12 @@ public class RepChange {
     public LoyaltyLevel getLoyaltyLevel() {
         return loyaltyLevel == Integer.MIN_VALUE && RepRecord.existsFor(ship)
                 ? RepRecord.get(ship).getLoyaltyLevel(captain)
-                : LoyaltyLevel.values()[loyaltyLevel];
+                : (loyaltyLevel == Integer.MIN_VALUE ? LoyaltyLevel.INDIFFERENT : LoyaltyLevel.values()[loyaltyLevel]);
     }
     public void setLoyaltyChange(int loyaltyChange) {
         captainOpinionChange = loyaltyChange;
 
-        if(RepRecord.existsFor(ship)) {
+        if(RepRecord.existsFor(ship) && captain != null && !captain.isDefault()) {
             loyaltyLevel = RepRecord.get(ship).getLoyaltyLevel(captain).ordinal() + loyaltyChange;
         }
     }
@@ -167,7 +167,7 @@ public class RepChange {
             LoyaltyLevel ll = getLoyaltyLevel();
             int llSign = (int)Math.signum(ll.getIndex());
             String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-            String merelyMaybe = (llSign != 0 && llSign != captainOpinionChange) ? "merely " : "";
+            String merelyMaybe = llSign != captainOpinionChange ? "merely " : "";
             String crewOrAI = ship.getMinCrew() > 0 ? "crew" : "AI persona";
             message = BaseIntelPlugin.BULLET + "The " + crewOrAI + " of the " + ship.getShipName() + " has %s "
                     + captain.getNameString().trim() + " and is now " + merelyMaybe + "%s.";

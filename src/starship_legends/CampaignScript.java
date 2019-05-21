@@ -27,31 +27,34 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     Set<FleetMemberAPI> deployedShips = new HashSet<>();
     Set<FleetMemberAPI> disabledShips = new HashSet<>();
 
-    static Map<String, Float> originalHullFractions = new HashMap<>();
+    static Map<String, Float> fractionDamageTaken = new HashMap<>();
     static Map<String, PersonAPI> originalCaptains = new HashMap<>();
     static Map<String, Float> fpWorthOfDamageDealt = new HashMap<>();
-    static Map<String, String> wingSourceMap = new HashMap<>();
-    static CombatDamageData damageData = null;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
     static Saved<Float> timeUntilNextChange = new Saved<>("timeUntilNextChange", AVG_TIME_BETWEEN_REP_CHANGES);
     static Saved<HashMap<String, Integer>> dayMothballed = new Saved<>("dayMothballed", new HashMap<String, Integer>());
 
-    public static void recordDamage(String shipID, float fpWorthOfDamage) {
+    public static void recordDamageDealt(String shipID, float fpWorthOfDamage) {
         if(fpWorthOfDamage > 0) {
             if (!fpWorthOfDamageDealt.containsKey(shipID)) fpWorthOfDamageDealt.put(shipID, fpWorthOfDamage);
             else fpWorthOfDamageDealt.put(shipID, fpWorthOfDamageDealt.get(shipID) + fpWorthOfDamage);
         }
     }
 
-    public static void collectRealSnapshotInfoIfNeeded(CombatDamageData dd) {
+    public static void recordDamageSustained(String shipID, float damageSustained) {
+        if(damageSustained > 0) {
+            if (!fractionDamageTaken.containsKey(shipID)) fractionDamageTaken.put(shipID, damageSustained);
+            else fractionDamageTaken.put(shipID, fractionDamageTaken.get(shipID) + damageSustained);
+        }
+    }
+
+    public static void collectRealSnapshotInfoIfNeeded() {
         if(Global.getSector() == null || Global.getSector().getPlayerFleet() == null) return;
 
-        if(damageData == null) {
-            damageData = dd;
-
+        if(originalCaptains.isEmpty()) {
             for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-                originalHullFractions.put(ship.getId(), ship.getStatus().getHullFraction());
+                //fractionDamageTaken.put(ship.getId(), ship.getStatus().getHullFraction());
                 originalCaptains.put(ship.getId(), ship.getCaptain());
             }
         }
@@ -60,12 +63,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportBattleOccurred(CampaignFleetAPI primaryWinner, BattleAPI battle) {
         try {
-            if (!battle.isPlayerInvolved() || damageData == null) {
+            if (!battle.isPlayerInvolved()) {
                 reset();
                 return;
             }
-
-            compileDamageDealt();
 
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
 
@@ -79,7 +80,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             BattleReport report = new BattleReport(difficulty, battle);
 
             for (FleetMemberAPI ship : pf.getMembersListCopy()) {
-                if (!originalHullFractions.containsKey(ship.getId()) || ship.isMothballed()) continue;
+                if (!originalCaptains.containsKey(ship.getId()) || ship.isMothballed()) continue;
 
                 PersonAPI captain = ship.getCaptain() == null || ship.getCaptain().isDefault()
                         ? originalCaptains.get(ship.getId())
@@ -90,14 +91,17 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 float xpToGuarantee = RepRecord.getXpToGuaranteeNewTrait(ship);
                 float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
                         * Global.getSector().getPlayerStats().getLevel();
-                rc.damageTakenFraction = rc.deployed
-                        ? Math.max(0, originalHullFractions.get(ship.getId()) - ship.getStatus().getHullFraction())
-                        : 0;
+                float xp = rc.deployed ? xpEarned : Math.min(xpEarned, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
+                float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
+
+                if(rc.disabled) rc.damageTakenFraction = 1;
+                else if(!rc.deployed || !fractionDamageTaken.containsKey(ship.getId())) rc.damageTakenFraction = 0;
+                //else rc.damageTakenFraction = Math.max(0, fractionDamageTaken.get(ship.getId()) - ship.getStatus().getHullFraction());
+                else rc.damageTakenFraction = fractionDamageTaken.get(ship.getId());
+
                 rc.damageDealtPercent = fpWorthOfDamageDealt.containsKey(ship.getId()) && rc.deployed
                         ? Math.max(0, fpWorthOfDamageDealt.get(ship.getId()) / Math.max(1, ship.getDeploymentCostSupplies()))
                         : 0;
-                float xp = rc.deployed ? xpEarned : Math.min(xpEarned, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
-                float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
 
                 if(!rc.deployed) traitChance *= ship.isCivilian()
                         ? ModPlugin.TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_CIVILIAN_SHIPS
@@ -134,7 +138,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER;
 
-                    if(shuffleChance > 0.05f && RepRecord.existsFor(ship) && !ModPlugin.IGNORE_ALL_MALUSES) {
+                    if(rc.deployed && shuffleChance > 0.05f && RepRecord.existsFor(ship) && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f);
                         RepRecord rep = RepRecord.get(ship);
 
@@ -155,6 +159,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     }
                 }
 
+                int loyaltyChange = 0;
+
                 if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && RepRecord.existsFor(ship) && captain != null
                         && !captain.isDefault()) {
 
@@ -167,15 +173,17 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULTIPLIER;
                         msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
-                        if(success) rc.setLoyaltyChange(1);
+                        if(success) loyaltyChange = 1;
                     } else if(loyaltyAdjustChance < 0.05f && !ll.isAtWorst()) {
                         loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
                         loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULTIPLIER;
                         msg += NEW_LINE + "Loyalty Reduction Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
-                        if(success) rc.setLoyaltyChange(-1);
+                        if(success) loyaltyChange = -1;
                     }
                 }
+
+                rc.setLoyaltyChange(loyaltyChange);
 
                 if(ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) log(msg);
 
@@ -247,58 +255,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         return null;
     }
 
-    void compileDamageDealt() {
-        if(damageData == null || damageData.getDealt() == null) return;
-
-        Set<String> playerShips = new HashSet<>();
-
-        for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-            playerShips.add(ship.getId());
-        }
-
-        for (Map.Entry<FleetMemberAPI, CombatDamageData.DealtByFleetMember> e : damageData.getDealt().entrySet()) {
-
-            String sourceID = e.getKey().isFighterWing() && wingSourceMap.containsKey(e.getKey().getId())
-                    ? wingSourceMap.get(e.getKey().getId())
-                    : e.getKey().getId();
-
-            Global.getLogger(this.getClass()).info("Recording damage for " + e.getKey().getHullId() + " from " + sourceID + " " + wingSourceMap.containsKey(e.getKey().getId()) + " - " + e.getKey().getId());
-
-            if (playerShips.contains(sourceID)) {
-                CampaignScript.recordDamage(sourceID, getFpWorthOfDamageDealt(e.getValue()));
-            }
-        }
-    }
-
-    float getFpWorthOfDamageDealt(CombatDamageData.DealtByFleetMember dmgBy) {
-        if(dmgBy == null || dmgBy.getDamage().isEmpty()) return 0;
-
-        float acc = 0;
-
-        for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : dmgBy.getDamage().entrySet()) {
-            FleetMemberAPI target = e.getKey();
-            float dmg = e.getValue().hullDamage;
-            float hp = target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
-
-            if(target.isAlly() || target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1)
-                continue;
-
-            String msg = dmgBy.getMember().getHullId() + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId();
-            Global.getLogger(this.getClass()).info(msg);
-
-            acc += (dmg / hp) * target.getDeploymentCostSupplies();
-        }
-
-        Global.getLogger(this.getClass()).info("Total FP worth of damage: " + acc);
-
-        return acc;
-    }
-
     void reset() {
-        damageData = null;
         playerFP = 0;
         enemyFP = 0;
-        originalHullFractions.clear();
+        fractionDamageTaken.clear();
         originalCaptains.clear();
         fpWorthOfDamageDealt.clear();
         deployedShips.clear();
