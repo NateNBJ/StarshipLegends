@@ -106,7 +106,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             msg = "Damage dealt by " + e.getKey().getHullId() + " (" + e.getKey().getOwner() + ")";
 
-            float dmg = getFpWorthOfDamageDealt(e.getValue());
+            float dmg = getFpWorthOfDamageDealt(e.getValue(), sourceID);
 
             if (playerShips.contains(sourceID)) CampaignScript.recordDamageDealt(sourceID, dmg);
 
@@ -114,7 +114,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
         }
     }
 
-    float getFpWorthOfDamageDealt(CombatDamageData.DealtByFleetMember dmgBy) {
+    float getFpWorthOfDamageDealt(CombatDamageData.DealtByFleetMember dmgBy, String sourceID) {
         if(dmgBy == null || dmgBy.getDamage().isEmpty()) return 0;
 
         float acc = 0;
@@ -131,7 +131,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if(playerShips.contains(target.getId())) CampaignScript.recordDamageSustained(target.getId(), dmg / hp);
 
-            if(playerShips.contains(dealer.getId()) && !playerShips.contains(target.getId()) && !target.isAlly()
+            if(playerShips.contains(sourceID) && !playerShips.contains(target.getId()) && !target.isAlly()
                     && dealer.getOwner() != target.getOwner()) {
 
                 acc += (dmg / hp) * target.getDeploymentCostSupplies();

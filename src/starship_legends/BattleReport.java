@@ -136,7 +136,6 @@ public class BattleReport extends BaseIntelPlugin {
                         Alignment.MID, loyaltyColor, loyalty,
                         Alignment.MID, traitColor, trait
                 );
-
             }
 
             e.addTable("", 0, 10);
