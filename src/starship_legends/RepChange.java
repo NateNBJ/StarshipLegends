@@ -19,7 +19,7 @@ public class RepChange {
     int captainOpinionChange, shuffleSign = 0, loyaltyLevel = Integer.MIN_VALUE;
     Trait trait;
 
-    float damageTakenFraction = 0, damageDealtPercent = 0;
+    float damageTakenFraction = 0, damageDealtPercent = 0, newRating = 0, ratingAdjustment = 0;
     boolean deployed, disabled;
 
     public LoyaltyLevel getLoyaltyLevel() {

@@ -77,7 +77,7 @@ public class Trait {
         public void init(JSONObject cfg) throws JSONException {
             JSONObject o = cfg.getJSONObject(name().toLowerCase());
             xpToGuaranteeNewTrait = Math.max(1, o.getLong("xpToGuaranteeNewTrait"));
-            effectMultiplier = (float) o.getDouble("effectMultiplier");
+            effectMultiplier = (float) o.getDouble("effectMult");
         }
     }
 

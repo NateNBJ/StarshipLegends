@@ -29,9 +29,9 @@ public class ModPlugin extends BaseModPlugin {
             SHOW_REPUTATION_CHANGE_NOTIFICATIONS = true,
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = true,
             ENABLE_OFFICER_LOYALTY_SYSTEM = true,
-            FORCE_BALANCED_TRAIT_GAIN = false,
             LOG_REPUTATION_CALCULATION_FACTORS = true,
-            COMPENSATE_FOR_EXPERIENCE_MULTIPLIER = true,
+            COMPENSATE_FOR_EXPERIENCE_MULT = true,
+            USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = false,
             IGNORE_ALL_MALUSES = false;
 
     public static int
@@ -39,21 +39,21 @@ public class ModPlugin extends BaseModPlugin {
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30;
     public static float
             MAX_XP_FOR_RESERVED_SHIPS = 80000,
-            TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
-            TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
+            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
+            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
 
-            BASE_CHANCE_TO_BE_BONUS = 0.5f,
+            BASE_RATING = 0.5f,
             BONUS_CHANCE_RANDOMNESS = 1.0f,
-            BONUS_CHANCE_BATTLE_DIFFICULTY_MULTIPLIER = 0.25f,
-            BONUS_CHANCE_DAMAGE_TAKEN_MULTIPLIER = 1.0f,
-            BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER = 0.25f,
-            BONUS_CHANCE_DAMAGE_DEALT_MIN_THRESHOLD = 1.0f,
-            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER = 1.0f,
-                    TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER = 1.0f,
+            BATTLE_DIFFICULTY_MULT = 0.25f,
+            DAMAGE_TAKEN_MULT = 1.0f,
+            DAMAGE_DEALT_MULT = 0.25f,
+            DAMAGE_DEALT_MIN_THRESHOLD = 1.0f,
+            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = 1.0f,
+            TRAIT_POSITION_CHANGE_CHANCE_MULT = 1.0f,
 
-            IMPROVE_LOYALTY_CHANCE_MULTIPLIER = 1.0f,
-            WORSEN_LOYALTY_CHANCE_MULTIPLIER = 1.0f;
+            IMPROVE_LOYALTY_CHANCE_MULT = 1.0f,
+            WORSEN_LOYALTY_CHANCE_MULT = 1.0f;
 
     CampaignScript script;
 
@@ -80,15 +80,36 @@ public class ModPlugin extends BaseModPlugin {
 
             readSettingsIfNecessary();
 
+            boolean allRepRecordsHaveNoRating = true;
+
             // Remove existing duplicate traits
             try {
                 for(RepRecord rep : RepRecord.INSTANCE_REGISTRY.val.values()) {
                     Set<TraitType> found = new HashSet<>();
 
+                    if(rep.getRating() != 0) allRepRecordsHaveNoRating = false;
+
                     for (Trait t : new ArrayList<>(rep.getTraits())) {
                         if (found.contains(t.getType()) || t.getName(true).isEmpty()) {
                             rep.getTraits().remove(t);
                         } else found.add(t.getType());
+                    }
+                }
+            } catch (Exception e) {
+                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+            }
+
+            // If no ships have ratings, estimate them
+            try {
+                if(allRepRecordsHaveNoRating) {
+                    for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
+                        if (!ship.getHullSpec().isCivilianNonCarrier() && RepRecord.existsFor(ship)) {
+                            RepRecord rep = RepRecord.get(ship);
+                            float progress = rep.getTraits().size() / (float) Trait.getTraitLimit();
+
+                            rep.adjustRatingToward(RepRecord.INITIAL_RATING * (1f - progress)
+                                    + rep.getFractionOfBonusEffectFromTraits() * progress, 1);
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -160,33 +181,33 @@ public class ModPlugin extends BaseModPlugin {
             Trait.Teir.Famous.init(cfg);
             Trait.Teir.Legendary.init(cfg);
 
-            //SHOW_REPUTATION_CHANGE_NOTIFICATIONS = cfg.getBoolean("showReputationChangeNotifications");
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = cfg.getBoolean("useRuthlessSectorToCalculateBattleDifficulty");
             ENABLE_OFFICER_LOYALTY_SYSTEM = cfg.getBoolean("enableOfficerLoyaltySystem");
             LOG_REPUTATION_CALCULATION_FACTORS = cfg.getBoolean("logReputationCalculationFactors");
-            //FORCE_BALANCED_TRAIT_GAIN = cfg.getBoolean("forceBalancedTraitGain");
-            COMPENSATE_FOR_EXPERIENCE_MULTIPLIER = cfg.getBoolean("compensateForExperienceMultiplier");
+            COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
             IGNORE_ALL_MALUSES = cfg.getBoolean("ignoreAllMaluses");
 
             TRAITS_PER_TIER = cfg.getInt("traitsPerTier");
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = cfg.getInt("daysMothballedPerTraitToResetReputation");
 
-            TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultiplierForReservedCombatShips");
-            TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultiplierForReservedCivilianShips");
+            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCombatShips");
+            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCivilianShips");
             MAX_XP_FOR_RESERVED_SHIPS = (float) cfg.getDouble("maxXpForReservedShips");
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("traitChanceBonusPerPlayerLevel");
 
-            BASE_CHANCE_TO_BE_BONUS = (float) cfg.getDouble("baseChanceToBeBonus");
-            BONUS_CHANCE_RANDOMNESS = (float) cfg.getDouble("bonusChanceRandomness");
-            BONUS_CHANCE_BATTLE_DIFFICULTY_MULTIPLIER = (float) cfg.getDouble("bonusChanceBattleDifficultyMultiplier");
-            BONUS_CHANCE_DAMAGE_TAKEN_MULTIPLIER = (float) cfg.getDouble("bonusChanceDamageTakenMultiplier");
-            BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER = (float) cfg.getDouble("bonusChanceDamageDealtMultiplier");
-            BONUS_CHANCE_DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("bonusChanceDamageDealtMinThreshold");
-            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER = (float) cfg.getDouble("bonusChanceForReservedShipsMultiplier");
-            TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER = (float) cfg.getDouble("traitPositionChangeChanceMultiplier");
+            BASE_RATING = (float) cfg.getDouble("baseRating");
+            BATTLE_DIFFICULTY_MULT = (float) cfg.getDouble("battleDifficultyMult");
+            DAMAGE_TAKEN_MULT = (float) cfg.getDouble("damageTakenMult");
+            DAMAGE_DEALT_MULT = (float) cfg.getDouble("damageDealtMult");
+            DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("damageDealtMinThreshold");
 
-            IMPROVE_LOYALTY_CHANCE_MULTIPLIER = (float) cfg.getDouble("improveLoyaltyChanceMultiplier");
-            WORSEN_LOYALTY_CHANCE_MULTIPLIER = (float) cfg.getDouble("worsenLoyaltyChanceMultiplier");
+            BONUS_CHANCE_RANDOMNESS = (float) cfg.getDouble("bonusChanceRandomness");
+            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = (float) cfg.getDouble("bonusChanceForReservedShipsMult");
+            TRAIT_POSITION_CHANGE_CHANCE_MULT = (float) cfg.getDouble("traitPositionChangeChanceMult");
+            USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = cfg.getBoolean("useRatingFromLastBattleAsBasisForBonusChance");
+
+            IMPROVE_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("improveLoyaltyChanceMult");
+            WORSEN_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("worsenLoyaltyChanceMult");
 
 
             return settingsAreRead = true;

@@ -10,6 +10,7 @@ import java.util.*;
 
 public class RepRecord {
     static final Saved<Map<String, RepRecord>> INSTANCE_REGISTRY = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
+    static final float INITIAL_RATING = 0.5f;
 
     public static boolean existsFor(String shipID) { return INSTANCE_REGISTRY.val.containsKey(shipID); }
     public static boolean existsFor(ShipAPI ship) { return existsFor(ship.getFleetMemberId()); }
@@ -29,7 +30,7 @@ public class RepRecord {
         v.removePermaMod("sun_sl_legendary");
 
     }
-    public static Trait.Teir getTeirFromTraitCount(int count) {
+    public static Trait.Teir getTierFromTraitCount(int count) {
         if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Legendary;
         if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Famous;
         if(count > 1 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Wellknown;
@@ -39,6 +40,7 @@ public class RepRecord {
 
     private List<Trait> traits = new ArrayList<>();
     private Map<String, Integer> opinionsOfOfficers = new HashMap<>();
+    private float rating = INITIAL_RATING;
 
     public RepRecord(FleetMemberAPI ship) {
         INSTANCE_REGISTRY.val.put(ship.getId(), this);
@@ -70,7 +72,33 @@ public class RepRecord {
 
     public List<Trait> getTraits() { return traits; }
 
-    public Trait.Teir getTeir() { return getTeirFromTraitCount(traits.size()); }
+    public Trait.Teir getTeir() { return getTierFromTraitCount(traits.size()); }
+
+    public float getRating() {
+        return rating;
+    }
+
+    public float getFractionOfBonusEffectFromTraits() {
+        int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
+        float goodness = 0, total = 0;
+
+        for(Trait trait : getTraits()) {
+            if (traitsLeft <= 0) break;
+
+            float effect = getTierFromTraitCount(traitsLeft--).getEffectMultiplier();
+
+            total += effect;
+
+            if(trait.effectSign > 0) goodness += effect;
+        }
+
+        return total <= 0 ? INITIAL_RATING : goodness / total;
+    }
+
+    public void adjustRatingToward(float adjustmentRating, float adjustmentWeight) {
+        adjustmentRating = Math.max(-1, Math.min(2, adjustmentRating));
+        rating = Math.max(-0.001f, Math.min(1.001f, rating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
+    }
 
     public float getLoyaltyBonus(PersonAPI captain) {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
@@ -84,7 +112,7 @@ public class RepRecord {
             traitsLeft--;
 
             if(trait.getType().equals("loyalty")) {
-                return trait.getEffect(RepRecord.getTeirFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, null) * 0.01f;
+                return trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, null) * 0.01f;
             }
         }
 
@@ -99,6 +127,6 @@ public class RepRecord {
 
         for (RepChange c : CampaignScript.pendingRepChanges.val) if(c.ship == ship && c.trait != null) increase++;
 
-        return getTeirFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
+        return getTierFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
     }
 }

@@ -9,7 +9,6 @@ import com.fs.starfarer.api.mission.FleetSide;
 import com.fs.starfarer.combat.CombatEngine;
 import com.fs.starfarer.combat.CombatFleetManager;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -17,7 +16,11 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     boolean damageHasBeenLogged = false, isFirstFrame = true;
 
     int tick = 0;
-    Map<String, String> wingSourceMap = new HashMap<>();
+    Map<String, String> wingSourceMap = new HashMap<>(), sectionSourceMap = new HashMap<>();
+    Map<String, Float> stationHpSums = new HashMap<>();
+    Map<String, Float> stationDeployCosts = new HashMap<>();
+//    Map<String, Float> hpHighs = new HashMap<>();
+//    Map<String, Float> hpLows = new HashMap<>();
     Set<String> playerShips = new HashSet<>();
     String msg = "";
 
@@ -45,52 +48,46 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                 for (ShipAPI ship : engine.getShips()) {
                     FleetMemberAPI fm = getFleetMember(ship);
 
-                    if (!ship.isFighter() || ship.getWing() == null || fm == null) continue;
+                    if(fm == null) continue;
 
                     String key = fm.getId();
 
-                    if (!wingSourceMap.containsKey(key)) {
-                        Global.getLogger(this.getClass()).info(ship.getHullSpec().getHullId() + " - " + key + " - " + ship.getWing().getSourceShip().getFleetMemberId());
-                        wingSourceMap.put(key, ship.getWing().getSourceShip().getFleetMemberId());
+//                    if(ship.getOriginalOwner() == 0) {
+//                        float hp = ship.getHullLevel();
+//
+//                        if(!hpLows.containsKey(key) || hpLows.get(key) > hp) hpLows.put(key, hp);
+//                        if(!hpHighs.containsKey(key) || hpHighs.get(key) < hp) hpHighs.put(key, hp);
+//                    }
+
+                    if (ship.isFighter() && ship.getWing() != null && !wingSourceMap.containsKey(key)) {
+                        ShipAPI source = ship.getWing().getSourceShip();
+
+                        if(source.getParentStation() != null) source = source.getParentStation();
+
+                        //Global.getLogger(this.getClass()).info("Wing found: " + ship.getHullSpec().getHullId() + " - " + key + " - " + source.getFleetMemberId());
+
+                        wingSourceMap.put(key, source.getFleetMemberId());
+                    } else if(ship.getParentStation() != null && !sectionSourceMap.containsKey(key)) {
+                        //Global.getLogger(this.getClass()).info("Section found: " + ship.getHullSpec().getHullId() + " - " + Math.max(fm.getFleetPointCost(), fm.getDeploymentCostSupplies()) + " - " + ship.getParentStation().getFleetMemberId());
+
+                        sectionSourceMap.put(key, ship.getParentStation().getFleetMemberId());
+
+                        key = ship.getParentStation().getFleetMemberId();
+                        fm = getFleetMember(ship.getParentStation());
+
+                        stationHpSums.put(key, ship.getMaxHitpoints() + (stationHpSums.containsKey(key) ? stationHpSums.get(key) : 0));
+                        stationDeployCosts.put(key, Math.max(fm.getFleetPointCost(), fm.getDeploymentCostSupplies()));
                     }
                 }
 
             }
 
-            if (!damageHasBeenLogged && isEnemyInFullRetreat2()) {
+            if (!damageHasBeenLogged && (engine.isCombatOver() || isEnemyInFullRetreat2())) {
                 compileDamageDealt();
 
                 damageHasBeenLogged = true;
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
-//
-//        projectilesThatHitThisFrame.clear();
-////null).getDamageTo(null).hullDamage;
-//        for(DamagingProjectileAPI proj : Global.getCombatEngine().getProjectiles()) {
-//            if(proj.didDamage()) projectilesThatHitThisFrame.add(proj);
-//        }
-//
-//        for(ShipAPI ship : Global.getCombatEngine().getShips()) {
-//            float hullDmg = hullLevelLastFrame.containsKey(ship) ? hullLevelLastFrame.get(ship) - ship.getHullLevel() : 0;
-//
-//            if(hullDmg > 0 && !ship.isFighter()) {
-//                for(DamagingProjectileAPI proj : projectilesThatHitThisFrame) {
-//                    if(proj.getDamageTarget() == ship) {
-//                        CombatDamageData.DealtByFleetMember d = Global.getCombatEngine().getDamageData().getDealtBy(Global.getSector().getPlayerFleet().getFlagship());
-//
-//                        float dmg = 0;
-//
-//                        for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : d.getDamage().entrySet()) {
-//                            dmg += e.getValue().hullDamage;
-//                        }
-//
-//                        Global.getCombatEngine().getCombatUI().addMessage(1, Misc.getTextColor(), "" + dmg);
-//                    }
-//                }
-//            }
-//
-//            hullLevelLastFrame.put(ship, ship.getHullLevel());
-//        }
     }
 
     void compileDamageDealt() {
@@ -100,9 +97,15 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
         for (Map.Entry<FleetMemberAPI, CombatDamageData.DealtByFleetMember> e : damageData.getDealt().entrySet()) {
 
-            String sourceID = e.getKey().isFighterWing() && wingSourceMap.containsKey(e.getKey().getId())
-                    ? wingSourceMap.get(e.getKey().getId())
-                    : e.getKey().getId();
+            String sourceID;
+
+            if(sectionSourceMap.containsKey(e.getKey().getId())) {
+                sourceID = sectionSourceMap.get(e.getKey().getId());
+            } else if(e.getKey().isFighterWing() && wingSourceMap.containsKey(e.getKey().getId())) {
+                sourceID = wingSourceMap.get(e.getKey().getId());
+            } else {
+                sourceID = e.getKey().getId();
+            }
 
             msg = "Damage dealt by " + e.getKey().getHullId() + " (" + e.getKey().getOwner() + ")";
 
@@ -122,19 +125,26 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
         for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : dmgBy.getDamage().entrySet()) {
             FleetMemberAPI target = e.getKey();
+            String targetID = sectionSourceMap.containsKey(target.getId())
+                    ? sectionSourceMap.get(target.getId())
+                    : target.getId();
             float dmg = e.getValue().hullDamage;
-            float hp = target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
+            float hp = sectionSourceMap.containsKey(target.getId())
+                    ? stationHpSums.get(targetID)
+                    : target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
 
             if(target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1) continue;
 
-            msg += "\r      " +  dealer.getHullId() + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
+            msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
 
-            if(playerShips.contains(target.getId())) CampaignScript.recordDamageSustained(target.getId(), dmg / hp);
+            if(playerShips.contains(targetID)) CampaignScript.recordDamageSustained(targetID, dmg / hp);
 
-            if(playerShips.contains(sourceID) && !playerShips.contains(target.getId()) && !target.isAlly()
+            if(playerShips.contains(sourceID) && !playerShips.contains(targetID) && !target.isAlly()
                     && dealer.getOwner() != target.getOwner()) {
 
-                acc += (dmg / hp) * target.getDeploymentCostSupplies();
+                acc += (dmg / hp) * (stationDeployCosts.containsKey(targetID)
+                        ? stationDeployCosts.get(targetID)
+                        : target.getDeploymentCostSupplies());
             }
         }
 

@@ -1,15 +1,12 @@
 package starship_legends.hullmods;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.CargoAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.BaseHullMod;
 import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
-import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.*;
@@ -65,7 +62,7 @@ public class Reputation extends BaseHullMod {
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
-                float e = trait.getEffect(RepRecord.getTeirFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size);
+                float e = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size);
 
                 if(isFighter) {
                     switch (trait.getTypeId()) {
@@ -263,7 +260,9 @@ public class Reputation extends BaseHullMod {
 
     @Override
     public String getDescriptionParam(int index, ShipAPI.HullSize hullSize, ShipAPI ship) {
-        return ship.getName();
+        return index == 1 && RepRecord.existsFor(ship)
+                ? (int)(RepRecord.get(ship).getRating() * 100) + "%"
+                : ship.getName();
     }
 
     @Override
@@ -279,7 +278,15 @@ public class Reputation extends BaseHullMod {
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = ship.getMutableStats().getMinCrewMod().computeEffective(ship.getHullSpec().getMinCrew()) > 0;
 
-            tooltip.addPara(RepRecord.getTeirFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,
+            if(!ship.getHullSpec().isCivilianNonCarrier()) {
+                tooltip.addPara("It has a rating of %s on the Evans-Zhao combat performance scale.", 10,
+                        Misc.getHighlightColor(), (int) (rep.getRating() * 100f) + "%");
+
+                tooltip.addPara("getFractionOfBonusEffectFromTraits: %s.", 10,
+                        Misc.getHighlightColor(), (int) (rep.getFractionOfBonusEffectFromTraits() * 100f) + "%");
+            }
+
+            tooltip.addPara(RepRecord.getTierFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,
                     Misc.getGrayColor(), Misc.getGrayColor(), ship.getName());
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && !ship.getCaptain().isDefault()) {
@@ -305,7 +312,7 @@ public class Reputation extends BaseHullMod {
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
-                Trait.Teir teir = RepRecord.getTeirFromTraitCount(traitsLeft--);
+                Trait.Teir teir = RepRecord.getTierFromTraitCount(traitsLeft--);
 
                 if(teir != previousTeir) {
                     tooltip.addPara("%s traits:", 10, Color.WHITE, teir.getDisplayName());

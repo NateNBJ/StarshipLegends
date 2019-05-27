@@ -83,18 +83,23 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addPara("Difficulty rating: %s", 10, Misc.getTextColor(), difficultyColor, (int) (battleDifficulty * 100) + "%");
 
-            e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.16f * w, "Class", 0.14f * w,
-                    "Status", 0.10f * w, dmgMaybe + "Sustained", 0.14f * w, dmgMaybe + "Inflicted", 0.14f * w,
-                    "Loyalty", 0.14f * w, "Reputation", 0.18f * w);
+            e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.15f * w, "Class", 0.14f * w,
+                    "Status", 0.10f * w, dmgMaybe + "Sustained", 0.12f * w, dmgMaybe + "Inflicted", 0.12f * w,
+                    "Rating", 0.08f * w, "Loyalty", 0.12f * w, "Reputation", 0.17f * w);
 
             for (RepChange rc : changes) {
                 String trait, status = rc.disabled ? "disabled" : (rc.deployed ? "deployed" : "reserved"),
-                        loyalty = rc.captain != null && !rc.captain.isDefault()
-                                ? rc.getLoyaltyLevel().getName()
-                                : "-";
+                        loyalty = rc.captain != null && !rc.captain.isDefault() ? rc.getLoyaltyLevel().getName() : "-",
+                        rating = rc.ship.getHullSpec ().isCivilianNonCarrier() || !RepRecord.existsFor(rc.ship) ? "-"
+                                : (int)rc.newRating + "%";
+
+                if(rc.ratingAdjustment > 0.1f) rating += " (+" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
+                else if(rc.ratingAdjustment < -0.1f) rating += " (" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
+
                 Color statusColor = rc.disabled ? Misc.getNegativeHighlightColor() : (rc.deployed ? Misc.getTextColor() : Misc.getGrayColor()),
                         takenColor = rc.damageTakenFraction == 0 ? Misc.getGrayColor() : (rc.damageTakenFraction > 0.25 ? Misc.getNegativeHighlightColor() : Misc.getTextColor()),
                         dealtColor = rc.damageDealtPercent == 0 ? Misc.getGrayColor() : (rc.damageDealtPercent > 1 ? Misc.getPositiveHighlightColor() : Misc.getTextColor()),
+                        ratingColor = Math.abs(rc.ratingAdjustment) < 0.1f ? Misc.getGrayColor() : (rc.ratingAdjustment > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor()),
                         loyaltyColor, traitColor;
 
                 if (rc.trait == null) {
@@ -133,6 +138,7 @@ public class BattleReport extends BaseIntelPlugin {
                         Alignment.MID, statusColor, status,
                         Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
                         Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
+                        Alignment.MID, ratingColor, rating,
                         Alignment.MID, loyaltyColor, loyalty,
                         Alignment.MID, traitColor, trait
                 );
@@ -140,7 +146,7 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addTable("", 0, 10);
             e.addPara("", 0);
-            e.addSectionHeading(" Notes", Alignment.LMID, 10);
+            if(!changes.isEmpty()) e.addSectionHeading(" Notes", Alignment.LMID, 10);
 
             inner.addUIElement(e);
 

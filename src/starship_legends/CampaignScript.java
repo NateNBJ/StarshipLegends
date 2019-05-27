@@ -44,8 +44,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public static void recordDamageSustained(String shipID, float damageSustained) {
         if(damageSustained > 0) {
-            if (!fractionDamageTaken.containsKey(shipID)) fractionDamageTaken.put(shipID, damageSustained);
-            else fractionDamageTaken.put(shipID, fractionDamageTaken.get(shipID) + damageSustained);
+            if (!fractionDamageTaken.containsKey(shipID)) Math.min(1, fractionDamageTaken.put(shipID, damageSustained));
+            else fractionDamageTaken.put(shipID, Math.min(1, fractionDamageTaken.get(shipID) + damageSustained));
         }
     }
 
@@ -70,13 +70,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
 
-            if(ModPlugin.COMPENSATE_FOR_EXPERIENCE_MULTIPLIER) xpEarned /= Global.getSettings().getFloat("xpGainMult");
+            if(ModPlugin.COMPENSATE_FOR_EXPERIENCE_MULT) xpEarned /= Global.getSettings().getFloat("xpGainMult");
 
             Random rand = new Random();
             FleetDataAPI pf = Global.getSector().getPlayerFleet().getFleetData();
             float difficulty = Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
+                        && ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle() > 0
                     ? (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle()
-                    : enemyFP / playerFP;
+                    : (playerFP > 1 ? enemyFP / playerFP : 1);
             BattleReport report = new BattleReport(difficulty, battle);
 
             for (FleetMemberAPI ship : pf.getMembersListCopy()) {
@@ -96,32 +97,54 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if(rc.disabled) rc.damageTakenFraction = 1;
                 else if(!rc.deployed || !fractionDamageTaken.containsKey(ship.getId())) rc.damageTakenFraction = 0;
-                //else rc.damageTakenFraction = Math.max(0, fractionDamageTaken.get(ship.getId()) - ship.getStatus().getHullFraction());
                 else rc.damageTakenFraction = fractionDamageTaken.get(ship.getId());
 
                 rc.damageDealtPercent = fpWorthOfDamageDealt.containsKey(ship.getId()) && rc.deployed
                         ? Math.max(0, fpWorthOfDamageDealt.get(ship.getId()) / Math.max(1, ship.getDeploymentCostSupplies()))
                         : 0;
 
-                if(!rc.deployed) traitChance *= ship.isCivilian()
-                        ? ModPlugin.TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_CIVILIAN_SHIPS
-                        : ModPlugin.TRAIT_CHANCE_MULTIPLIER_FOR_RESERVED_COMBAT_SHIPS;
+                if(!rc.deployed) traitChance *= ship.getHullSpec().isCivilianNonCarrier()
+                        ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
+                        : ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS;
 
-                float bonusChance = ModPlugin.BASE_CHANCE_TO_BE_BONUS;
+                float bonusChance, battleRating = ModPlugin.BASE_RATING;
 
                 if(rc.deployed) {
-                    bonusChance = bonusChance
-                            + difficulty * ModPlugin.BONUS_CHANCE_BATTLE_DIFFICULTY_MULTIPLIER
-                            - rc.damageTakenFraction * ModPlugin.BONUS_CHANCE_DAMAGE_TAKEN_MULTIPLIER
-                            + Math.max(0, rc.damageDealtPercent - ModPlugin.BONUS_CHANCE_DAMAGE_DEALT_MIN_THRESHOLD) * ModPlugin.BONUS_CHANCE_DAMAGE_DEALT_MULTIPLIER;
-                } else bonusChance *= ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULTIPLIER;
+                    battleRating += difficulty * ModPlugin.BATTLE_DIFFICULTY_MULT
+                            - rc.damageTakenFraction * ModPlugin.DAMAGE_TAKEN_MULT
+                            + Math.max(0, rc.damageDealtPercent - ModPlugin.DAMAGE_DEALT_MIN_THRESHOLD) * ModPlugin.DAMAGE_DEALT_MULT;
+
+                    if(ship.getHullSpec().isCivilianNonCarrier()) {
+                        bonusChance = battleRating = ModPlugin.BASE_RATING;
+                    } else if(RepRecord.existsFor(ship)) {
+                        RepRecord rep = RepRecord.get(ship);
+                        float oldRating = rep.getRating();
+
+                        rep.adjustRatingToward(battleRating, 0.1f);
+
+                        rc.newRating = rep.getRating();
+                        rc.ratingAdjustment = rep.getRating() - oldRating;
+
+                        bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
+                                ? battleRating
+                                : 0.50f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
+                    } else {
+                        rc.newRating = ModPlugin.BASE_RATING * 0.9f + battleRating * 0.1f;
+
+                        bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
+                                ? battleRating
+                                : rc.newRating;
+                    }
+                } else {
+                    bonusChance = ModPlugin.BASE_RATING * ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT;
+                }
+
 
                 String msg = "Rolling reputation for " + ship.getShipName() + " (" + ship.getHullSpec().getHullName() + ")";
                 if(rc.deployed) msg += NEW_LINE + "Battle Difficulty: " + difficulty
                         + NEW_LINE + "Damage Taken: " + rc.damageTakenFraction + " of total hull lost"
                         + NEW_LINE + "Damage Dealt: " + rc.damageDealtPercent + " of own supply cost worth of damage"
                         + NEW_LINE + "Chance of Gaining New Trait: " + (int)(traitChance * 100) + "% - ";
-
 
                 if (rand.nextFloat() <= traitChance) {
                     boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) < bonusChance;
@@ -136,7 +159,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 } else {
                     msg += "FAILED";
 
-                    float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULTIPLIER;
+                    float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULT;
 
                     if(rc.deployed && shuffleChance > 0.05f && RepRecord.existsFor(ship) && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f);
@@ -166,17 +189,17 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     RepRecord rep = RepRecord.get(ship);
                     LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
-                    float loyaltyAdjustChance = (bonusChance - 0.5f) + rep.getLoyaltyBonus(captain);
+                    float loyaltyAdjustChance = (battleRating - 0.5f) + rep.getLoyaltyBonus(captain);
                     boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
 
                     if(loyaltyAdjustChance > 0.05f && !ll.isAtBest()) {
-                        loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULTIPLIER;
+                        loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
                         msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
                         if(success) loyaltyChange = 1;
                     } else if(loyaltyAdjustChance < 0.05f && !ll.isAtWorst()) {
                         loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
-                        loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULTIPLIER;
+                        loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULT;
                         msg += NEW_LINE + "Loyalty Reduction Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
                         if(success) loyaltyChange = -1;
@@ -185,7 +208,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 rc.setLoyaltyChange(loyaltyChange);
 
-                if(ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) log(msg);
+                if(rc.deployed && ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) log(msg);
+
+                rc.newRating *= 100;
+                rc.ratingAdjustment *= 100;
 
                 report.addChange(rc);
                 rc.apply(false);
@@ -286,13 +312,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             if(pf.getAllEverDeployedCopy() != null) {
                 for (DeployedFleetMemberAPI fm : pf.getAllEverDeployedCopy()) {
-                    playerFP += fm.getMember().getDeploymentCostSupplies();
+                    playerFP += Math.max(fm.getMember().getFleetPointCost(), fm.getMember().getDeploymentCostSupplies());
                 }
             }
 
             if(ef.getAllEverDeployedCopy() != null) {
                 for (DeployedFleetMemberAPI fm : ef.getAllEverDeployedCopy()) {
-                    enemyFP += fm.getMember().getDeploymentCostSupplies();
+                    enemyFP += Math.max(fm.getMember().getFleetPointCost(), fm.getMember().getDeploymentCostSupplies());
                 }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
