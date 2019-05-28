@@ -83,13 +83,19 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addPara("Difficulty rating: %s", 10, Misc.getTextColor(), difficultyColor, (int) (battleDifficulty * 100) + "%");
 
-            e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.15f * w, "Class", 0.14f * w,
-                    "Status", 0.10f * w, dmgMaybe + "Sustained", 0.12f * w, dmgMaybe + "Inflicted", 0.12f * w,
-                    "Rating", 0.08f * w, "Loyalty", 0.12f * w, "Reputation", 0.17f * w);
+            if(ModPlugin.SHOW_COMBAT_RATINGS) {
+                e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.15f * w, "Class", 0.14f * w,
+                        "Status", 0.10f * w, dmgMaybe + "Sustained", 0.12f * w, dmgMaybe + "Inflicted", 0.12f * w,
+                        "Rating", 0.08f * w, "Loyalty", 0.12f * w, "Reputation", 0.17f * w);
+            } else {
+                e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.18f * w, "Class", 0.15f * w,
+                        "Status", 0.11f * w, dmgMaybe + "Sustained", 0.13f * w, dmgMaybe + "Inflicted", 0.13f * w,
+                        "Loyalty", 0.13f * w, "Reputation", 0.18f * w);
+            }
 
             for (RepChange rc : changes) {
                 String trait, status = rc.disabled ? "disabled" : (rc.deployed ? "deployed" : "reserved"),
-                        loyalty = rc.captain != null && !rc.captain.isDefault() ? rc.getLoyaltyLevel().getName() : "-",
+                        loyalty = rc.captain != null && !rc.captain.isDefault() && RepRecord.existsFor(rc.ship) ? rc.getLoyaltyLevel().getName() : "-",
                         rating = rc.ship.getHullSpec ().isCivilianNonCarrier() || !RepRecord.existsFor(rc.ship) ? "-"
                                 : (int)rc.newRating + "%";
 
@@ -132,16 +138,28 @@ public class BattleReport extends BaseIntelPlugin {
                         loyaltyColor = Color.RED;
                 }
 
-                e.addRow(
-                        Alignment.MID, Misc.getTextColor(), rc.ship.getShipName(),
-                        Alignment.MID, Misc.getTextColor(), rc.ship.getHullSpec().getHullName(),
-                        Alignment.MID, statusColor, status,
-                        Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
-                        Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
-                        Alignment.MID, ratingColor, rating,
-                        Alignment.MID, loyaltyColor, loyalty,
-                        Alignment.MID, traitColor, trait
-                );
+                if(ModPlugin.SHOW_COMBAT_RATINGS) {
+                    e.addRow(
+                            Alignment.MID, Misc.getTextColor(), rc.ship.getShipName(),
+                            Alignment.MID, Misc.getTextColor(), rc.ship.getHullSpec().getHullName(),
+                            Alignment.MID, statusColor, status,
+                            Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
+                            Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
+                            Alignment.MID, ratingColor, rating,
+                            Alignment.MID, loyaltyColor, loyalty,
+                            Alignment.MID, traitColor, trait
+                    );
+                } else {
+                    e.addRow(
+                            Alignment.MID, Misc.getTextColor(), rc.ship.getShipName(),
+                            Alignment.MID, Misc.getTextColor(), rc.ship.getHullSpec().getHullName(),
+                            Alignment.MID, statusColor, status,
+                            Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
+                            Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
+                            Alignment.MID, loyaltyColor, loyalty,
+                            Alignment.MID, traitColor, trait
+                    );
+                }
             }
 
             e.addTable("", 0, 10);

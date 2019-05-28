@@ -278,12 +278,14 @@ public class Reputation extends BaseHullMod {
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = ship.getMutableStats().getMinCrewMod().computeEffective(ship.getHullSpec().getMinCrew()) > 0;
 
-            if(!ship.getHullSpec().isCivilianNonCarrier()) {
+            if(Global.getSettings().isDevMode() || (ModPlugin.SHOW_COMBAT_RATINGS && !ship.getHullSpec().isCivilianNonCarrier())) {
                 tooltip.addPara("It has a rating of %s on the Evans-Zhao combat performance scale.", 10,
                         Misc.getHighlightColor(), (int) (rep.getRating() * 100f) + "%");
 
-                tooltip.addPara("getFractionOfBonusEffectFromTraits: %s.", 10,
-                        Misc.getHighlightColor(), (int) (rep.getFractionOfBonusEffectFromTraits() * 100f) + "%");
+                if(Global.getSettings().isDevMode()) {
+                    tooltip.addPara("(Dev) Actual bonus fraction of traits: %s.", 10, Misc.getGrayColor(),
+                            Misc.getHighlightColor(), (int) (rep.getFractionOfBonusEffectFromTraits() * 100f) + "%");
+                }
             }
 
             tooltip.addPara(RepRecord.getTierFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,

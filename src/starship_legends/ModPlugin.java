@@ -32,6 +32,7 @@ public class ModPlugin extends BaseModPlugin {
             LOG_REPUTATION_CALCULATION_FACTORS = true,
             COMPENSATE_FOR_EXPERIENCE_MULT = true,
             USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = false,
+            SHOW_COMBAT_RATINGS = true,
             IGNORE_ALL_MALUSES = false;
 
     public static int
@@ -107,8 +108,8 @@ public class ModPlugin extends BaseModPlugin {
                             RepRecord rep = RepRecord.get(ship);
                             float progress = rep.getTraits().size() / (float) Trait.getTraitLimit();
 
-                            rep.adjustRatingToward(RepRecord.INITIAL_RATING * (1f - progress)
-                                    + rep.getFractionOfBonusEffectFromTraits() * progress, 1);
+                            rep.setRating(RepRecord.INITIAL_RATING * (1f - progress)
+                                    + rep.getFractionOfBonusEffectFromTraits() * progress);
                         }
                     }
                 }
@@ -149,6 +150,7 @@ public class ModPlugin extends BaseModPlugin {
         x.alias("sun_sl_rr", RepRecord.class);
         x.aliasAttribute(RepRecord.class, "traits", "t");
         x.aliasAttribute(RepRecord.class, "opinionsOfOfficers", "o");
+        x.aliasAttribute(RepRecord.class, "rating", "r");
 
         x.alias("sun_sl_t", Trait.class);
         x.aliasAttribute(Trait.class, "typeID", "t");
@@ -186,6 +188,7 @@ public class ModPlugin extends BaseModPlugin {
             LOG_REPUTATION_CALCULATION_FACTORS = cfg.getBoolean("logReputationCalculationFactors");
             COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
             IGNORE_ALL_MALUSES = cfg.getBoolean("ignoreAllMaluses");
+            SHOW_COMBAT_RATINGS = cfg.getBoolean("showCombatRatings");
 
             TRAITS_PER_TIER = cfg.getInt("traitsPerTier");
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = cfg.getInt("daysMothballedPerTraitToResetReputation");

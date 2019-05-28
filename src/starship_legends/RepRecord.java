@@ -77,6 +77,9 @@ public class RepRecord {
     public float getRating() {
         return rating;
     }
+    public void setRating(float newRating) {
+        rating = newRating;
+    }
 
     public float getFractionOfBonusEffectFromTraits() {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
@@ -95,9 +98,12 @@ public class RepRecord {
         return total <= 0 ? INITIAL_RATING : goodness / total;
     }
 
-    public void adjustRatingToward(float adjustmentRating, float adjustmentWeight) {
+    public static float getAdjustedRating(float initialRating, float adjustmentRating, float adjustmentWeight) {
         adjustmentRating = Math.max(-1, Math.min(2, adjustmentRating));
-        rating = Math.max(-0.001f, Math.min(1.001f, rating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
+        return Math.max(-0.001f, Math.min(1.001f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
+    }
+    public float getAdjustedRating(float adjustmentRating, float adjustmentWeight) {
+        return getAdjustedRating(rating, adjustmentRating, adjustmentWeight);
     }
 
     public float getLoyaltyBonus(PersonAPI captain) {

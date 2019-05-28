@@ -27,6 +27,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     Set<FleetMemberAPI> deployedShips = new HashSet<>();
     Set<FleetMemberAPI> disabledShips = new HashSet<>();
 
+    static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
+    static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
     static Map<String, Float> fractionDamageTaken = new HashMap<>();
     static Map<String, PersonAPI> originalCaptains = new HashMap<>();
     static Map<String, Float> fpWorthOfDamageDealt = new HashMap<>();
@@ -44,7 +46,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public static void recordDamageSustained(String shipID, float damageSustained) {
         if(damageSustained > 0) {
-            if (!fractionDamageTaken.containsKey(shipID)) Math.min(1, fractionDamageTaken.put(shipID, damageSustained));
+            if (!fractionDamageTaken.containsKey(shipID)) fractionDamageTaken.put(shipID, Math.min(1, damageSustained));
             else fractionDamageTaken.put(shipID, Math.min(1, fractionDamageTaken.get(shipID) + damageSustained));
         }
     }
@@ -74,10 +76,27 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             Random rand = new Random();
             FleetDataAPI pf = Global.getSector().getPlayerFleet().getFleetData();
-            float difficulty = Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
-                        && ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle() > 0
-                    ? (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle()
-                    : (playerFP > 1 ? enemyFP / playerFP : 1);
+            float difficulty = 1;
+
+            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
+                        && ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle() > 0) {
+
+                difficulty = (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle();
+            } else {
+                for(Float f : playerDeployedFP.values()) playerFP += f;
+                for(Float f : enemyDeployedFP.values()) enemyFP += f;
+
+
+                for(Map.Entry<FleetMemberAPI, Float> e :playerDeployedFP.entrySet()) {
+                    log(e.getKey().getHullId() + " : " + e.getValue());
+                }
+                for(Map.Entry<FleetMemberAPI, Float> e : enemyDeployedFP.entrySet()) {
+                    log(e.getKey().getHullId() + " : " + e.getValue());
+                }
+
+                difficulty = (playerFP > 1 ? enemyFP / playerFP : 1);
+            }
+
             BattleReport report = new BattleReport(difficulty, battle);
 
             for (FleetMemberAPI ship : pf.getMembersListCopy()) {
@@ -118,18 +137,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         bonusChance = battleRating = ModPlugin.BASE_RATING;
                     } else if(RepRecord.existsFor(ship)) {
                         RepRecord rep = RepRecord.get(ship);
-                        float oldRating = rep.getRating();
 
-                        rep.adjustRatingToward(battleRating, 0.1f);
-
-                        rc.newRating = rep.getRating();
-                        rc.ratingAdjustment = rep.getRating() - oldRating;
+                        rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
+                        rc.ratingAdjustment = rc.newRating - rep.getRating();
 
                         bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
                                 ? battleRating
                                 : 0.50f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
                     } else {
-                        rc.newRating = ModPlugin.BASE_RATING * 0.9f + battleRating * 0.1f;
+                        rc.newRating = RepRecord.getAdjustedRating(ModPlugin.BASE_RATING, battleRating, 0.1f);
 
                         bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
                                 ? battleRating
@@ -147,7 +163,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         + NEW_LINE + "Chance of Gaining New Trait: " + (int)(traitChance * 100) + "% - ";
 
                 if (rand.nextFloat() <= traitChance) {
-                    boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) < bonusChance;
+                    boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) <= bonusChance;
 
                     msg += "SUCCEEDED"
                             + NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED");
@@ -310,17 +326,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());
 
-            if(pf.getAllEverDeployedCopy() != null) {
-                for (DeployedFleetMemberAPI fm : pf.getAllEverDeployedCopy()) {
-                    playerFP += Math.max(fm.getMember().getFleetPointCost(), fm.getMember().getDeploymentCostSupplies());
-                }
-            }
+            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
 
-            if(ef.getAllEverDeployedCopy() != null) {
-                for (DeployedFleetMemberAPI fm : ef.getAllEverDeployedCopy()) {
-                    enemyFP += Math.max(fm.getMember().getFleetPointCost(), fm.getMember().getDeploymentCostSupplies());
-                }
-            }
+            for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : ef.getDisabled()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : ef.getDestroyed()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 

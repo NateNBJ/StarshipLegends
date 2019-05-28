@@ -59,6 +59,8 @@ public class RepChange {
         MessageIntel intel = new MessageIntel();
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
 
+        rep.setRating(newRating / 100f);
+
         for(Trait t : rep.getTraits()) {
             if(shuffleSign == 0 && trait != null && t.getType() == trait.getType()) return false;
         }
