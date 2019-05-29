@@ -86,13 +86,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 for(Float f : playerDeployedFP.values()) playerFP += f;
                 for(Float f : enemyDeployedFP.values()) enemyFP += f;
 
-
-                for(Map.Entry<FleetMemberAPI, Float> e :playerDeployedFP.entrySet()) {
-                    log(e.getKey().getHullId() + " : " + e.getValue());
-                }
-                for(Map.Entry<FleetMemberAPI, Float> e : enemyDeployedFP.entrySet()) {
-                    log(e.getKey().getHullId() + " : " + e.getValue());
-                }
+//                for(Map.Entry<FleetMemberAPI, Float> e :playerDeployedFP.entrySet()) {
+//                    log(e.getKey().getHullId() + " : " + e.getValue());
+//                }
+//                for(Map.Entry<FleetMemberAPI, Float> e : enemyDeployedFP.entrySet()) {
+//                    log(e.getKey().getHullId() + " : " + e.getValue());
+//                }
 
                 difficulty = (playerFP > 1 ? enemyFP / playerFP : 1);
             }
@@ -152,6 +151,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                                 : rc.newRating;
                     }
                 } else {
+                    if(RepRecord.existsFor(rc.ship)) rc.newRating = RepRecord.get(rc.ship).getRating();
+
                     bonusChance = ModPlugin.BASE_RATING * ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT;
                 }
 
@@ -300,6 +301,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     void reset() {
         playerFP = 0;
         enemyFP = 0;
+        playerDeployedFP.clear();
+        enemyDeployedFP.clear();
         fractionDamageTaken.clear();
         originalCaptains.clear();
         fpWorthOfDamageDealt.clear();
@@ -326,15 +329,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());
 
-            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
 
-            for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : ef.getDisabled()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
-            for(FleetMemberAPI fm : ef.getDestroyed()) enemyDeployedFP.put(fm, fm.getDeploymentCostSupplies());
+            for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getDisabled()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getDestroyed()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 

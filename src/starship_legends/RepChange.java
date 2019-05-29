@@ -193,7 +193,6 @@ public class RepChange {
         if(ship.getVariant().isStockVariant()) {
             v = ship.getVariant().clone();
             v.setSource(VariantSource.REFIT);
-            //v.setHullVariantId(Misc.genUID());
             ship.setVariant(v, false, false);
         } else v = ship.getVariant();
 

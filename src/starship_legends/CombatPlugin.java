@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CombatDamageData;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.mission.FleetSide;
 import com.fs.starfarer.combat.CombatEngine;
@@ -31,6 +32,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if (engine == null || !engine.isInCampaign() || Global.getSector() == null || Global.getSector().getPlayerFleet() == null)
                 return;
+
 
             if(isFirstFrame) {
                 CampaignScript.collectRealSnapshotInfoIfNeeded();
@@ -72,7 +74,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                         wingSourceMap.put(key, source.getFleetMemberId());
                     } else if(ship.getParentStation() != null && ship.getMaxFlux() > 0 && !sectionSourceMap.containsKey(key)) {
-                        Global.getLogger(this.getClass()).info("Section found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getParentStation().getFleetMemberId() + " hp: " + ship.getMaxHitpoints());
+                        //Global.getLogger(this.getClass()).info("Section found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getParentStation().getFleetMemberId() + " hp: " + ship.getMaxHitpoints());
 
                         sectionSourceMap.put(key, ship.getParentStation().getFleetMemberId());
 
@@ -82,7 +84,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
                         stationDeployCosts.put(key, getShipStrength(fm));
                     } else if(!ship.isStation() && ship.getMaxFlux() > 0 && !ship.isFighter() && ship.getParentStation() == null && !hpTotals.containsKey(key)) {
-                        Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
+                        //Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
                     }
@@ -115,7 +117,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                 sourceID = e.getKey().getId();
             }
 
-            msg = "Damage dealt by " + e.getKey().getHullId() + " (" + e.getKey().getOwner() + ")";
+            //msg = "Damage dealt by " + e.getKey().getHullId() + " (" + e.getKey().getOwner() + ")";
 
             float dmg = getFpWorthOfDamageDealt(e.getValue(), sourceID);
 
@@ -143,7 +145,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if(target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1 || target.isStation()) continue;
 
-            msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
+            //msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
 
             if(playerShips.contains(targetID)) CampaignScript.recordDamageSustained(targetID, dmg / hp);
 
@@ -156,15 +158,17 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
             }
         }
 
-        if(acc > 0) msg += "\r      Total FP worth of damage: " + acc;
+        //if(acc > 0) msg += "\r      Total FP worth of damage: " + acc;
 
         return acc;
     }
 
-    float getShipStrength(FleetMemberAPI ship) {
-        return ship.isStation()
-                ? Math.max(ship.getFleetPointCost(), ship.getDeploymentCostSupplies())
-                : ship.getDeploymentCostSupplies();
+    static float getShipStrength(FleetMemberAPI ship) {
+        return ship.getDeploymentCostSupplies();
+
+//        return ship.isStation()
+//                ? Math.max(ship.getFleetPointCost(), ship.getDeploymentCostSupplies())
+//                : ship.getDeploymentCostSupplies();
     }
 
 
