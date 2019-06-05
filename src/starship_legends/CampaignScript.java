@@ -7,6 +7,7 @@ import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
+import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import starship_legends.hullmods.Reputation;
@@ -21,17 +22,18 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public CampaignScript() { super(true); }
 
-    float playerFP = 0, enemyFP = 0;
-    long xpBeforeBattle = Long.MAX_VALUE;
-    Random rand = new Random();
-    Set<FleetMemberAPI> deployedShips = new HashSet<>();
-    Set<FleetMemberAPI> disabledShips = new HashSet<>();
+    static float playerFP = 0, enemyFP = 0;
+    static long xpBeforeBattle = Long.MAX_VALUE;
+    static Random rand = new Random();
+    static Set<FleetMemberAPI> deployedShips = new HashSet<>();
+    static Set<FleetMemberAPI> disabledShips = new HashSet<>();
 
     static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
     static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
     static Map<String, Float> fractionDamageTaken = new HashMap<>();
     static Map<String, PersonAPI> originalCaptains = new HashMap<>();
     static Map<String, Float> fpWorthOfDamageDealt = new HashMap<>();
+    static List<FleetMemberAPI> originalShipList;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
     static Saved<Float> timeUntilNextChange = new Saved<>("timeUntilNextChange", AVG_TIME_BETWEEN_REP_CHANGES);
@@ -54,8 +56,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     public static void collectRealSnapshotInfoIfNeeded() {
         if(Global.getSector() == null || Global.getSector().getPlayerFleet() == null) return;
 
-        if(originalCaptains.isEmpty()) {
-            for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+        if(originalShipList == null) {
+            reset();
+
+            originalShipList = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
+
+            for (FleetMemberAPI ship : originalShipList) {
                 //fractionDamageTaken.put(ship.getId(), ship.getStatus().getHullFraction());
                 originalCaptains.put(ship.getId(), ship.getCaptain());
             }
@@ -65,17 +71,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportBattleOccurred(CampaignFleetAPI primaryWinner, BattleAPI battle) {
         try {
-            if (!battle.isPlayerInvolved()) {
-                reset();
-                return;
-            }
+            if (!battle.isPlayerInvolved() || originalShipList == null) return;
 
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
 
             if(ModPlugin.COMPENSATE_FOR_EXPERIENCE_MULT) xpEarned /= Global.getSettings().getFloat("xpGainMult");
 
             Random rand = new Random();
-            FleetDataAPI pf = Global.getSector().getPlayerFleet().getFleetData();
             float difficulty = 1;
 
             if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
@@ -97,13 +99,23 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             }
 
             BattleReport report = new BattleReport(difficulty, battle);
+            Set<String> currentShipSet = new HashSet<>();
 
-            for (FleetMemberAPI ship : pf.getMembersListCopy()) {
+            for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                currentShipSet.add(ship.getId());
+            }
+
+            for (FleetMemberAPI ship : originalShipList) {
                 if (!originalCaptains.containsKey(ship.getId()) || ship.isMothballed()) continue;
 
-                PersonAPI captain = ship.getCaptain() == null || ship.getCaptain().isDefault()
+                RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
+
+                PersonAPI captain = originalCaptains.containsKey(ship.getId())
                         ? originalCaptains.get(ship.getId())
                         : ship.getCaptain();
+//                PersonAPI captain = ship.getCaptain() == null || ship.getCaptain().isDefault()
+//                        ? originalCaptains.get(ship.getId())
+//                        : ship.getCaptain();
                 RepChange rc = new RepChange(ship, captain);
                 rc.disabled = disabledShips.contains(ship);
                 rc.deployed = deployedShips.contains(ship) || rc.disabled;
@@ -134,25 +146,18 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     if(ship.getHullSpec().isCivilianNonCarrier()) {
                         bonusChance = battleRating = ModPlugin.BASE_RATING;
-                    } else if(RepRecord.existsFor(ship)) {
-                        RepRecord rep = RepRecord.get(ship);
-
-                        rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
-                        rc.ratingAdjustment = rc.newRating - rep.getRating();
-
-                        bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
-                                ? battleRating
-                                : 0.50f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
                     } else {
-                        rc.newRating = RepRecord.getAdjustedRating(ModPlugin.BASE_RATING, battleRating, 0.1f);
-
-                        bonusChance = ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
-                                ? battleRating
-                                : rc.newRating;
+                        if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
+                            rc.newRating = battleRating;
+                            bonusChance = battleRating;
+                        } else {
+                            rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
+                            rc.ratingAdjustment = rc.newRating - rep.getRating();
+                            bonusChance = 0.5f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
+                        }
                     }
                 } else {
-                    if(RepRecord.existsFor(rc.ship)) rc.newRating = RepRecord.get(rc.ship).getRating();
-
+                    rc.newRating = rep.getRating();
                     bonusChance = ModPlugin.BASE_RATING * ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT;
                 }
 
@@ -178,9 +183,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULT;
 
-                    if(rc.deployed && shuffleChance > 0.05f && RepRecord.existsFor(ship) && !ModPlugin.IGNORE_ALL_MALUSES) {
+                    if(rc.deployed && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f);
-                        RepRecord rep = RepRecord.get(ship);
 
                         msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
                                 + (int)(shuffleChance * 100) + "% - ";
@@ -201,15 +205,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 int loyaltyChange = 0;
 
-                if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && RepRecord.existsFor(ship) && captain != null
+                if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && captain != null
                         && !captain.isDefault()) {
 
-                    RepRecord rep = RepRecord.get(ship);
                     LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
                     float loyaltyAdjustChance = (battleRating - 0.5f) + rep.getLoyaltyBonus(captain);
                     boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
 
-                    if(loyaltyAdjustChance > 0.05f && !ll.isAtBest()) {
+                    if(loyaltyAdjustChance > 0.05f && !ll.isAtBest() && rc.newRating >= ll.getRatingRequiredToImprove()) {
                         loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
                         msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
@@ -226,6 +229,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 rc.setLoyaltyChange(loyaltyChange);
 
                 if(rc.deployed && ModPlugin.LOG_REPUTATION_CALCULATION_FACTORS) log(msg);
+
+                if(!currentShipSet.contains(ship.getId())) {
+                    rc.damageTakenFraction = Float.MAX_VALUE;
+                    rc.captainOpinionChange = 0;
+                    rc.trait = null;
+                }
 
                 rc.newRating *= 100;
                 rc.ratingAdjustment *= 100;
@@ -273,9 +282,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     case TraitType.Tags.CLOAK:
                         if(shieldType != ShieldAPI.ShieldType.PHASE) traitIsRelevant = false;
                         break;
-                    case TraitType.Tags.SALVAGE_GANTRY:
-                        if(!ship.getVariant().hasHullMod("repair_gantry")) traitIsRelevant = false;
-                        break;
                     case TraitType.Tags.NO_AI:
                         if(ship.getMinCrew() <= 0) traitIsRelevant = false;
                         break;
@@ -288,6 +294,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 }
             }
 
+            for(String mod : ship.getHullSpec().getBuiltInMods()) {
+                if(type.getIncompatibleBuiltInHullmods().contains(mod)) traitIsRelevant = false;
+            }
+
+            if(!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                traitIsRelevant = false;
+            }
+
             boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
                     && !traitIsBad && rand.nextFloat() <= 0.75f;
 
@@ -298,13 +312,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         return null;
     }
 
-    void reset() {
+    static void reset() {
         playerFP = 0;
         enemyFP = 0;
         playerDeployedFP.clear();
         enemyDeployedFP.clear();
         fractionDamageTaken.clear();
         originalCaptains.clear();
+        originalShipList = null;
         fpWorthOfDamageDealt.clear();
         deployedShips.clear();
         disabledShips.clear();
@@ -328,6 +343,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());
+
+            //if(ef.getGoal() == FleetGoal.ESCAPE) return;
 
             for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
             for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));

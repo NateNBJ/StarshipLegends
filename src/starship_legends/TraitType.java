@@ -16,7 +16,6 @@ public class TraitType {
                 LOGISTICAL = "LOGISTICAL",
                 DISABLED = "DISABLED",
                 DISABLED_ONLY = "DISABLED_ONLY",
-                SALVAGE_GANTRY = "SALVAGE_GANTRY",
                 CARRIER = "CARRIER",
                 CREW = "CREW",
                 ATTACK = "ATTACK",
@@ -41,13 +40,15 @@ public class TraitType {
 
     private String id, desc, bonusName, malusName, bonusDesc, malusDesc,
             bonusNameAI, malusNameAI, bonusDescAI, malusDescAI;
-    private Set<String> tags = new HashSet<>();
+    private Set<String> tags = new HashSet<>(), requiredBuiltIns = new HashSet<>(), incompatibleBuiltIns = new HashSet<>();
     private float baseBonus;
     private Trait bonus, malus;
 
     public String getId() { return id; }
     public String getEffectDescription() { return desc; }
     public Set<String> getTags() { return tags; }
+    public Set<String> getRequiredBuiltInHullmods() { return requiredBuiltIns; }
+    public Set<String> getIncompatibleBuiltInHullmods() { return incompatibleBuiltIns; }
     public float getBaseBonus() { return baseBonus; }
     public Trait getTrait(boolean isMalus) { return isMalus ? malus : bonus; }
     public String getName(boolean isMalus, boolean requiresCrew) {
@@ -75,9 +76,14 @@ public class TraitType {
         baseBonus = (float)data.getDouble("base_bonus");
 
         String[] ja = data.getString("tags").replace(" ", "").split(",");
-        for(int i = 0; i < ja.length; ++i) {
-            tags.add(ja[i]);
-        }
+        for(int i = 0; i < ja.length; ++i) tags.add(ja[i]);
+
+        ja = data.getString("required_built_in_mods").replace(" ", "").split(",");
+        for(int i = 0; i < ja.length; ++i) requiredBuiltIns.add(ja[i]);
+
+        ja = data.getString("incompatible_built_in_mods").replace(" ", "").split(",");
+        for(int i = 0; i < ja.length; ++i) incompatibleBuiltIns.add(ja[i]);
+
 
         if(!bonusName.isEmpty()) bonus = new Trait(this, 1);
         if(!malusName.isEmpty()) malus = new Trait(this, -1);

@@ -78,6 +78,7 @@ public class ModPlugin extends BaseModPlugin {
             Global.getSector().addTransientScript(script = new CampaignScript());
 
             Saved.loadPersistentData();
+            CampaignScript.reset();
 
             readSettingsIfNecessary();
 

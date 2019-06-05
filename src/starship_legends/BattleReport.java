@@ -94,23 +94,39 @@ public class BattleReport extends BaseIntelPlugin {
             }
 
             for (RepChange rc : changes) {
-                String trait, status = rc.disabled ? "disabled" : (rc.deployed ? "deployed" : "reserved"),
-                        loyalty = rc.captain != null && !rc.captain.isDefault() && RepRecord.existsFor(rc.ship) ? rc.getLoyaltyLevel().getName() : "-",
-                        rating = rc.ship.getHullSpec ().isCivilianNonCarrier() || !RepRecord.existsFor(rc.ship) ? "-"
-                                : (int)rc.newRating + "%";
+                String trait, status = rc.disabled ? "recovered" : (rc.deployed ? "deployed" : "reserved"),
+                        loyalty = rc.captain != null && !rc.captain.isDefault() && RepRecord.existsFor(rc.ship)
+                                ? rc.getLoyaltyLevel().getName() : "-",
+                        rating = rc.ship.getHullSpec().isCivilianNonCarrier() || !RepRecord.existsFor(rc.ship) || rc.newRating == Integer.MIN_VALUE
+                                ? "-" : (int)rc.newRating + "%";
 
-                if(rc.ratingAdjustment > 0.1f) rating += " (+" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
-                else if(rc.ratingAdjustment < -0.1f) rating += " (" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
-
-                Color statusColor = rc.disabled ? Misc.getNegativeHighlightColor() : (rc.deployed ? Misc.getTextColor() : Misc.getGrayColor()),
+                Color statusColor = rc.disabled ? Misc.getHighlightColor() : (rc.deployed ? Misc.getTextColor() : Misc.getGrayColor()),
                         takenColor = rc.damageTakenFraction == 0 ? Misc.getGrayColor() : (rc.damageTakenFraction > 0.25 ? Misc.getNegativeHighlightColor() : Misc.getTextColor()),
                         dealtColor = rc.damageDealtPercent == 0 ? Misc.getGrayColor() : (rc.damageDealtPercent > 1 ? Misc.getPositiveHighlightColor() : Misc.getTextColor()),
-                        ratingColor = Math.abs(rc.ratingAdjustment) < 0.1f ? Misc.getGrayColor() : (rc.ratingAdjustment > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor()),
-                        loyaltyColor, traitColor;
+                        loyaltyColor, traitColor, ratingColor, mainColor = Misc.getTextColor();
+
+                if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
+                    if(!rc.deployed) rating = "-";
+
+                    if(rc.ship.getHullSpec().isCivilianNonCarrier() || !rc.deployed) ratingColor = Misc.getGrayColor();
+                    else if(rc.newRating <= 0.495) ratingColor = Misc.getNegativeHighlightColor();
+                    else if(rc.newRating >= 0.505) ratingColor = Misc.getPositiveHighlightColor();
+                    else ratingColor = Misc.getTextColor();
+                } else {
+                    ratingColor = Math.abs(rc.ratingAdjustment) < 0.1f ? Misc.getGrayColor()
+                            : (rc.ratingAdjustment > 0
+                            ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor());
+
+                    if (rc.ratingAdjustment > 0.1f) {
+                        rating += " (+" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
+                    } else if (rc.ratingAdjustment < -0.1f) {
+                        rating += " (" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
+                    }
+                }
 
                 if (rc.trait == null) {
                     traitColor = Misc.getGrayColor();
-                    trait = "- ";
+                    trait = "-";
                 } else if (rc.shuffleSign == 0) {
                     traitColor = rc.trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor();
                     trait = "+ " + rc.trait.getName(rc.ship.getMinCrew() > 0);
@@ -138,12 +154,19 @@ public class BattleReport extends BaseIntelPlugin {
                         loyaltyColor = Color.RED;
                 }
 
+                if(rc.damageTakenFraction == Float.MAX_VALUE) {
+                    status = "destroyed";
+                    statusColor = Misc.getNegativeHighlightColor();
+                    trait = loyalty = "-";
+                    mainColor = loyaltyColor = traitColor = ratingColor = takenColor = dealtColor = Misc.getGrayColor();
+                }
+
                 if(ModPlugin.SHOW_COMBAT_RATINGS) {
                     e.addRow(
-                            Alignment.MID, Misc.getTextColor(), rc.ship.getShipName(),
-                            Alignment.MID, Misc.getTextColor(), rc.ship.getHullSpec().getHullName(),
+                            Alignment.MID, mainColor, rc.ship.getShipName(),
+                            Alignment.MID, mainColor, rc.ship.getHullSpec().getHullName(),
                             Alignment.MID, statusColor, status,
-                            Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
+                            Alignment.MID, takenColor, (int) Math.min(100, rc.damageTakenFraction * 100) + "%",
                             Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
                             Alignment.MID, ratingColor, rating,
                             Alignment.MID, loyaltyColor, loyalty,
@@ -151,8 +174,8 @@ public class BattleReport extends BaseIntelPlugin {
                     );
                 } else {
                     e.addRow(
-                            Alignment.MID, Misc.getTextColor(), rc.ship.getShipName(),
-                            Alignment.MID, Misc.getTextColor(), rc.ship.getHullSpec().getHullName(),
+                            Alignment.MID, mainColor, rc.ship.getShipName(),
+                            Alignment.MID, mainColor, rc.ship.getHullSpec().getHullName(),
                             Alignment.MID, statusColor, status,
                             Alignment.MID, takenColor, (int) (rc.damageTakenFraction * 100) + "%",
                             Alignment.MID, dealtColor, (int) (rc.damageDealtPercent * 100) + "%",
@@ -225,7 +248,7 @@ public class BattleReport extends BaseIntelPlugin {
 
     @Override
     public boolean shouldRemoveIntel() {
-        return Global.getSector().getClock().getElapsedDaysSince(timestamp) >= DURATION;
+        return Global.getSector().getClock().getElapsedDaysSince(timestamp) >= DURATION && !isImportant();
     }
 
     public Set<String> getIntelTags(SectorMapAPI map) {

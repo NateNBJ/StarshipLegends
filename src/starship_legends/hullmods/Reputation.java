@@ -56,7 +56,10 @@ public class Reputation extends BaseHullMod {
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault() && !isFighter) {
                 loyaltyEffectAdjustment = rep.getLoyaltyLevel(captain).getTraitAdjustment();
+//                int before = (int)stats.getCRLossPerSecondPercent().computeEffective(100);
                 stats.getCRLossPerSecondPercent().modifyPercent(id, rep.getLoyaltyLevel(captain).getCrDecayMult());
+//                int after = (int)stats.getCRLossPerSecondPercent().computeEffective(100);
+//                Global.getLogger(this.getClass()).info(captain.getNameString() + " : " + before + " - " + after + " = " + (before - after));
             }
 
             for(Trait trait : rep.getTraits()) {

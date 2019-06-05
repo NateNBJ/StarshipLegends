@@ -123,7 +123,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if (playerShips.contains(sourceID)) CampaignScript.recordDamageDealt(sourceID, dmg);
 
-            Global.getLogger(this.getClass()).info(msg);
+            //Global.getLogger(this.getClass()).info(msg);
         }
     }
 
@@ -164,11 +164,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     }
 
     static float getShipStrength(FleetMemberAPI ship) {
-        return ship.getDeploymentCostSupplies();
-
-//        return ship.isStation()
-//                ? Math.max(ship.getFleetPointCost(), ship.getDeploymentCostSupplies())
-//                : ship.getDeploymentCostSupplies();
+        return ship.isStation() ? ship.getFleetPointCost() : ship.getDeploymentCostSupplies();
     }
 
 

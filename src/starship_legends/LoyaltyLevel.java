@@ -7,7 +7,7 @@ public enum LoyaltyLevel {
     OPENLY_INSUBORDINATE, INSUBORDINATE, DOUBTFUL, INDIFFERENT, CONFIDENT, LOYAL, FIERCELY_LOYAL, UNKNOWN;
 
     String name, preposition, traitAdjustDesc;
-    float crDecay, baseImproveChance, baseWorsenChance;
+    float crDecay, baseImproveChance, baseWorsenChance, ratingRequiredToImprove;
     int traitAdjustment;
 
     public String getName() {
@@ -28,6 +28,9 @@ public enum LoyaltyLevel {
     public float getBaseWorsenChance() {
         return baseWorsenChance;
     }
+    public float getRatingRequiredToImprove() {
+        return ratingRequiredToImprove;
+    }
     public int getTraitAdjustment() { return traitAdjustment; }
     public boolean isAtBest() { return getIndex() == ModPlugin.LOYALTY_LIMIT; }
     public boolean isAtWorst() { return getIndex() == -ModPlugin.LOYALTY_LIMIT; }
@@ -41,6 +44,7 @@ public enum LoyaltyLevel {
         crDecay = (float) o.getDouble("cr_decay");
         baseImproveChance = (float) o.getDouble("base_improve_chance");
         baseWorsenChance = (float) o.getDouble("base_worsen_chance");
+        ratingRequiredToImprove = (float) o.getDouble("rating_required_to_improve");
 
         traitAdjustment = o.getInt("trait_adjustment");
     }

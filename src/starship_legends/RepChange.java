@@ -19,7 +19,7 @@ public class RepChange {
     int captainOpinionChange, shuffleSign = 0, loyaltyLevel = Integer.MIN_VALUE;
     Trait trait;
 
-    float damageTakenFraction = 0, damageDealtPercent = 0, newRating = 0, ratingAdjustment = 0;
+    float damageTakenFraction = 0, damageDealtPercent = 0, newRating = Integer.MIN_VALUE, ratingAdjustment = 0;
     boolean deployed, disabled;
 
     public LoyaltyLevel getLoyaltyLevel() {
@@ -50,7 +50,6 @@ public class RepChange {
     }
 
     public boolean apply(boolean allowNotification) {
-        if(!hasAnyChanges()) return false;
         if(ship == null) throw new RuntimeException("RepChange ship is null");
         if(!RepRecord.existsFor(ship)) throw new RuntimeException("Ship with RepChange has no RepRecord");
 
@@ -59,7 +58,9 @@ public class RepChange {
         MessageIntel intel = new MessageIntel();
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
 
-        rep.setRating(newRating / 100f);
+        if(newRating != Integer.MIN_VALUE) rep.setRating(newRating / 100f);
+
+        if(!hasAnyChanges()) return false;
 
         for(Trait t : rep.getTraits()) {
             if(shuffleSign == 0 && trait != null && t.getType() == trait.getType()) return false;

@@ -100,7 +100,7 @@ public class RepRecord {
 
     public static float getAdjustedRating(float initialRating, float adjustmentRating, float adjustmentWeight) {
         adjustmentRating = Math.max(-1, Math.min(2, adjustmentRating));
-        return Math.max(-0.001f, Math.min(1.001f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
+        return Math.max(-0.004f, Math.min(1.004f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
     }
     public float getAdjustedRating(float adjustmentRating, float adjustmentWeight) {
         return getAdjustedRating(rating, adjustmentRating, adjustmentWeight);
