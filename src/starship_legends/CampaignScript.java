@@ -294,12 +294,16 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 }
             }
 
-            for(String mod : ship.getHullSpec().getBuiltInMods()) {
-                if(type.getIncompatibleBuiltInHullmods().contains(mod)) traitIsRelevant = false;
+            if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
+                for (String mod : ship.getHullSpec().getBuiltInMods()) {
+                    if (type.getIncompatibleBuiltInHullmods().contains(mod)) traitIsRelevant = false;
+                }
             }
 
-            if(!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
-                traitIsRelevant = false;
+            if(!type.getRequiredBuiltInHullmods().isEmpty()) {
+                if (!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                    traitIsRelevant = false;
+                }
             }
 
             boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)

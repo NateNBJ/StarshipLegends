@@ -4,7 +4,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CombatDamageData;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.mission.FleetSide;
 import com.fs.starfarer.combat.CombatEngine;
@@ -39,7 +38,6 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                 for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
                     playerShips.add(ship.getId());
-                    //Global.getLogger(this.getClass()).info("Is in fleet: " + ship.getHullId());
                 }
 
                 isFirstFrame = false;
@@ -164,7 +162,17 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     }
 
     static float getShipStrength(FleetMemberAPI ship) {
-        return ship.isStation() ? ship.getFleetPointCost() : ship.getDeploymentCostSupplies();
+        float fp = ship.getFleetPointCost();
+
+        if(ship.getHullSpec().isCivilianNonCarrier()) {
+            return 0;
+        } if(ship.isStation()) {
+            return fp;
+        } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
+            return fp * Math.max(1, Math.min(2, 1 + (fp - 5f) / 25f));
+        } else{
+            return ship.getDeploymentCostSupplies();
+        }
     }
 
 

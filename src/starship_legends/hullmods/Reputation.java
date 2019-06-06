@@ -223,10 +223,16 @@ public class Reputation extends BaseHullMod {
         } catch (NullPointerException e) { return null; }
 
         if(stats.getEntity() != null) {
-            if (stats.getEntity() instanceof FleetMemberAPI) return (FleetMemberAPI)stats.getEntity();
-            else if (stats.getEntity() instanceof ShipAPI) {
+            if (stats.getEntity() instanceof FleetMemberAPI) {
+                // TODO
+                return (FleetMemberAPI)stats.getEntity();
+            } else if (stats.getEntity() instanceof ShipAPI) {
                 for (FleetMemberAPI s : members) {
-                    if (s == stats.getEntity()) return s;
+                    if (s == stats.getEntity()) {
+                        // TODO
+                        //shipsOfNote.val.put(key, s);
+                        return s;
+                    }
                 }
             }
         }

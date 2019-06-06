@@ -79,10 +79,10 @@ public class TraitType {
         for(int i = 0; i < ja.length; ++i) tags.add(ja[i]);
 
         ja = data.getString("required_built_in_mods").replace(" ", "").split(",");
-        for(int i = 0; i < ja.length; ++i) requiredBuiltIns.add(ja[i]);
+        for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) requiredBuiltIns.add(ja[i]);
 
         ja = data.getString("incompatible_built_in_mods").replace(" ", "").split(",");
-        for(int i = 0; i < ja.length; ++i) incompatibleBuiltIns.add(ja[i]);
+        for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) incompatibleBuiltIns.add(ja[i]);
 
 
         if(!bonusName.isEmpty()) bonus = new Trait(this, 1);
