@@ -169,7 +169,11 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
         } if(ship.isStation()) {
             return fp;
         } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
-            return fp * Math.max(1, Math.min(2, 1 + (fp - 5f) / 25f));
+            float dModMult = ship.getBaseDeploymentCostSupplies() > 0
+                    ? (ship.getDeploymentCostSupplies() / ship.getBaseDeploymentCostSupplies())
+                    : 1;
+
+            return fp * Math.max(1, Math.min(2, 1 + (fp - 5f) / 25f)) * dModMult;
         } else{
             return ship.getDeploymentCostSupplies();
         }

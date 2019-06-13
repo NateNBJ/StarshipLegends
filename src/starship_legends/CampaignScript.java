@@ -192,6 +192,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         if(rep.getTraits().size() <= 2) {
                             msg += "TOO FEW TRAITS";
                         } else if(rand.nextFloat() <= shuffleChance) {
+
+//                            for(int i = rep.getTraits().size() - 1; i >= 0; --i) {
+//                                Trait t = rep.getTraits().get(i);
+//
+//
+//                                int j = t.effectSign > 0 ? i - sign : i + sign;
+//                            }
+
+
                             msg += "SUCCEEDED";
 
                             int i = rep.getTraits().size() - (int)(Math.ceil(Math.pow(rand.nextFloat(), 2) * rep.getTraits().size()));
@@ -306,8 +315,22 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 }
             }
 
-            boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
-                    && !traitIsBad && rand.nextFloat() <= 0.75f;
+            boolean skipCombatLogisticsMismatch = false;
+
+            if(type.getTags().contains(TraitType.Tags.LOGISTICAL)
+                    && !ship.getHullSpec().isCivilianNonCarrier()
+                    && rand.nextFloat() <= ModPlugin.CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS) {
+
+                skipCombatLogisticsMismatch = true;
+            } else if(!type.getTags().contains(TraitType.Tags.LOGISTICAL)
+                    && ship.getHullSpec().isCivilianNonCarrier()
+                    && rand.nextFloat() <= ModPlugin.CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS) {
+
+                skipCombatLogisticsMismatch = true;
+            }
+
+//            boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
+//                    && !traitIsBad && rand.nextFloat() <= 0.75f;
 
             if(trait != null && traitIsRelevant && !skipCombatLogisticsMismatch)
                 return trait;
@@ -333,8 +356,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportPlayerEngagement(EngagementResultAPI result) {
         try {
-            xpBeforeBattle = Global.getSector().getPlayerStats().getXP();
-
             EngagementResultForFleetAPI pf = result.didPlayerWin()
                     ? result.getWinnerResult()
                     : result.getLoserResult();
@@ -342,13 +363,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     ? result.getWinnerResult()
                     : result.getLoserResult();
 
-            deployedShips.addAll(pf.getDeployed());
-            deployedShips.addAll(pf.getRetreated());
-
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());
 
-            //if(ef.getGoal() == FleetGoal.ESCAPE) return;
+            if(xpBeforeBattle != Long.MAX_VALUE && ef.getGoal() == FleetGoal.ESCAPE) return;
+
+            deployedShips.addAll(pf.getDeployed());
+            deployedShips.addAll(pf.getRetreated());
+
+            xpBeforeBattle = Global.getSector().getPlayerStats().getXP();
 
             for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
             for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));

@@ -186,35 +186,41 @@ public class BattleReport extends BaseIntelPlugin {
             }
 
             e.addTable("", 0, 10);
-            e.addPara("", 0);
-            if(!changes.isEmpty()) e.addSectionHeading(" Notes", Alignment.LMID, 10);
 
-            inner.addUIElement(e);
+            if(!changes.isEmpty()) {
+                e.addPara("", 0);
 
-            List<FleetMemberAPI> sl = new ArrayList<>();
+                if (!changes.isEmpty()) e.addSectionHeading(" Notes", Alignment.LMID, 10);
 
-            for (RepChange rc : changes) {
-                if (!rc.hasAnyChanges()) continue;
+                inner.addUIElement(e);
+
+                List<FleetMemberAPI> sl = new ArrayList<>();
+
+                for (RepChange rc : changes) {
+                    if (!rc.hasAnyChanges()) continue;
 
 //            e.addSectionHeading(" " + rc.ship.getShipName() + " - " + rc.ship.getHullSpec().getHullName() + " class "
 //                    + rc.ship.getHullSpec().getDesignation(), Alignment.LMID, 5);
 
-                int notes = 0;
-                if (rc.trait != null) ++notes;
-                if (rc.captainOpinionChange != 0) ++notes;
+                    int notes = 0;
+                    if (rc.trait != null) ++notes;
+                    if (rc.captainOpinionChange != 0) ++notes;
 
-                TooltipMakerAPI e1 = inner.createUIElement(NOTE_HEIGHT, NOTE_HEIGHT, false);
-                sl.clear();
-                sl.add(rc.ship);
-                e1.addShipList(1, 1, NOTE_HEIGHT, Color.WHITE, sl, 10);
-                inner.addUIElement(e1).inTL(0, totalHeight);
+                    TooltipMakerAPI e1 = inner.createUIElement(NOTE_HEIGHT, NOTE_HEIGHT, false);
+                    sl.clear();
+                    sl.add(rc.ship);
+                    e1.addShipList(1, 1, NOTE_HEIGHT, Color.WHITE, sl, 10);
+                    inner.addUIElement(e1).inTL(0, totalHeight);
 
-                TooltipMakerAPI e2 = inner.createUIElement(width - NOTE_HEIGHT, NOTE_HEIGHT, false);
-                rc.addCommentsToTooltip(e2);
-                inner.addUIElement(e2).inTL(NOTE_HEIGHT, totalHeight + NOTE_HEIGHT / 2f - notes * 5f);
+                    TooltipMakerAPI e2 = inner.createUIElement(width - NOTE_HEIGHT, NOTE_HEIGHT, false);
+                    rc.addCommentsToTooltip(e2);
+                    inner.addUIElement(e2).inTL(NOTE_HEIGHT, totalHeight + NOTE_HEIGHT / 2f - notes * 5f);
 
-                totalHeight += NOTE_HEIGHT;
+                    totalHeight += NOTE_HEIGHT;
+                }
             }
+
+            e.addPara("", 0);
 
             outer.getPosition().setSize(width, totalHeight);
             panel.addUIElement(outer).inTL(0, 0);

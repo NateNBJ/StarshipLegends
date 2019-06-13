@@ -254,7 +254,7 @@ public class Reputation extends BaseHullMod {
             FleetMemberAPI ship = findShip(hullSize, stats);
 
             if(ship == null) {
-                Global.getLogger(this.getClass()).info("Could not find ship with matching variant id: " + stats.getVariant().getHullVariantId());
+                //Global.getLogger(this.getClass()).info("Could not find ship with matching variant id: " + stats.getVariant().getHullVariantId());
                 return;
             }
 

@@ -52,6 +52,8 @@ public class ModPlugin extends BaseModPlugin {
             DAMAGE_DEALT_MIN_THRESHOLD = 1.0f,
             BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = 1.0f,
             TRAIT_POSITION_CHANGE_CHANCE_MULT = 1.0f,
+            CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
+            CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
             IMPROVE_LOYALTY_CHANCE_MULT = 1.0f,
             WORSEN_LOYALTY_CHANCE_MULT = 1.0f;
@@ -212,6 +214,9 @@ public class ModPlugin extends BaseModPlugin {
 
             IMPROVE_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("improveLoyaltyChanceMult");
             WORSEN_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("worsenLoyaltyChanceMult");
+
+            CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS  = (float) cfg.getDouble("chanceToIgnoreLogisticsTraitsOnCombatShips");
+            CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = (float) cfg.getDouble("chanceToIgnoreCombatTraitsOnCivilianShips");
 
 
             return settingsAreRead = true;
