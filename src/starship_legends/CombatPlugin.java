@@ -16,22 +16,45 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     boolean damageHasBeenLogged = false, isFirstFrame = true;
 
     int tick = 0;
+    Random rand = new Random();
     Map<String, String> wingSourceMap = new HashMap<>(), sectionSourceMap = new HashMap<>();
     Map<String, Float> hpTotals = new HashMap<>();
     Map<String, Float> stationDeployCosts = new HashMap<>();
-//    Map<String, Float> hpHighs = new HashMap<>();
-//    Map<String, Float> hpLows = new HashMap<>();
     Set<String> playerShips = new HashSet<>();
     String msg = "";
+
+    public static Map<String, Float> CURSED = new HashMap<>();
+    public static Map<String, Float> PHASEMAD = new HashMap<>();
+
+    void disableRandom(ShipAPI ship) {
+        List<ShipEngineControllerAPI.ShipEngineAPI> engines = ship.getEngineController().getShipEngines();
+        List<WeaponAPI> weapons = ship.getUsableWeapons();
+
+        if(!ship.getUsableWeapons().isEmpty() && rand.nextBoolean()) {
+            weapons.get(rand.nextInt(weapons.size())).disable();
+        } else if(!ship.getEngineController().isFlamedOut()) {
+            engines.get(rand.nextInt(engines.size())).disable();
+        }
+    }
 
     @Override
     public void advance(float amount, List<InputEventAPI> events) {
         try {
             CombatEngineAPI engine = Global.getCombatEngine();
 
-            if (engine == null || !engine.isInCampaign() || Global.getSector() == null || Global.getSector().getPlayerFleet() == null)
-                return;
+            if(engine == null) return;
 
+            if(!engine.isPaused() && rand.nextFloat() <= amount) { // Should happen about once per second, on average
+                for(ShipAPI ship : engine.getShips()) {
+                    String id = ship.getFleetMemberId();
+
+                    if(CURSED.containsKey(id) && CURSED.get(id) >= rand.nextInt(101)) disableRandom(ship);
+                    if(PHASEMAD.containsKey(id) && ship.isPhased() && PHASEMAD.get(id) >= rand.nextInt(101)) disableRandom(ship);
+                }
+            }
+
+            if (!engine.isInCampaign() || Global.getSector() == null || Global.getSector().getPlayerFleet() == null)
+                return;
 
             if(isFirstFrame) {
                 CampaignScript.collectRealSnapshotInfoIfNeeded();
@@ -42,7 +65,6 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                 isFirstFrame = false;
             }
-
 
             if (tick++ % 300 == 0) {
                 for (ShipAPI ship : engine.getShips()) {
@@ -80,7 +102,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                         fm =  getFleetMember(ship.getParentStation());
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
-                        stationDeployCosts.put(key, getShipStrength(fm));
+                        stationDeployCosts.put(key, Util.getShipStrength(fm));
                     } else if(!ship.isStation() && ship.getMaxFlux() > 0 && !ship.isFighter() && ship.getParentStation() == null && !hpTotals.containsKey(key)) {
                         //Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
 
@@ -152,7 +174,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                 acc += (dmg / hp) * (stationDeployCosts.containsKey(targetID)
                         ? stationDeployCosts.get(targetID)
-                        : getShipStrength(target));
+                        : Util.getShipStrength(target));
             }
         }
 
@@ -160,25 +182,6 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
         return acc;
     }
-
-    static float getShipStrength(FleetMemberAPI ship) {
-        float fp = ship.getFleetPointCost();
-
-        if(ship.getHullSpec().isCivilianNonCarrier()) {
-            return 0;
-        } if(ship.isStation()) {
-            return fp;
-        } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
-            float dModMult = ship.getBaseDeploymentCostSupplies() > 0
-                    ? (ship.getDeploymentCostSupplies() / ship.getBaseDeploymentCostSupplies())
-                    : 1;
-
-            return fp * Math.max(1, Math.min(2, 1 + (fp - 5f) / 25f)) * dModMult;
-        } else{
-            return ship.getDeploymentCostSupplies();
-        }
-    }
-
 
     public FleetMemberAPI getFleetMember(ShipAPI ship) {
         FleetMemberAPI fleetMember = null;

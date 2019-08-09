@@ -1,30 +1,29 @@
 package starship_legends.hullmods;
 
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.characters.OfficerDataAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
-import com.fs.starfarer.api.combat.BaseHullMod;
-import com.fs.starfarer.api.combat.MutableShipStatsAPI;
-import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.*;
 
 import java.awt.*;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 
 public class Reputation extends BaseHullMod {
+    final float AVERAGE_UPDATE_PERIOD = 3;
     private final static Map<ShipAPI.HullSize, Integer> FLAT_EFFECT_MULT = new HashMap();
     static {
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.FRIGATE, 1);
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.DESTROYER, 2);
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.CRUISER, 4);
-        FLAT_EFFECT_MULT.put(ShipAPI.HullSize.CAPITAL_SHIP, 8);
+        FLAT_EFFECT_MULT.put(ShipAPI.HullSize.CAPITAL_SHIP, 6);
     }
 
     static Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
@@ -87,6 +86,33 @@ public class Reputation extends BaseHullMod {
                     }
                 } else {
                     switch (trait.getTypeId()) {
+                        case "cursed":
+                            CombatPlugin.CURSED.put(shipID, e);
+                            break;
+                        case "phase_mad":
+                            CombatPlugin.PHASEMAD.put(shipID, e);
+                            break;
+                        case "dmod_effect":
+                            stats.getDynamic().getStat(Stats.DMOD_EFFECT_MULT).modifyPercent(id, e);
+                            break;
+                        case "survey":
+                            stats.getDynamic().getMod(Stats.getSurveyCostReductionId(Commodities.SUPPLIES)).modifyFlat(id, -e);
+                            break;
+                        case "blockade_runner":
+                            stats.getZeroFluxSpeedBoost().modifyPercent(id, e);
+                            break;
+                        case "drive_stabilizer":
+                            stats.getSensorProfile().modifyFlat(id, e);
+                            break;
+                        case "command_support":
+                            stats.getDynamic().getMod(Stats.COMMAND_POINT_RATE_FLAT).modifyFlat(id, e * 0.01f);
+                            break;
+                        case "nav_support":
+                            stats.getDynamic().getMod(Stats.COORDINATED_MANEUVERS_FLAT).modifyFlat(id, e);
+                            break;
+                        case "ecm_support":
+                            stats.getDynamic().getMod(Stats.ELECTRONIC_WARFARE_FLAT).modifyFlat(id, e);
+                            break;
                         case "cr_cap":
                             stats.getMaxCombatReadiness().modifyFlat(id, e * 0.01f, trait.getName(true));
                             break;
@@ -112,6 +138,7 @@ public class Reputation extends BaseHullMod {
                             break;
                         case "crew_casualties":
                             stats.getCrewLossMult().modifyPercent(id, e);
+                            stats.getDynamic().getStat(Stats.FIGHTER_CREW_LOSS_MULT).modifyPercent(id, e);
                             break;
                         case "recovery_chance":
                             stats.getDynamic().getMod(Stats.INDIVIDUAL_SHIP_RECOVERY_MOD).modifyPercent(id, e);
@@ -268,6 +295,14 @@ public class Reputation extends BaseHullMod {
     }
 
     @Override
+    public void applyEffectsAfterShipCreation(ShipAPI ship, String id) {
+//        ShipSystemAPI myShipSystem = ship.getSystem();
+//        myShipSystem.setCooldown((float) Math.PI);
+//        myShipSystem.setFluxPerSecond((float) Math.E);
+//        myShipSystem.setFluxPerUse(Float.MAX_VALUE);
+    }
+
+    @Override
     public String getDescriptionParam(int index, ShipAPI.HullSize hullSize, ShipAPI ship) {
         return index == 1 && RepRecord.existsFor(ship)
                 ? (int)(RepRecord.get(ship).getRating() * 100) + "%"
@@ -300,24 +335,63 @@ public class Reputation extends BaseHullMod {
             tooltip.addPara(RepRecord.getTierFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,
                     Misc.getGrayColor(), Misc.getGrayColor(), ship.getName());
 
-            if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && !ship.getCaptain().isDefault()) {
-                loyaltyEffectAdjustment = rep.getLoyaltyLevel(ship.getCaptain()).getTraitAdjustment();
-                LoyaltyLevel ll = rep.getLoyaltyLevel(ship.getCaptain());
-                Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
-                        ? Misc.getNegativeHighlightColor()
-                        : Misc.getHighlightColor();
-                String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + ship.getName()
-                        + " is %s " + ll.getPreposition()
-                        + " its captain, " + ship.getCaptain().getNameString().trim();
-                String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
+            if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
+                if(ship.getCaptain() != null && !ship.getCaptain().isDefault()) {
+                    loyaltyEffectAdjustment = rep.getLoyaltyLevel(ship.getCaptain()).getTraitAdjustment();
+                    LoyaltyLevel ll = rep.getLoyaltyLevel(ship.getCaptain());
+                    Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
+                            ? Misc.getNegativeHighlightColor()
+                            : Misc.getHighlightColor();
+                    String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + ship.getName()
+                            + " is %s " + ll.getPreposition()
+                            + " its captain, " + ship.getCaptain().getNameString().trim();
+                    String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
 
-                if(ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
-                else if(ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
-                else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
+                    if (ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
+                    else if (ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
+                    else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
-                tooltip.beginImageWithText(ship.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
-                        ll.getName(), (int)Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc());
-                tooltip.addImageWithText(8);
+                    tooltip.beginImageWithText(ship.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
+                            ll.getName(), (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc());
+                    tooltip.addImageWithText(8);
+                } else if(!rep.getOpinionsOfOfficers().isEmpty()) {
+                    int bestOpinion = 0;
+                    Set<String> trustedOfficers = new HashSet<>();
+
+                    for(Map.Entry<String, Integer> e : rep.getOpinionsOfOfficers().entrySet()) {
+                        if(e.getValue() > bestOpinion) {
+                            trustedOfficers.clear();
+                            bestOpinion = e.getValue();
+                        }
+
+                        if(e.getValue() == bestOpinion) trustedOfficers.add(e.getKey());
+                    }
+
+                    if(bestOpinion > 0 && !trustedOfficers.isEmpty()) {
+                        LoyaltyLevel ll = LoyaltyLevel.values()[bestOpinion + ModPlugin.LOYALTY_LIMIT];
+                        String message = "The " + (requiresCrew ? "crew" : "AI persona") + " is %s " + ll.getPreposition()
+                                + " the following officers:" + ship.getCaptain().getNameString().trim();
+                        tooltip.addPara(message, 10, Misc.getHighlightColor(), ll.getName());
+                        List<PersonAPI> captains = new LinkedList<>();
+                        captains.add(Global.getSector().getPlayerPerson());
+
+                        for (OfficerDataAPI od : Global.getSector().getPlayerFleet().getFleetData().getOfficersCopy()) {
+                            captains.add(od.getPerson());
+                        }
+
+                        for (int i = 0; i < captains.size(); i++) {
+                            PersonAPI captain = captains.get(i);
+
+                            if(trustedOfficers.contains(captain.getId())) {
+                                tooltip.beginImageWithText(captain.getPortraitSprite(), 24)
+                                    .addPara(captain.getNameString().trim(), 3);
+                                tooltip.addImageWithText(i + 1 == captains.size() ? 10 : 3);
+                            }
+                        }
+                    }
+
+
+                }
             }
 
             for(Trait trait : rep.getTraits()) {

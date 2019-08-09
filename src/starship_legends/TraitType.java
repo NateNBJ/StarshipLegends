@@ -5,25 +5,25 @@ import com.fs.starfarer.api.util.WeightedRandomPicker;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class TraitType {
     public static class Tags {
         public static final String
-                LOGISTICAL = "LOGISTICAL",
-                DISABLED = "DISABLED",
-                DISABLED_ONLY = "DISABLED_ONLY",
-                CARRIER = "CARRIER",
-                CREW = "CREW",
-                ATTACK = "ATTACK",
-                SHIELD = "SHIELD",
-                CLOAK = "CLOAK",
-                NO_AI = "NO_AI",
-                FLAT_EFFECT = "FLAT_EFFECT",
-                DEFENSE = "DEFENSE";
+                LOGISTICAL = "logistical",
+                DISABLED = "disabled",
+                DISABLED_ONLY = "disabled_only",
+                CARRIER = "carrier",
+                CREW = "crew",
+                ATTACK = "attack",
+                SHIELD = "shield",
+                CLOAK = "cloak",
+                NO_AI = "no_ai",
+                FLAT_EFFECT = "flat_effect",
+                FLAT_PERCENT = "flat_percent",
+                COMBAT = "combat",
+                FLUX = "flux",
+                DEFENSE = "defense";
     }
     private static final WeightedRandomPicker<TraitType>
             PICKER = new WeightedRandomPicker<>(),
@@ -37,6 +37,7 @@ public class TraitType {
     public static WeightedRandomPicker<TraitType> getPickerCopy(boolean forDisabledShips) {
         return (forDisabledShips ? DISABLED_PICKER : PICKER).clone();
     }
+    public static List<TraitType> getAll() { return new ArrayList<>(INSTANCE_REGISTRY.values()); }
 
     private String id, desc, bonusName, malusName, bonusDesc, malusDesc,
             bonusNameAI, malusNameAI, bonusDescAI, malusDescAI;
@@ -76,7 +77,7 @@ public class TraitType {
         baseBonus = (float)data.getDouble("base_bonus");
 
         String[] ja = data.getString("tags").replace(" ", "").split(",");
-        for(int i = 0; i < ja.length; ++i) tags.add(ja[i]);
+        for(int i = 0; i < ja.length; ++i) tags.add(ja[i].toLowerCase());
 
         ja = data.getString("required_built_in_mods").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) requiredBuiltIns.add(ja[i]);
@@ -90,8 +91,11 @@ public class TraitType {
 
         float chance = (float)data.getDouble("chance");
 
-        if(tags.contains(Tags.DISABLED) || tags.contains(Tags.DISABLED_ONLY)) DISABLED_PICKER.add(this, chance);
-        if(!tags.contains(Tags.DISABLED_ONLY)) PICKER.add(this, chance);
+        if(tags.contains(Tags.DISABLED_ONLY)) {
+            if(!tags.contains(Tags.DISABLED)) tags.add(Tags.DISABLED);
+        } else PICKER.add(this, chance);
+
+        if(tags.contains(Tags.DISABLED)) DISABLED_PICKER.add(this, chance);
 
         INSTANCE_REGISTRY.put(id, this);
     }

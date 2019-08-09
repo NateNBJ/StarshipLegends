@@ -10,6 +10,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.awt.Color;
 import java.util.Set;
@@ -82,6 +84,16 @@ public class Trait {
     }
 
     public static int getTraitLimit() { return ModPlugin.TRAITS_PER_TIER * ModPlugin.TIER_COUNT; }
+    public static List<Trait> getAll() {
+        List<Trait> traits = new ArrayList<>();
+
+        for(TraitType type : TraitType.getAll()) {
+            if(type.getTrait(false) != null) traits.add(type.getTrait(false));
+            if(type.getTrait(true) != null) traits.add(type.getTrait(true));
+        }
+
+        return traits;
+    }
 
     String typeID;
     int effectSign;
@@ -131,10 +143,13 @@ public class Trait {
         return getType().getTags();
     }
 
+    public int getEffectSign() { return effectSign; }
+
     public float getEffect(Teir teir, int loyaltyEffectAdjustment, ShipAPI.HullSize hullSize) {
         float baseBonus = (getType().getBaseBonus()
-                * (getTags().contains(TraitType.Tags.FLAT_EFFECT) ? Reputation.getFlatEffectMult(hullSize) : 1));
-        return baseBonus * effectSign * teir.getEffectMultiplier()
-                + baseBonus * loyaltyEffectAdjustment;
+                * ((getTags().contains(TraitType.Tags.FLAT_EFFECT) || (getTags().contains(TraitType.Tags.FLAT_PERCENT)))
+                        ? Reputation.getFlatEffectMult(hullSize) : 1));
+        return (baseBonus * effectSign * teir.getEffectMultiplier() + baseBonus * loyaltyEffectAdjustment)
+                * ModPlugin.GLOBAL_EFFECT_MULT;
     }
 }

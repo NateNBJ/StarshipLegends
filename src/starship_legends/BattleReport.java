@@ -2,7 +2,6 @@ package starship_legends;
 
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.BattleAPI;
-import com.fs.starfarer.api.campaign.CoreUITabId;
 import com.fs.starfarer.api.campaign.FactionAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
@@ -11,26 +10,57 @@ import com.fs.starfarer.api.ui.*;
 import com.fs.starfarer.api.util.Misc;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 public class BattleReport extends BaseIntelPlugin {
-    static final float DURATION = 30;
+    static final float DURATION = 30, RIGHT_MARGIN = 40, RATING_COLUMN_WIDTH = 75;
 
-    BattleAPI battle;
     FactionAPI enemyFaction;
-    float battleDifficulty = 0;
+    float battleDifficulty, playerFP = 0, enemyFP = 0;
     long timestamp;
     List<RepChange> changes = new LinkedList<>();
+    List<FleetMemberAPI> destroyed, routed;
+    Boolean wasVictory;
 
-    public BattleReport(float battleDifficulty, BattleAPI battle) {
-        this.battle = battle;
+    float getShipListHeight(float width, List<FleetMemberAPI> ships) {
+        return addShipList(null, width, null, ships);
+    }
+    float addShipList(TooltipMakerAPI e, float width, String title, List<FleetMemberAPI> ships) {
+        if(ships == null || ships.isEmpty()) return 0;
+
+        float H = 48;
+        int columns = (int)Math.floor(width / H);
+        int rows = (int)Math.ceil(ships.size() / (float)columns);
+
+        if(e != null) {
+            //e.addSectionHeading(" " + title, Alignment.LMID, 10);
+            e.addPara(title, 10);
+            e.addShipList(columns, rows, H, Color.WHITE, ships, 4);
+        }
+
+        return rows * H + 14 + 18;
+    }
+
+    public BattleReport(float battleDifficulty, BattleAPI battle, Set<FleetMemberAPI> destroyed,
+                        Set<FleetMemberAPI> routed, Boolean wasVictory, float playerFP, float enemyFP) {
+
         this.battleDifficulty = battleDifficulty;
         this.timestamp = Global.getSector().getLastPlayerBattleTimestamp();
+        this.wasVictory = wasVictory;
+        this.playerFP = playerFP;
+        this.enemyFP = enemyFP;
 
-        if(battle != null) enemyFaction = battle.getPrimary(battle.getNonPlayerSide()).getFaction();
+        routed.removeAll(destroyed);
+        this.destroyed = new ArrayList<>(destroyed);
+        this.routed = new ArrayList<>(routed);
+
+        Collections.sort(this.destroyed, Util.SHIP_SIZE_COMPARATOR);
+        Collections.sort(this.routed, Util.SHIP_SIZE_COMPARATOR);
+
+        if(battle != null) {
+            enemyFaction = battle.getPrimary(battle.getNonPlayerSide()).getFaction();
+        }
     }
 
     public void addChange(RepChange change) {
@@ -70,23 +100,37 @@ public class BattleReport extends BaseIntelPlugin {
                     ? Misc.getPositiveHighlightColor()
                     : (battleDifficulty < 0.75f ? Misc.getNegativeHighlightColor() : Misc.getTextColor());
             String dmgMaybe = width > 1200 ? "Damage " : "";
-            float w = width - 40, totalHeight = 214 + Math.max(0, changes.size() - 3) * 20;
+            float w = width - RIGHT_MARGIN;
+            float totalHeight = 274 + Math.max(0, changes.size() - 3) * 20
+                    + getShipListHeight(w, destroyed) + getShipListHeight(w, routed);
             TooltipMakerAPI outer = panel.createUIElement(width, height, true);
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);
             TooltipMakerAPI e = inner.createUIElement(width, totalHeight + noteCount * NOTE_HEIGHT, false);
+            String resultMaybe = (wasVictory != null) ? (wasVictory ?  "- Victory!" : "- Defeat!") : "";
 
             outer.addCustom(inner, 0);
-            e.addSectionHeading(" Battle Report", Alignment.LMID, 10);
+            e.addSectionHeading(" Battle Report " + resultMaybe, Alignment.LMID, 10);
 
             e.addPara(title, 10, Misc.getTextColor(), getFactionForUIColors().getColor(),
                     enemyFaction == null ? "" : enemyFaction.getDisplayNameLongWithArticle());
 
-            e.addPara("Difficulty rating: %s", 10, Misc.getTextColor(), difficultyColor, (int) (battleDifficulty * 100) + "%");
+            if(playerFP > 0) e.addPara("Strength of your deployed forces: %s", 10, Misc.getHighlightColor(), "" + (int)playerFP);
+            if(enemyFP > 0) e.addPara("Strength of enemy forces: %s", 10, Misc.getHighlightColor(), "" + (int)enemyFP);
+
+            if(ModPlugin.BATTLE_DIFFICULTY_MULT > 0) {
+                e.addPara("Difficulty rating: %s", 10, Misc.getTextColor(), difficultyColor, (int) (battleDifficulty * 100) + "%");
+            }
+
+            addShipList(e, w, "Enemies Destroyed:", destroyed);
+            addShipList(e, w, "Enemies Routed:", routed);
+
+            e.addSectionHeading(" Combat Performance Summary", Alignment.LMID, 10);
 
             if(ModPlugin.SHOW_COMBAT_RATINGS) {
-                e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.15f * w, "Class", 0.14f * w,
-                        "Status", 0.10f * w, dmgMaybe + "Sustained", 0.12f * w, dmgMaybe + "Inflicted", 0.12f * w,
-                        "Rating", 0.08f * w, "Loyalty", 0.12f * w, "Reputation", 0.17f * w);
+                w -= RATING_COLUMN_WIDTH;
+                e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.17f * w, "Class", 0.14f * w,
+                        "Status", 0.12f * w, dmgMaybe + "Sustained", 0.12f * w, dmgMaybe + "Inflicted", 0.12f * w,
+                        "Rating", RATING_COLUMN_WIDTH, "Loyalty", 0.14f * w, "Reputation", 0.19f * w);
             } else {
                 e.beginTable(Global.getSector().getPlayerFaction(), 20, "Name", 0.18f * w, "Class", 0.15f * w,
                         "Status", 0.11f * w, dmgMaybe + "Sustained", 0.13f * w, dmgMaybe + "Inflicted", 0.13f * w,
@@ -185,12 +229,12 @@ public class BattleReport extends BaseIntelPlugin {
                 }
             }
 
-            e.addTable("", 0, 10);
+            e.addTable("", 0, 3);
 
             if(!changes.isEmpty()) {
                 e.addPara("", 0);
 
-                if (!changes.isEmpty()) e.addSectionHeading(" Notes", Alignment.LMID, 10);
+                if (!changes.isEmpty()) e.addSectionHeading(" Notes on Crew Disposition", Alignment.LMID, 10);
 
                 inner.addUIElement(e);
 
@@ -234,7 +278,7 @@ public class BattleReport extends BaseIntelPlugin {
 
     @Override
     public String getSortString() {
-        return "Battle Report";
+        return "sun_sl_battle_report_" + timestamp;
     }
 
     @Override

@@ -4,12 +4,9 @@ import com.fs.starfarer.api.EveryFrameScript;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
-import com.fs.starfarer.api.characters.AbilityPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
-import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.util.WeightedRandomPicker;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
@@ -25,8 +22,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     static float playerFP = 0, enemyFP = 0;
     static long xpBeforeBattle = Long.MAX_VALUE;
     static Random rand = new Random();
-    static Set<FleetMemberAPI> deployedShips = new HashSet<>();
-    static Set<FleetMemberAPI> disabledShips = new HashSet<>();
+    static Set<FleetMemberAPI> deployedShips = new HashSet<>(),
+            disabledShips = new HashSet<>(),
+            destroyedEnemies = new HashSet<>(),
+            routedEnemies = new HashSet<>();
 
     static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
     static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
@@ -45,14 +44,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             else fpWorthOfDamageDealt.put(shipID, fpWorthOfDamageDealt.get(shipID) + fpWorthOfDamage);
         }
     }
-
     public static void recordDamageSustained(String shipID, float damageSustained) {
         if(damageSustained > 0) {
+            if(ModPlugin.HULL_REGEN_SHIPS.containsKey(shipID)) damageSustained *= ModPlugin.HULL_REGEN_SHIPS.get(shipID);
+
             if (!fractionDamageTaken.containsKey(shipID)) fractionDamageTaken.put(shipID, Math.min(1, damageSustained));
             else fractionDamageTaken.put(shipID, Math.min(1, fractionDamageTaken.get(shipID) + damageSustained));
         }
     }
-
     public static void collectRealSnapshotInfoIfNeeded() {
         if(Global.getSector() == null || Global.getSector().getPlayerFleet() == null) return;
 
@@ -68,10 +67,29 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         }
     }
 
+    static void reset() {
+        playerFP = 0;
+        enemyFP = 0;
+        playerDeployedFP.clear();
+        enemyDeployedFP.clear();
+        fractionDamageTaken.clear();
+        originalCaptains.clear();
+        originalShipList = null;
+        fpWorthOfDamageDealt.clear();
+        deployedShips.clear();
+        disabledShips.clear();
+        destroyedEnemies.clear();
+        routedEnemies.clear();
+        xpBeforeBattle = Long.MAX_VALUE;
+    }
+
     @Override
     public void reportBattleOccurred(CampaignFleetAPI primaryWinner, BattleAPI battle) {
         try {
             if (!battle.isPlayerInvolved() || originalShipList == null) return;
+
+            CombatPlugin.CURSED.clear();
+            CombatPlugin.PHASEMAD.clear();
 
             long xpEarned = Global.getSector().getPlayerStats().getXP() - xpBeforeBattle;
 
@@ -79,26 +97,21 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             Random rand = new Random();
             float difficulty = 1;
+            boolean isWin = battle == null || primaryWinner == null || battle.getPlayerSide() == null ? null
+                    : battle.getPlayerSide().contains(primaryWinner);
 
-            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
-                        && ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle() > 0) {
-
+            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+                playerFP = (float)ruthless_sector.ModPlugin.getPlayerFleetStrengthInLastBattle();
+                enemyFP = (float)ruthless_sector.ModPlugin.getEnemyFleetStrengthInLastBattle();
                 difficulty = (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle();
             } else {
                 for(Float f : playerDeployedFP.values()) playerFP += f;
                 for(Float f : enemyDeployedFP.values()) enemyFP += f;
 
-//                for(Map.Entry<FleetMemberAPI, Float> e :playerDeployedFP.entrySet()) {
-//                    log(e.getKey().getHullId() + " : " + e.getValue());
-//                }
-//                for(Map.Entry<FleetMemberAPI, Float> e : enemyDeployedFP.entrySet()) {
-//                    log(e.getKey().getHullId() + " : " + e.getValue());
-//                }
-
                 difficulty = (playerFP > 1 ? enemyFP / playerFP : 1);
             }
 
-            BattleReport report = new BattleReport(difficulty, battle);
+            BattleReport report = new BattleReport(difficulty, battle, destroyedEnemies, routedEnemies, isWin, playerFP, enemyFP);
             Set<String> currentShipSet = new HashSet<>();
 
             for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
@@ -175,7 +188,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                             + NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED");
 
                     if(traitIsBonus || !ModPlugin.IGNORE_ALL_MALUSES) {
-                        rc.setTraitChange(chooseTrait(ship, rand, !traitIsBonus, rc.damageTakenFraction,
+                        rc.setTraitChange(RepRecord.chooseNewTrait(ship, rand, !traitIsBonus, rc.damageTakenFraction,
                                 rc.damageDealtPercent, rc.deployed, rc.disabled));
                     }
                 } else {
@@ -184,31 +197,51 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULT;
 
                     if(rc.deployed && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
-                        int sign = (int)Math.signum(bonusChance - 0.5f);
+                        int sign = (int)Math.signum(bonusChance - 0.5f); // The goodness (not direction) of the shuffle
 
                         msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
                                 + (int)(shuffleChance * 100) + "% - ";
 
+                        Trait[] shuffleTraits = rep.chooseTraitsToShuffle(sign, rc.newRating);
+
                         if(rep.getTraits().size() <= 2) {
                             msg += "TOO FEW TRAITS";
-                        } else if(rand.nextFloat() <= shuffleChance) {
-
-//                            for(int i = rep.getTraits().size() - 1; i >= 0; --i) {
-//                                Trait t = rep.getTraits().get(i);
-//
-//
-//                                int j = t.effectSign > 0 ? i - sign : i + sign;
-//                            }
-
-
+                        } else if(shuffleTraits != null && rand.nextFloat() <= shuffleChance) {
+                            rc.setTraitChange(shuffleTraits, sign);
                             msg += "SUCCEEDED";
-
-                            int i = rep.getTraits().size() - (int)(Math.ceil(Math.pow(rand.nextFloat(), 2) * rep.getTraits().size()));
-
-                            rc.setTraitChange(rep.getTraits().get(Math.max(i, 1)), sign);
                         } else {
                             msg += "FAILED";
                         }
+
+//                        if(rep.getTraits().size() <= 2) {
+//                            msg += "TOO FEW TRAITS";
+//                        } else if(rand.nextFloat() <= shuffleChance) {
+//                            float difNow = rc.newRating - rep.getFractionOfBonusEffectFromTraits();
+//                            float difWithoutNewestTrait = rc.newRating - rep.getFractionOfBonusEffectFromTraits(true);
+//                            Trait newestTrait = rep.getTraits().get(rep.getTraits().size() - 1);
+//
+//                            if(newestTrait.getEffectSign() == -sign && Math.abs(difNow) > Math.abs(difWithoutNewestTrait)) {
+//                                rc.setTraitChange(newestTrait, sign);
+//                            } else {
+//                                for(int i = rep.getTraits().size() - 2; i >= 0; --i) {
+//                                    Trait t = rep.getTraits().get(i);
+//                                    int j = t.getEffectSign() > 0 ? i - sign : i + sign;
+//                                    if(j >= 0 && j < rep.getTraits().size() - 1
+//                                            && rep.getTraits().get(j).getEffectSign() == -t.getEffectSign()) {
+//
+//                                        rc.setTraitChange(t, sign);
+//                                    }
+//                                }
+//                            }
+
+//                            int i = rep.getTraits().size() - (int)(Math.ceil(Math.pow(rand.nextFloat(), 2) * rep.getTraits().size()));
+//
+//                            rc.setTraitChange(rep.getTraits().get(Math.max(i, 1)), sign);
+//
+//                            msg += "SUCCEEDED";
+//                        } else {
+//                            msg += "FAILED";
+//                        }
                     }
                 }
 
@@ -258,101 +291,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         reset();
     }
 
-    public static Trait chooseTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, float fractionDamageTaken,
-                                    float damageDealtRatio, boolean wasDeployed, boolean wasDisabled) {
-
-        RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
-
-        if(rep.hasMaximumTraits()) return null;
-
-        WeightedRandomPicker<TraitType> picker = TraitType.getPickerCopy(wasDisabled);
-
-        for(Trait trait : rep.getTraits()) picker.remove(trait.getType());
-
-        for(RepChange change : CampaignScript.pendingRepChanges.val) {
-            if(change.ship == ship && change.trait != null) picker.remove(change.trait.getType());
-        }
-
-        while(!picker.isEmpty()) {
-            TraitType type = picker.pickAndRemove();
-            Trait trait = type.getTrait(traitIsBad);
-            boolean traitIsRelevant = true;
-            ShieldAPI.ShieldType shieldType = ship.getHullSpec().getShieldType();
-
-            for(String tag : type.getTags()) {
-                switch (tag) {
-                    case TraitType.Tags.CARRIER:
-                        if(!ship.isCarrier()) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.SHIELD:
-                        if(shieldType != ShieldAPI.ShieldType.FRONT && shieldType != ShieldAPI.ShieldType.OMNI)
-                            traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.CLOAK:
-                        if(shieldType != ShieldAPI.ShieldType.PHASE) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.NO_AI:
-                        if(ship.getMinCrew() <= 0) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.DEFENSE:
-                        if(traitIsBad && fractionDamageTaken < 0.05f) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.ATTACK:
-                        if(traitIsBad && damageDealtRatio > 1) traitIsRelevant = false;
-                        break;
-                }
-            }
-
-            if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
-                for (String mod : ship.getHullSpec().getBuiltInMods()) {
-                    if (type.getIncompatibleBuiltInHullmods().contains(mod)) traitIsRelevant = false;
-                }
-            }
-
-            if(!type.getRequiredBuiltInHullmods().isEmpty()) {
-                if (!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
-                    traitIsRelevant = false;
-                }
-            }
-
-            boolean skipCombatLogisticsMismatch = false;
-
-            if(type.getTags().contains(TraitType.Tags.LOGISTICAL)
-                    && !ship.getHullSpec().isCivilianNonCarrier()
-                    && rand.nextFloat() <= ModPlugin.CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS) {
-
-                skipCombatLogisticsMismatch = true;
-            } else if(!type.getTags().contains(TraitType.Tags.LOGISTICAL)
-                    && ship.getHullSpec().isCivilianNonCarrier()
-                    && rand.nextFloat() <= ModPlugin.CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS) {
-
-                skipCombatLogisticsMismatch = true;
-            }
-
-//            boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
-//                    && !traitIsBad && rand.nextFloat() <= 0.75f;
-
-            if(trait != null && traitIsRelevant && !skipCombatLogisticsMismatch)
-                return trait;
-        }
-
-        return null;
-    }
-
-    static void reset() {
-        playerFP = 0;
-        enemyFP = 0;
-        playerDeployedFP.clear();
-        enemyDeployedFP.clear();
-        fractionDamageTaken.clear();
-        originalCaptains.clear();
-        originalShipList = null;
-        fpWorthOfDamageDealt.clear();
-        deployedShips.clear();
-        disabledShips.clear();
-        xpBeforeBattle = Long.MAX_VALUE;
-    }
-
     @Override
     public void reportPlayerEngagement(EngagementResultAPI result) {
         try {
@@ -366,52 +304,33 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());
 
-            if(xpBeforeBattle != Long.MAX_VALUE && ef.getGoal() == FleetGoal.ESCAPE) return;
+            //if(xpBeforeBattle != Long.MAX_VALUE && ef.getGoal() == FleetGoal.ESCAPE) return;
 
             deployedShips.addAll(pf.getDeployed());
             deployedShips.addAll(pf.getRetreated());
 
+            destroyedEnemies.addAll(ef.getDestroyed());
+            destroyedEnemies.addAll(ef.getDisabled());
+            routedEnemies.addAll(ef.getRetreated());
+
             xpBeforeBattle = Global.getSector().getPlayerStats().getXP();
 
-            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
 
-            for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : ef.getDisabled()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
-            for(FleetMemberAPI fm : ef.getDestroyed()) enemyDeployedFP.put(fm, CombatPlugin.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getDisabled()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));
+            for(FleetMemberAPI fm : ef.getDestroyed()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
     @Override
     public void reportPlayerClosedMarket(MarketAPI market) {
         for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-            RepChange.updateRepHullMod(ship);
-        }
-    }
-
-    @Override
-    public void reportPlayerActivatedAbility(AbilityPlugin ability, Object param) {
-        if(true) return;
-
-        Random rand = new Random();
-        FleetDataAPI fleet = Global.getSector().getPlayerFleet().getFleetData();
-
-        for(FleetMemberAPI ship : fleet.getMembersListCopy()) {
-            RepChange d = new RepChange(ship, ship.getCaptain());
-
-            switch (ability.getId()) {
-                case "distress_call": d.trait = chooseTrait(ship, rand, false, 0.5f, 0, true, false); break; // Good combat trait
-                case "interdiction_pulse": d.trait = chooseTrait(ship, rand, true, 0.5f, 0, true, false); break; // Bad combat trait
-                case "sustained_burn": d.trait = chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, false, false); break; // Reserved trait
-                case "emergency_burn": d.trait = chooseTrait(ship, rand, rand.nextBoolean(), 0.5f, 0, true, true); break; // Disabled trait
-                case "sensor_burst": d.setLoyaltyChange(1); break;
-                case "go_dark": d.setLoyaltyChange(-1); break;
-            }
-
-            d.apply(true);
+            RepRecord.updateRepHullMod(ship);
         }
     }
 

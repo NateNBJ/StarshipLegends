@@ -17,7 +17,7 @@ public class RepChange {
     FleetMemberAPI ship;
     PersonAPI captain;
     int captainOpinionChange, shuffleSign = 0, loyaltyLevel = Integer.MIN_VALUE;
-    Trait trait;
+    Trait trait, traitDown;
 
     float damageTakenFraction = 0, damageDealtPercent = 0, newRating = Integer.MIN_VALUE, ratingAdjustment = 0;
     boolean deployed, disabled;
@@ -34,9 +34,13 @@ public class RepChange {
             loyaltyLevel = RepRecord.get(ship).getLoyaltyLevel(captain).ordinal() + loyaltyChange;
         }
     }
-    public void setTraitChange(Trait trait) { setTraitChange(trait, 0); }
-    public void setTraitChange(Trait trait, int shuffleSign) {
+    public void setTraitChange(Trait trait) {
         this.trait = trait;
+        this.shuffleSign = 0;
+    }
+    public void setTraitChange(Trait trait[], int shuffleSign) {
+        this.trait = trait.length > 0 ? trait[0] : null;
+        this.traitDown = trait.length > 1 ? trait[1] : null;
         this.shuffleSign = shuffleSign;
     }
 
@@ -87,7 +91,7 @@ public class RepChange {
                 for(int i = 1; i < rep.getTraits().size(); i++) {
                     Trait t = rep.getTraits().get(i);
 
-                    if(t.equals(this.trait)) {
+                    if(t.equals(trait)) {
                         int shuffleDirection = t.effectSign > 0 ? -shuffleSign : shuffleSign;
 
                         if(i + shuffleDirection >= rep.getTraits().size()) {
@@ -123,7 +127,7 @@ public class RepChange {
             Global.getSector().getCampaignUI().addMessage(intel, CommMessageAPI.MessageClickAction.REFIT_TAB, ship);
         }
 
-        updateRepHullMod(ship);
+        RepRecord.updateRepHullMod(ship);
 
         return showNotification;
     }
@@ -156,13 +160,22 @@ public class RepChange {
             } else {
                 int shuffleDirection = trait.effectSign > 0 ? -shuffleSign : shuffleSign;
 
-                message = BaseIntelPlugin.BULLET + "The reputation of the " + ship.getShipName()
-                        + " for " + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s has become %s prominent.";
+                if(traitDown == null) {
+                    message = BaseIntelPlugin.BULLET + "The reputation of the " + ship.getShipName()
+                            + " for " + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s has become %s prominent.";
 
-                tooltip.addPara(message, 3, Misc.getTextColor(),
-                        shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                        trait.getLowerCaseName(ship.getMinCrew() > 0),
-                        (shuffleDirection < 0 ? "more" : "less"));
+                    tooltip.addPara(message, 3, Misc.getTextColor(),
+                            shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
+                            trait.getLowerCaseName(ship.getMinCrew() > 0), (shuffleDirection < 0 ? "more" : "less"));
+                } else {
+                    message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is now known better for "
+                            + trait.getDescPrefix(true) + " %s than " + traitDown.getDescPrefix(true) + " %s";
+
+                    tooltip.addPara(message, 3, Misc.getTextColor(),
+                            shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
+                            trait.getLowerCaseName(ship.getMinCrew() > 0),
+                            traitDown.getLowerCaseName(ship.getMinCrew() > 0));
+                }
             }
         }
 
@@ -181,32 +194,5 @@ public class RepChange {
         }
 
         //tooltip.addButton("View", ship, 50, 20, 3);
-    }
-
-    static void updateRepHullMod(FleetMemberAPI ship) {
-        if(!RepRecord.existsFor(ship)) return;
-
-        Trait.Teir teir = RepRecord.get(ship).getTeir();
-        ShipVariantAPI v;
-
-        if(teir == Trait.Teir.UNKNOWN) return;
-
-        if(ship.getVariant().isStockVariant()) {
-            v = ship.getVariant().clone();
-            v.setSource(VariantSource.REFIT);
-            ship.setVariant(v, false, false);
-        } else v = ship.getVariant();
-
-        v.setHullVariantId(ModPlugin.VARIANT_PREFIX + ship.getId());
-
-        v.removePermaMod("sun_sl_notable");
-        v.removePermaMod("sun_sl_wellknown");
-        v.removePermaMod("sun_sl_famous");
-        v.removePermaMod("sun_sl_legendary");
-        v.addPermaMod(teir.getHullModID());
-
-        Reputation.addShipOfNote(ship);
-
-        ship.updateStats();
     }
 }

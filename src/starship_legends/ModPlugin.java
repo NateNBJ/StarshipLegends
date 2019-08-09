@@ -3,31 +3,37 @@ package starship_legends;
 import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.ModSpecAPI;
+import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Submarkets;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.util.*;
+import java.util.List;
 
 public class ModPlugin extends BaseModPlugin {
-    static final String TRAIT_LIST_PATH = "sun_sl/data/traits.csv";
-    static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
-    static final String SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
-    static final String VARIANT_PREFIX = "sun_sl_";
-    static final int TIER_COUNT = 4;
-    static final int LOYALTY_LIMIT = 3;
+    public static final String TRAIT_LIST_PATH = "sun_sl/data/traits.csv";
+    public static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
+    public static final String HULL_REGEN_SHIPS_PATH = "sun_sl/data/hull_regen_ships.csv";
+    public static final String SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
+    public static final String RUTHLESS_SETTINGS_PATH = "RUTHLESS_STARSHIP_LEGENDS_OPTIONS.ini";
+    public static final String VARIANT_PREFIX = "sun_sl_";
+    public static final int TIER_COUNT = 4;
+    public static final int LOYALTY_LIMIT = 3;
 
     static boolean settingsAreRead = false;
+
+    public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
 
     public static boolean
             SHOW_REPUTATION_CHANGE_NOTIFICATIONS = true,
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = true,
+            USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = true,
             ENABLE_OFFICER_LOYALTY_SYSTEM = true,
             LOG_REPUTATION_CALCULATION_FACTORS = true,
             COMPENSATE_FOR_EXPERIENCE_MULT = true,
@@ -39,6 +45,7 @@ public class ModPlugin extends BaseModPlugin {
             TRAITS_PER_TIER = 2,
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30;
     public static float
+            GLOBAL_EFFECT_MULT = 1,
             MAX_XP_FOR_RESERVED_SHIPS = 80000,
             TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
             TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
@@ -59,6 +66,59 @@ public class ModPlugin extends BaseModPlugin {
             WORSEN_LOYALTY_CHANCE_MULT = 1.0f;
 
     CampaignScript script;
+
+    class Version {
+        public final int MAJOR, MINOR, PATCH, RC;
+
+        public Version(String versionStr) {
+            String[] temp = versionStr.replace("Starsector ", "").replace("a", "").split("-RC");
+
+            RC = temp.length > 1 ? Integer.parseInt(temp[1]) : 0;
+
+            temp = temp[0].split("\\.");
+
+            MAJOR = temp.length > 0 ? Integer.parseInt(temp[0]) : 0;
+            MINOR = temp.length > 1 ? Integer.parseInt(temp[1]) : 0;
+            PATCH = temp.length > 2 ? Integer.parseInt(temp[2]) : 0;
+        }
+
+        public boolean isOlderThan(Version other, boolean ignoreRC) {
+            if(MAJOR < other.MAJOR) return true;
+            if(MINOR < other.MINOR) return true;
+            if(PATCH < other.PATCH) return true;
+            if(!ignoreRC && RC < other.RC) return true;
+
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%d.%d.%d%s-RC%d", MAJOR, MINOR, PATCH, (MAJOR >= 1 ? "" : "a"), RC);
+        }
+    }
+
+    @Override
+    public void onApplicationLoad() throws Exception {
+        String message = "";
+
+        try {
+            ModSpecAPI spec = Global.getSettings().getModManager().getModSpec("sun_starship_legends");
+            Version minimumVersion = new Version(spec.getGameVersion());
+            Version currentVersion = new Version(Global.getSettings().getVersionString());
+
+            if(currentVersion.isOlderThan(minimumVersion, false)) {
+                message = String.format("\rThis version of Starsector is too old for %s!" +
+                                "\rPlease make sure Starsector is up to date. (http://fractalsoftworks.com/preorder/)" +
+                                "\rMinimum Version: %s" +
+                                "\rCurrent Version: %s",
+                        spec.getName(), minimumVersion, currentVersion);
+            }
+        } catch (Exception e) {
+            Global.getLogger(this.getClass()).error("Version comparison failed.", e);
+        }
+
+        if(!message.isEmpty()) throw new Exception(message);
+    }
 
     @Override
     public void beforeGameSave() {
@@ -85,6 +145,31 @@ public class ModPlugin extends BaseModPlugin {
             readSettingsIfNecessary();
 
             boolean allRepRecordsHaveNoRating = true;
+
+            // Remove RepRecords for ships that no longer exist
+//            try {
+//                Set<String> foundIDs = new HashSet<>();
+//
+//                for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+//                    foundIDs.add(ship.getId());
+//                }
+//
+//                for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+//                    for(FleetMemberAPI ship : market.getSubmarket(Submarkets.SUBMARKET_STORAGE).getCargo().getMothballedShips().getMembersListCopy()) {
+//                        foundIDs.add(ship.getId());
+//                    }
+//                }
+//
+//                List<String> recordIDs = new ArrayList<>(RepRecord.INSTANCE_REGISTRY.val.keySet());
+//
+//                for(String id : recordIDs) {
+//                    if(!foundIDs.contains(id)) {
+//                        RepRecord.INSTANCE_REGISTRY.val.remove(id);
+//                    }
+//                }
+//            } catch (Exception e) {
+//                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+//            }
 
             // Remove existing duplicate traits
             try {
@@ -134,7 +219,7 @@ public class ModPlugin extends BaseModPlugin {
             // Compile existing RepChanges into a battle report
             try {
                 if(!CampaignScript.pendingRepChanges.val.isEmpty()) {
-                    BattleReport report = new BattleReport(1, null);
+                    BattleReport report = new BattleReport(1, null, null, null, null, 0, 0);
                     for (RepChange rc : CampaignScript.pendingRepChanges.val) {
                         report.addChange(rc);
                     }
@@ -179,7 +264,19 @@ public class ModPlugin extends BaseModPlugin {
             jsonArray = Global.getSettings().loadCSV(LOYALTY_LEVEL_LIST_PATH);
             for (int i = 0; i < jsonArray.length(); i++) LoyaltyLevel.values()[i].init(jsonArray.getJSONObject(i));
 
-            JSONObject cfg = Global.getSettings().loadJSON(SETTINGS_PATH);
+            jsonArray = Global.getSettings().loadCSV(HULL_REGEN_SHIPS_PATH);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject data = jsonArray.getJSONObject(i);
+                HULL_REGEN_SHIPS.put(data.getString("hull_id"), (float)data.getDouble("damage_counted_per_damage_sustained"));
+            }
+
+            JSONObject cfg;
+
+            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+                try {
+                    cfg = Global.getSettings().loadJSON(RUTHLESS_SETTINGS_PATH);
+                } catch (Exception e) { cfg = Global.getSettings().loadJSON(SETTINGS_PATH); }
+            } else cfg = Global.getSettings().loadJSON(SETTINGS_PATH);
 
             Trait.Teir.Notable.init(cfg);
             Trait.Teir.Wellknown.init(cfg);
@@ -187,12 +284,14 @@ public class ModPlugin extends BaseModPlugin {
             Trait.Teir.Legendary.init(cfg);
 
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = cfg.getBoolean("useRuthlessSectorToCalculateBattleDifficulty");
+            USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = cfg.getBoolean("useRuthlessSectorToCalculateShipStrength");
             ENABLE_OFFICER_LOYALTY_SYSTEM = cfg.getBoolean("enableOfficerLoyaltySystem");
             LOG_REPUTATION_CALCULATION_FACTORS = cfg.getBoolean("logReputationCalculationFactors");
             COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
             IGNORE_ALL_MALUSES = cfg.getBoolean("ignoreAllMaluses");
             SHOW_COMBAT_RATINGS = cfg.getBoolean("showCombatRatings");
 
+            GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
             TRAITS_PER_TIER = cfg.getInt("traitsPerTier");
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = cfg.getInt("daysMothballedPerTraitToResetReputation");
 
