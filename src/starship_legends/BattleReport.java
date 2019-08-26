@@ -241,10 +241,7 @@ public class BattleReport extends BaseIntelPlugin {
                 List<FleetMemberAPI> sl = new ArrayList<>();
 
                 for (RepChange rc : changes) {
-                    if (!rc.hasAnyChanges()) continue;
-
-//            e.addSectionHeading(" " + rc.ship.getShipName() + " - " + rc.ship.getHullSpec().getHullName() + " class "
-//                    + rc.ship.getHullSpec().getDesignation(), Alignment.LMID, 5);
+                    if (!rc.hasAnyChanges() || !RepRecord.existsFor(rc.ship)) continue;
 
                     int notes = 0;
                     if (rc.trait != null) ++notes;

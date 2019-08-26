@@ -17,7 +17,6 @@ import java.util.List;
 
 
 public class Reputation extends BaseHullMod {
-    final float AVERAGE_UPDATE_PERIOD = 3;
     private final static Map<ShipAPI.HullSize, Integer> FLAT_EFFECT_MULT = new HashMap();
     static {
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.FRIGATE, 1);
@@ -81,7 +80,7 @@ public class Reputation extends BaseHullMod {
                         case "fighter_durability":
                             stats.getHullDamageTakenMult().modifyPercent(id, -e);
                             stats.getShieldDamageTakenMult().modifyPercent(id, -e);
-                            stats.getHullDamageTakenMult().modifyPercent(id, -e);
+                            stats.getArmorDamageTakenMult().modifyPercent(id, -e);
                             break;
                     }
                 } else {

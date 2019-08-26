@@ -180,6 +180,7 @@ public class RepChange {
         }
 
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
+
             LoyaltyLevel ll = getLoyaltyLevel();
             int llSign = (int)Math.signum(ll.getIndex());
             String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";

@@ -3,6 +3,7 @@ package starship_legends;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
+import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import org.lazywizard.console.Console;
 
@@ -124,16 +125,22 @@ public class Util {
         if(ship.getHullSpec().isCivilianNonCarrier() || ship.isMothballed() || ship.isFighterWing() || ship.isCivilian() || !ship.canBeDeployedForCombat()) {
             return 0;
         } if(ship.isStation()) {
-            int detachedModuleCount = 0;
-            int moduleCount = ship.getVariant().getModuleSlots().size() + 1;
+            ShipVariantAPI variant = ship.getVariant();
+            List<String> slots = variant.getModuleSlots();
+            float totalOP = 0, detachedOP = 0;
 
-            for(int i = 0; i < moduleCount; ++i) {
-                if(ship.getStatus().isPermaDetached(i)) {
-                    ++detachedModuleCount;
+            for(int i = 0; i < slots.size(); ++i) {
+                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
+                float op = module.getHullSpec().getOrdnancePoints(null);
+
+                totalOP += op;
+
+                if(ship.getStatus().isPermaDetached(i+1)) {
+                    detachedOP += op;
                 }
             }
 
-            if(detachedModuleCount > 0) { strength *= 0.3f; }
+            strength *= (totalOP - detachedOP) / Math.max(1, totalOP);
         } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
             float dModMult = ship.getBaseDeploymentCostSupplies() > 0
                     ? (ship.getDeploymentCostSupplies() / ship.getBaseDeploymentCostSupplies())

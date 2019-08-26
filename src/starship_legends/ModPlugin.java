@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.List;
 
 public class ModPlugin extends BaseModPlugin {
+    public static final String ID = "sun_starship_legends";
     public static final String TRAIT_LIST_PATH = "sun_sl/data/traits.csv";
     public static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
     public static final String HULL_REGEN_SHIPS_PATH = "sun_sl/data/hull_regen_ships.csv";
@@ -50,15 +51,16 @@ public class ModPlugin extends BaseModPlugin {
             TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
             TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
+            BONUS_CHANCE_FOR_CIVILIAN_SHIPS = 0.5f,
 
             BASE_RATING = 0.5f,
-            BONUS_CHANCE_RANDOMNESS = 1.0f,
-            BATTLE_DIFFICULTY_MULT = 0.25f,
-            DAMAGE_TAKEN_MULT = 1.0f,
-            DAMAGE_DEALT_MULT = 0.25f,
-            DAMAGE_DEALT_MIN_THRESHOLD = 1.0f,
+            BONUS_CHANCE_RANDOMNESS = 0.001f,
+            BATTLE_DIFFICULTY_MULT = 0.0f,
+            DAMAGE_TAKEN_MULT = 0.5f,
+            DAMAGE_DEALT_MULT = 0.125f,
+            DAMAGE_DEALT_MIN_THRESHOLD = 0.0f,
             BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = 1.0f,
-            TRAIT_POSITION_CHANGE_CHANCE_MULT = 1.0f,
+            TRAIT_POSITION_CHANGE_CHANCE_MULT = 5.0f,
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
@@ -274,9 +276,9 @@ public class ModPlugin extends BaseModPlugin {
 
             if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
                 try {
-                    cfg = Global.getSettings().loadJSON(RUTHLESS_SETTINGS_PATH);
-                } catch (Exception e) { cfg = Global.getSettings().loadJSON(SETTINGS_PATH); }
-            } else cfg = Global.getSettings().loadJSON(SETTINGS_PATH);
+                    cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
+                } catch (Exception e) { cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID); }
+            } else cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
             Trait.Teir.Notable.init(cfg);
             Trait.Teir.Wellknown.init(cfg);
@@ -306,6 +308,8 @@ public class ModPlugin extends BaseModPlugin {
             DAMAGE_DEALT_MULT = (float) cfg.getDouble("damageDealtMult");
             DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("damageDealtMinThreshold");
 
+
+            BONUS_CHANCE_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("bonusChanceForCivilianShips");
             BONUS_CHANCE_RANDOMNESS = (float) cfg.getDouble("bonusChanceRandomness");
             BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = (float) cfg.getDouble("bonusChanceForReservedShipsMult");
             TRAIT_POSITION_CHANGE_CHANCE_MULT = (float) cfg.getDouble("traitPositionChangeChanceMult");

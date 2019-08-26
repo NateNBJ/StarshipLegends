@@ -152,22 +152,20 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 float bonusChance, battleRating = ModPlugin.BASE_RATING;
 
-                if(rc.deployed) {
+                if(ship.getHullSpec().isCivilianNonCarrier()) {
+                    rc.newRating = bonusChance = battleRating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
+                } else if(rc.deployed) {
                     battleRating += difficulty * ModPlugin.BATTLE_DIFFICULTY_MULT
                             - rc.damageTakenFraction * ModPlugin.DAMAGE_TAKEN_MULT
                             + Math.max(0, rc.damageDealtPercent - ModPlugin.DAMAGE_DEALT_MIN_THRESHOLD) * ModPlugin.DAMAGE_DEALT_MULT;
 
-                    if(ship.getHullSpec().isCivilianNonCarrier()) {
-                        bonusChance = battleRating = ModPlugin.BASE_RATING;
+                    if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
+                        rc.newRating = battleRating;
+                        bonusChance = battleRating;
                     } else {
-                        if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
-                            rc.newRating = battleRating;
-                            bonusChance = battleRating;
-                        } else {
-                            rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
-                            rc.ratingAdjustment = rc.newRating - rep.getRating();
-                            bonusChance = 0.5f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
-                        }
+                        rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
+                        rc.ratingAdjustment = rc.newRating - rep.getRating();
+                        bonusChance = 0.5f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
                     }
                 } else {
                     rc.newRating = rep.getRating();
@@ -248,7 +246,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 int loyaltyChange = 0;
 
                 if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && captain != null
-                        && !captain.isDefault()) {
+                        && !captain.isDefault() && RepRecord.existsFor(ship)) {
 
                     LoyaltyLevel ll = rep.getLoyaltyLevel(captain);
                     float loyaltyAdjustChance = (battleRating - 0.5f) + rep.getLoyaltyBonus(captain);
