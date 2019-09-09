@@ -30,9 +30,9 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
         List<ShipEngineControllerAPI.ShipEngineAPI> engines = ship.getEngineController().getShipEngines();
         List<WeaponAPI> weapons = ship.getUsableWeapons();
 
-        if(!ship.getUsableWeapons().isEmpty() && rand.nextBoolean()) {
+        if(!ship.getUsableWeapons().isEmpty() && rand.nextBoolean() && weapons.size() > 0) {
             weapons.get(rand.nextInt(weapons.size())).disable();
-        } else if(!ship.getEngineController().isFlamedOut()) {
+        } else if(!ship.getEngineController().isFlamedOut() && engines.size() > 0) {
             engines.get(rand.nextInt(engines.size())).disable();
         }
     }

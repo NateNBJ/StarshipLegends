@@ -4,9 +4,8 @@ import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.ModSpecAPI;
-import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.ids.Submarkets;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -14,7 +13,6 @@ import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
 import java.util.*;
-import java.util.List;
 
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
@@ -56,6 +54,7 @@ public class ModPlugin extends BaseModPlugin {
             BASE_RATING = 0.5f,
             BONUS_CHANCE_RANDOMNESS = 0.001f,
             BATTLE_DIFFICULTY_MULT = 0.0f,
+            SUPPORT_MULT = 0.125f,
             DAMAGE_TAKEN_MULT = 0.5f,
             DAMAGE_DEALT_MULT = 0.125f,
             DAMAGE_DEALT_MIN_THRESHOLD = 0.0f,
@@ -124,9 +123,15 @@ public class ModPlugin extends BaseModPlugin {
 
     @Override
     public void beforeGameSave() {
+        Util.removeRepHullmodFromAutoFitGoalVariants();
         Saved.updatePersistentData();
         Global.getSector().removeTransientScript(script);
         Global.getSector().removeListener(script);
+
+//        for(ShipVariantAPI v : Global.getSector().getAutofitVariants().getTargetVariants("sunder")) {
+//            v.removeMod();
+//            v.getPermaMods().clear();
+//        }
     }
 
     @Override
@@ -304,6 +309,7 @@ public class ModPlugin extends BaseModPlugin {
 
             BASE_RATING = (float) cfg.getDouble("baseRating");
             BATTLE_DIFFICULTY_MULT = (float) cfg.getDouble("battleDifficultyMult");
+            SUPPORT_MULT = (float) cfg.getDouble("supportMult");
             DAMAGE_TAKEN_MULT = (float) cfg.getDouble("damageTakenMult");
             DAMAGE_DEALT_MULT = (float) cfg.getDouble("damageDealtMult");
             DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("damageDealtMinThreshold");

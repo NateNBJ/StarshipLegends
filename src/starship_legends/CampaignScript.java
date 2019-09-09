@@ -19,7 +19,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public CampaignScript() { super(true); }
 
-    static float playerFP = 0, enemyFP = 0;
+    static float playerFP = 0, enemyFP = 0, fpWorthOfDamageDealtDuringEngagement = 0;
     static long xpBeforeBattle = Long.MAX_VALUE;
     static Random rand = new Random();
     static Set<FleetMemberAPI> deployedShips = new HashSet<>(),
@@ -32,16 +32,25 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     static Map<String, Float> fractionDamageTaken = new HashMap<>();
     static Map<String, PersonAPI> originalCaptains = new HashMap<>();
     static Map<String, Float> fpWorthOfDamageDealt = new HashMap<>();
+    static Map<String, Float> supportContribution = new HashMap<>();
     static List<FleetMemberAPI> originalShipList;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
     static Saved<Float> timeUntilNextChange = new Saved<>("timeUntilNextChange", AVG_TIME_BETWEEN_REP_CHANGES);
     static Saved<HashMap<String, Integer>> dayMothballed = new Saved<>("dayMothballed", new HashMap<String, Integer>());
 
+    public static void recordSupportContribution(String shipID, float contribution) {
+        if(contribution > 0) {
+            if (!supportContribution.containsKey(shipID)) supportContribution.put(shipID, contribution);
+            else supportContribution.put(shipID, supportContribution.get(shipID) + contribution);
+        }
+    }
     public static void recordDamageDealt(String shipID, float fpWorthOfDamage) {
         if(fpWorthOfDamage > 0) {
             if (!fpWorthOfDamageDealt.containsKey(shipID)) fpWorthOfDamageDealt.put(shipID, fpWorthOfDamage);
             else fpWorthOfDamageDealt.put(shipID, fpWorthOfDamageDealt.get(shipID) + fpWorthOfDamage);
+
+            fpWorthOfDamageDealtDuringEngagement += fpWorthOfDamage;
         }
     }
     public static void recordDamageSustained(String shipID, float damageSustained) {
@@ -70,6 +79,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     static void reset() {
         playerFP = 0;
         enemyFP = 0;
+        fpWorthOfDamageDealtDuringEngagement = 0;
         playerDeployedFP.clear();
         enemyDeployedFP.clear();
         fractionDamageTaken.clear();
@@ -137,6 +147,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         * Global.getSector().getPlayerStats().getLevel();
                 float xp = rc.deployed ? xpEarned : Math.min(xpEarned, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
                 float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
+                int adjustmentSign = 0;
 
                 if(rc.disabled) rc.damageTakenFraction = 1;
                 else if(!rc.deployed || !fractionDamageTaken.containsKey(ship.getId())) rc.damageTakenFraction = 0;
@@ -155,9 +166,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 if(ship.getHullSpec().isCivilianNonCarrier()) {
                     rc.newRating = bonusChance = battleRating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
                 } else if(rc.deployed) {
-                    battleRating += difficulty * ModPlugin.BATTLE_DIFFICULTY_MULT
-                            - rc.damageTakenFraction * ModPlugin.DAMAGE_TAKEN_MULT
-                            + Math.max(0, rc.damageDealtPercent - ModPlugin.DAMAGE_DEALT_MIN_THRESHOLD) * ModPlugin.DAMAGE_DEALT_MULT;
+                    battleRating += ModPlugin.BATTLE_DIFFICULTY_MULT * difficulty
+                            - ModPlugin.DAMAGE_TAKEN_MULT * rc.damageTakenFraction
+                            + ModPlugin.SUPPORT_MULT * (supportContribution.containsKey(ship.getId()) ? supportContribution.get(ship.getId()) : 0)
+                            + ModPlugin.DAMAGE_DEALT_MULT * Math.max(0, rc.damageDealtPercent - ModPlugin.DAMAGE_DEALT_MIN_THRESHOLD);
 
                     if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
                         rc.newRating = battleRating;
@@ -165,6 +177,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     } else {
                         rc.newRating = rep.getAdjustedRating(battleRating, 0.1f);
                         rc.ratingAdjustment = rc.newRating - rep.getRating();
+                        adjustmentSign = (int)Math.signum(rc.ratingAdjustment);
                         bonusChance = 0.5f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
                     }
                 } else {
@@ -181,11 +194,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if (rand.nextFloat() <= traitChance) {
                     boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) <= bonusChance;
+                    boolean ignoreDueToAdjustment = (traitIsBonus && adjustmentSign < 0)
+                            || (!traitIsBonus && adjustmentSign > 0);
 
                     msg += "SUCCEEDED"
                             + NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED");
 
-                    if(traitIsBonus || !ModPlugin.IGNORE_ALL_MALUSES) {
+                    if((traitIsBonus || !ModPlugin.IGNORE_ALL_MALUSES) && !ignoreDueToAdjustment) {
                         rc.setTraitChange(RepRecord.chooseNewTrait(ship, rand, !traitIsBonus, rc.damageTakenFraction,
                                 rc.damageDealtPercent, rc.deployed, rc.disabled));
                     }
@@ -197,49 +212,22 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     if(rc.deployed && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f); // The goodness (not direction) of the shuffle
 
-                        msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
-                                + (int)(shuffleChance * 100) + "% - ";
 
-                        Trait[] shuffleTraits = rep.chooseTraitsToShuffle(sign, rc.newRating);
+                        if(adjustmentSign == 0 || sign == adjustmentSign) {
+                            msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
+                                    + (int) (shuffleChance * 100) + "% - ";
 
-                        if(rep.getTraits().size() <= 2) {
-                            msg += "TOO FEW TRAITS";
-                        } else if(shuffleTraits != null && rand.nextFloat() <= shuffleChance) {
-                            rc.setTraitChange(shuffleTraits, sign);
-                            msg += "SUCCEEDED";
-                        } else {
-                            msg += "FAILED";
+                            Trait[] shuffleTraits = rep.chooseTraitsToShuffle(sign, rc.newRating);
+
+                            if (rep.getTraits().size() <= 2) {
+                                msg += "TOO FEW TRAITS";
+                            } else if (shuffleTraits != null && rand.nextFloat() <= shuffleChance) {
+                                rc.setTraitChange(shuffleTraits, sign);
+                                msg += "SUCCEEDED";
+                            } else {
+                                msg += "FAILED";
+                            }
                         }
-
-//                        if(rep.getTraits().size() <= 2) {
-//                            msg += "TOO FEW TRAITS";
-//                        } else if(rand.nextFloat() <= shuffleChance) {
-//                            float difNow = rc.newRating - rep.getFractionOfBonusEffectFromTraits();
-//                            float difWithoutNewestTrait = rc.newRating - rep.getFractionOfBonusEffectFromTraits(true);
-//                            Trait newestTrait = rep.getTraits().get(rep.getTraits().size() - 1);
-//
-//                            if(newestTrait.getEffectSign() == -sign && Math.abs(difNow) > Math.abs(difWithoutNewestTrait)) {
-//                                rc.setTraitChange(newestTrait, sign);
-//                            } else {
-//                                for(int i = rep.getTraits().size() - 2; i >= 0; --i) {
-//                                    Trait t = rep.getTraits().get(i);
-//                                    int j = t.getEffectSign() > 0 ? i - sign : i + sign;
-//                                    if(j >= 0 && j < rep.getTraits().size() - 1
-//                                            && rep.getTraits().get(j).getEffectSign() == -t.getEffectSign()) {
-//
-//                                        rc.setTraitChange(t, sign);
-//                                    }
-//                                }
-//                            }
-
-//                            int i = rep.getTraits().size() - (int)(Math.ceil(Math.pow(rand.nextFloat(), 2) * rep.getTraits().size()));
-//
-//                            rc.setTraitChange(rep.getTraits().get(Math.max(i, 1)), sign);
-//
-//                            msg += "SUCCEEDED";
-//                        } else {
-//                            msg += "FAILED";
-//                        }
                     }
                 }
 
@@ -252,12 +240,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     float loyaltyAdjustChance = (battleRating - 0.5f) + rep.getLoyaltyBonus(captain);
                     boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
 
-                    if(loyaltyAdjustChance > 0.05f && !ll.isAtBest() && rc.newRating >= ll.getRatingRequiredToImprove()) {
+                    if(loyaltyAdjustChance > 0.05f && !ll.isAtBest() && adjustmentSign >= 0 && rc.newRating >= ll.getRatingRequiredToImprove()) {
                         loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
                         msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
                         if(success) loyaltyChange = 1;
-                    } else if(loyaltyAdjustChance < 0.05f && !ll.isAtWorst()) {
+                    } else if(loyaltyAdjustChance < 0.05f && !ll.isAtWorst() && adjustmentSign <= 0) {
                         loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
                         loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULT;
                         msg += NEW_LINE + "Loyalty Reduction Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
@@ -313,10 +301,30 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             xpBeforeBattle = Global.getSector().getPlayerStats().getXP();
 
-            for(FleetMemberAPI fm : pf.getDeployed()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getRetreated()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getDisabled()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
-            for(FleetMemberAPI fm : pf.getDestroyed()) playerDeployedFP.put(fm, Util.getShipStrength(fm));
+            List<FleetMemberAPI> deployedShips = new ArrayList<>();
+            deployedShips.addAll(pf.getDeployed());
+            deployedShips.addAll(pf.getDisabled());
+            deployedShips.addAll(pf.getRetreated());
+            deployedShips.addAll(pf.getDestroyed());
+
+            float deployedFP = 0;
+
+            for(FleetMemberAPI fm : deployedShips) {
+                float fp = Util.getShipStrength(fm);
+                playerDeployedFP.put(fm, fp);
+                deployedFP += fp;
+            }
+
+            if(deployedFP > 0) {
+                float contribution = fpWorthOfDamageDealtDuringEngagement / deployedFP;
+                Global.getLogger(this.getClass()).info("Support Contribution: " + contribution);
+
+                for (FleetMemberAPI fm : deployedShips) {
+                    recordSupportContribution(fm.getId(), contribution);
+                }
+            }
+
+            fpWorthOfDamageDealtDuringEngagement = 0;
 
             for(FleetMemberAPI fm : ef.getDeployed()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));
             for(FleetMemberAPI fm : ef.getRetreated()) enemyDeployedFP.put(fm, Util.getShipStrength(fm));

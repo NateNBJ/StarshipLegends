@@ -294,34 +294,34 @@ public class Reputation extends BaseHullMod {
     }
 
     @Override
-    public void applyEffectsAfterShipCreation(ShipAPI ship, String id) {
-//        ShipSystemAPI myShipSystem = ship.getSystem();
-//        myShipSystem.setCooldown((float) Math.PI);
-//        myShipSystem.setFluxPerSecond((float) Math.E);
-//        myShipSystem.setFluxPerUse(Float.MAX_VALUE);
-    }
-
-    @Override
     public String getDescriptionParam(int index, ShipAPI.HullSize hullSize, ShipAPI ship) {
-        return index == 1 && RepRecord.existsFor(ship)
-                ? (int)(RepRecord.get(ship).getRating() * 100) + "%"
-                : ship.getName();
+        FleetMemberAPI fm = findShip(hullSize, ship.getMutableStats());
+
+        if(fm == null) return "SHIP NOT FOUND";
+
+        return index == 1 && RepRecord.existsFor(fm)
+                ? (int)(RepRecord.get(fm).getRating() * 100) + "%"
+                : fm.getShipName();
     }
 
     @Override
     public void addPostDescriptionSection(TooltipMakerAPI tooltip, ShipAPI.HullSize hullSize, ShipAPI ship, float width, boolean isForModSpec) {
         try {
-            if(ship == null || !RepRecord.existsFor(ship)) return;
+
+            FleetMemberAPI fm = findShip(hullSize, ship.getMutableStats());
+
+            if(fm == null || !RepRecord.existsFor(fm)) return;
+
 //            if(ship == null) throw new RuntimeException("Could not find matching ship for reputation hullmod");
 //            if(!RepRecord.existsFor(ship)) throw new RuntimeException("Reputation hullmod exists without RepRecord entry for ship");
 
-            RepRecord rep = RepRecord.get(ship);
+            RepRecord rep = RepRecord.get(fm);
             Trait.Teir previousTeir = Trait.Teir.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
-            boolean requiresCrew = ship.getMutableStats().getMinCrewMod().computeEffective(ship.getHullSpec().getMinCrew()) > 0;
+            boolean requiresCrew = fm.getStats().getMinCrewMod().computeEffective(fm.getHullSpec().getMinCrew()) > 0;
 
-            if(Global.getSettings().isDevMode() || (ModPlugin.SHOW_COMBAT_RATINGS && !ship.getHullSpec().isCivilianNonCarrier())) {
+            if(Global.getSettings().isDevMode() || (ModPlugin.SHOW_COMBAT_RATINGS && !fm.getHullSpec().isCivilianNonCarrier())) {
                 tooltip.addPara("It has a rating of %s on the Evans-Zhao combat performance scale.", 10,
                         Misc.getHighlightColor(), (int) (rep.getRating() * 100f) + "%");
 
@@ -332,25 +332,25 @@ public class Reputation extends BaseHullMod {
             }
 
             tooltip.addPara(RepRecord.getTierFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,
-                    Misc.getGrayColor(), Misc.getGrayColor(), ship.getName());
+                    Misc.getGrayColor(), Misc.getGrayColor(), fm.getShipName());
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-                if(ship.getCaptain() != null && !ship.getCaptain().isDefault()) {
-                    loyaltyEffectAdjustment = rep.getLoyaltyLevel(ship.getCaptain()).getTraitAdjustment();
-                    LoyaltyLevel ll = rep.getLoyaltyLevel(ship.getCaptain());
+                if(fm.getCaptain() != null && !fm.getCaptain().isDefault()) {
+                    loyaltyEffectAdjustment = rep.getLoyaltyLevel(fm.getCaptain()).getTraitAdjustment();
+                    LoyaltyLevel ll = rep.getLoyaltyLevel(fm.getCaptain());
                     Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
                             ? Misc.getNegativeHighlightColor()
                             : Misc.getHighlightColor();
-                    String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + ship.getName()
+                    String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
                             + " is %s " + ll.getPreposition()
-                            + " its captain, " + ship.getCaptain().getNameString().trim();
+                            + " its captain, " + fm.getCaptain().getNameString().trim();
                     String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
 
                     if (ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
                     else if (ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
                     else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
-                    tooltip.beginImageWithText(ship.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
+                    tooltip.beginImageWithText(fm.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
                             ll.getName(), (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc());
                     tooltip.addImageWithText(8);
                 } else if(!rep.getOpinionsOfOfficers().isEmpty()) {
@@ -369,7 +369,7 @@ public class Reputation extends BaseHullMod {
                     if(bestOpinion > 0 && !trustedOfficers.isEmpty()) {
                         LoyaltyLevel ll = LoyaltyLevel.values()[bestOpinion + ModPlugin.LOYALTY_LIMIT];
                         String message = "The " + (requiresCrew ? "crew" : "AI persona") + " is %s " + ll.getPreposition()
-                                + " the following officers:" + ship.getCaptain().getNameString().trim();
+                                + " the following officers:" + fm.getCaptain().getNameString().trim();
                         tooltip.addPara(message, 10, Misc.getHighlightColor(), ll.getName());
                         List<PersonAPI> captains = new LinkedList<>();
                         captains.add(Global.getSector().getPlayerPerson());

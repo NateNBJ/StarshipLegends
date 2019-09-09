@@ -17,6 +17,21 @@ public class Util {
                     - (s1.getHullSpec().getHullSize().ordinal() * 10000 + (int)s1.getHullSpec().getHitpoints());
         }
     };
+
+    public static void removeRepHullmodFromAutoFitGoalVariants() {
+        try {
+            for (ShipHullSpecAPI spec : Global.getSettings().getAllShipHullSpecs()) {
+                for (ShipVariantAPI v : Global.getSector().getAutofitVariants().getTargetVariants(spec.getHullId())) {
+                    v.removePermaMod("sun_sl_notable");
+                    v.removePermaMod("sun_sl_wellknown");
+                    v.removePermaMod("sun_sl_famous");
+                    v.removePermaMod("sun_sl_legendary");
+                }
+            }
+        } catch (Exception e) {
+            ModPlugin.reportCrash(e);
+        }
+    }
     public static List<FleetMemberAPI> getShipsMatchingDescription(String desc) {
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
 
@@ -114,6 +129,10 @@ public class Util {
         return args.replace("good", "").replace("positive", "").replace("pos", "").replace("bad", "").replace("negative", "").replace("neg", "").trim();
     }
     public static float getShipStrength(FleetMemberAPI ship) {
+        if(ship.getHullSpec().isCivilianNonCarrier() || ship.isCivilian() || ship.isMothballed()) {
+            return ship.getDeploymentCostSupplies();
+        }
+
         if(ModPlugin.USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH
                 && Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
 
@@ -122,7 +141,7 @@ public class Util {
 
         float strength = ship.getFleetPointCost();
 
-        if(ship.getHullSpec().isCivilianNonCarrier() || ship.isMothballed() || ship.isFighterWing() || ship.isCivilian() || !ship.canBeDeployedForCombat()) {
+        if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
             return 0;
         } if(ship.isStation()) {
             ShipVariantAPI variant = ship.getVariant();
@@ -147,7 +166,7 @@ public class Util {
                     : 1;
 
             return strength * Math.max(1, Math.min(2, 1 + (strength - 5f) / 25f)) * dModMult;
-        } else{
+        } else {
             return ship.getDeploymentCostSupplies();
         }
 

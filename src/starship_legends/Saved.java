@@ -8,13 +8,21 @@ public class Saved<T> {
     static final String PREFIX = "sun_sl_";
     static Map<String, Saved> instanceRegistry = new HashMap();
 
-    static void updatePersistentData() {
+    public static void updatePersistentData() {
         for(Saved saved : instanceRegistry.values()) {
             Global.getSector().getPersistentData().put(saved.key, saved.val);
         }
     }
 
-    static void loadPersistentData() {
+    public static void deletePersistantData() {
+        for(Saved saved : instanceRegistry.values()) {
+            Global.getSector().getPersistentData().remove(saved.key);
+        }
+
+        instanceRegistry.clear();
+    }
+
+    public static void loadPersistentData() {
         for(Saved saved : instanceRegistry.values()) {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
                 saved.val = Global.getSector().getPersistentData().get(saved.key);

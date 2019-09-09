@@ -62,6 +62,20 @@ public class RepRecord {
         v.removePermaMod("sun_sl_legendary");
         v.addPermaMod(teir.getHullModID());
 
+        List<String> slots = v.getModuleSlots();
+
+        for(int i = 0; i < slots.size(); ++i) {
+            ShipVariantAPI module = v.getModuleVariant(slots.get(i));
+
+            module.setHullVariantId(v.getHullVariantId());
+
+            module.removePermaMod("sun_sl_notable");
+            module.removePermaMod("sun_sl_wellknown");
+            module.removePermaMod("sun_sl_famous");
+            module.removePermaMod("sun_sl_legendary");
+            module.addPermaMod(teir.getHullModID());
+        }
+
         Reputation.addShipOfNote(ship);
 
         ship.updateStats();

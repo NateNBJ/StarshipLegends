@@ -48,28 +48,38 @@ public class Trait {
                                 " Sometimes this reputation is warranted based on the physical properties of the ship, but" +
                                 " often, the superstitions and culture among its crew are enough to influence its performance.";
                     case Famous:
-                        return "Officers, crewmen, and everyday spacers have often heard of the" +
-                                " %s, and share stories of its exploits and misadventures. Sometimes the reputation it has" +
-                                " earned is warranted based on the physical properties of the ship, but often, the" +
+                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its crew," +
+                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
+                                " earned is warranted based on its physical properties, but often, the" +
                                 " superstitions and culture among its crew are enough to influence its performance.";
                     case Legendary:
                         return "Even planet-bound children tell" +
                                 " stories of the exploits and misadventures of the %s and its crew. Sometimes the reputation" +
-                                " it has earned is warranted based on the physical properties of the ship, but often, the" +
+                                " the ship has earned is warranted based on its physical properties, but often, the" +
                                 " superstitions and culture among its crew are enough to influence its performance.";
                 }
             } else {
                 switch (this) {
                     case Notable:
                         return "Your officers have informed you that the %s has displayed uncommon traits for a ship" +
-                                " of its class.";
+                                " of its class. The AI persona controlling it has started showing a few quirks of its own," +
+                                " for better or worse. Your AI specialist assures you that it's nothing to worry about.";
                     case Wellknown:
-                        return "Your fleet members often tell stories about the %s.";
+                        return "Members of your fleet often tell stories which include the %s and its AI persona," +
+                                " giving it a certain reputation. Sometimes this reputation is warranted based on the" +
+                                " physical properties of the ship, but it seems the AI persona has also integrated" +
+                                " thoroughly enough with the ship to affect its performance.";
                     case Famous:
-                        return "Officers, crewmen, and everyday spacers have often heard of the" +
-                                " %s, and share stories of its exploits and misadventures.";
+                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its AI Persona," +
+                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
+                                " earned is warranted based on its physical properties, but it seems the AI persona has" +
+                                " also integrated thoroughly enough with the ship to affect its performance.";
                     case Legendary:
-                        return "Even planet-bound children tell stories of the exploits and misadventures of the %s.";
+                        return "Even planet-bound children tell stories of the exploits and misadventures of the %s," +
+                                " and the AI persona in control of it is often a prominent character in these stories." +
+                                " Sometimes the reputation the ship has earned is warranted based on its physical" +
+                                " properties, but it seems the AI persona has also integrated thoroughly enough with" +
+                                " the ship to affect its performance.";
                 }
             }
 
