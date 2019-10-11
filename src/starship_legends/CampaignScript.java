@@ -110,7 +110,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     : ModPlugin.TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS;
 
             if (rand.nextFloat() <= traitChance) {
-                boolean traitIsBonus = rand.nextFloat() <= ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
+                boolean traitIsBonus = ModPlugin.IGNORE_ALL_MALUSES || rand.nextFloat() <= ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
 
                 rc.setTraitChange(RepRecord.chooseNewTrait(ship, rand, !traitIsBonus, 1, 0, false));
 
@@ -360,6 +360,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             if (dialog == null || dialog.getPlugin() == null || !(dialog.getPlugin() instanceof FleetInteractionDialogPluginImpl))
                 return;
+
             FleetInteractionDialogPluginImpl plugin = (FleetInteractionDialogPluginImpl) dialog.getPlugin();
 
             if (!(plugin.getContext() instanceof FleetEncounterContext)) return;
@@ -368,7 +369,9 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             if (context.getBattle() == null || context.getBattle().getNonPlayerCombined() == null) return;
             PersonAPI commander = Util.getHighestLevelEnemyCommanderInBattle(context.getBattle().getNonPlayerSide());
 
-            FactionConfig.get(context.getBattle().getNonPlayerCombined().getFaction()).showFleetReputation(dialog, commander);
+            FactionConfig fc  = FactionConfig.get(context.getBattle().getNonPlayerCombined().getFaction());
+
+            if(fc != null) fc.showFleetReputation(dialog, commander);
         } catch (Exception e) {
             ModPlugin.reportCrash(e);
         }

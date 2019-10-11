@@ -299,9 +299,7 @@ public class ModPlugin extends BaseModPlugin {
             JSONObject cfg;
 
             if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-                try {
-                    cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
-                } catch (Exception e) { cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID); }
+                cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
             } else cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
             FactionConfig.readDerelictChanceMultipliers(cfg.getJSONArray("famousDerelictChanceMultipliersByShipStrength"));
