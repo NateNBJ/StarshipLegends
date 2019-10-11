@@ -23,6 +23,7 @@ public class TraitType {
                 FLAT_PERCENT = "flat_percent",
                 COMBAT = "combat",
                 FLUX = "flux",
+                MISSILE = "missile",
                 DEFENSE = "defense";
     }
     private static final WeightedRandomPicker<TraitType>

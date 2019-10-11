@@ -8,6 +8,7 @@ import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.mission.FleetSide;
 import com.fs.starfarer.combat.CombatEngine;
 import com.fs.starfarer.combat.CombatFleetManager;
+import starship_legends.hullmods.Reputation;
 
 import java.util.*;
 import java.util.List;
@@ -17,14 +18,17 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
     int tick = 0;
     Random rand = new Random();
-    Map<String, String> wingSourceMap = new HashMap<>(), sectionSourceMap = new HashMap<>();
-    Map<String, Float> hpTotals = new HashMap<>();
-    Map<String, Float> stationDeployCosts = new HashMap<>();
-    Set<String> playerShips = new HashSet<>();
+    Map<String, String> wingSourceMap = new HashMap(), sectionSourceMap = new HashMap();
+    Map<String, Float> hpTotals = new HashMap();
+    Map<String, Float> stationDeployCosts = new HashMap();
+    Set<String> playerShips = new HashSet();
     String msg = "";
+    RepRecord enemyRep = FactionConfig.getEnemyFleetRep();
+    List<ShipAPI> shipsToApplyRepTo = new LinkedList();
 
-    public static Map<String, Float> CURSED = new HashMap<>();
-    public static Map<String, Float> PHASEMAD = new HashMap<>();
+    public static final String ID_FOR_ALL_ENEMIES = "sun_sl_enemy_fleet_rep_id";
+    public static Map<String, Float> CURSED = new HashMap();
+    public static Map<String, Float> PHASEMAD = new HashMap();
 
     void disableRandom(ShipAPI ship) {
         List<ShipEngineControllerAPI.ShipEngineAPI> engines = ship.getEngineController().getShipEngines();
@@ -40,16 +44,35 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     @Override
     public void advance(float amount, List<InputEventAPI> events) {
         try {
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
+
             CombatEngineAPI engine = Global.getCombatEngine();
 
             if(engine == null) return;
 
             if(!engine.isPaused() && rand.nextFloat() <= amount) { // Should happen about once per second, on average
                 for(ShipAPI ship : engine.getShips()) {
-                    String id = ship.getFleetMemberId();
+                    if(ship.isFighter()) continue;
+
+                    String id = ship.getOriginalOwner() == 0 ? ship.getFleetMemberId() : ID_FOR_ALL_ENEMIES;
 
                     if(CURSED.containsKey(id) && CURSED.get(id) >= rand.nextInt(101)) disableRandom(ship);
                     if(PHASEMAD.containsKey(id) && ship.isPhased() && PHASEMAD.get(id) >= rand.nextInt(101)) disableRandom(ship);
+                }
+            }
+
+            if(!engine.isPaused() && enemyRep != null) {
+                if(shipsToApplyRepTo.isEmpty()) {
+                    shipsToApplyRepTo.addAll(engine.getShips());
+                } else {
+                    int i = rand.nextInt(shipsToApplyRepTo.size());
+                    ShipAPI ship = shipsToApplyRepTo.get(i);
+                    shipsToApplyRepTo.remove(i);
+
+                    if(ship.getOriginalOwner() == 1) {
+                        Reputation.applyEffects(enemyRep, ship.getFleetMemberId(), ship.getHullSize(), null,
+                                ship.getMutableStats(), ship.isFighter(), "sun_sl_enemy_fleet_rep");
+                    }
                 }
             }
 
@@ -237,5 +260,14 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     public void renderInUICoords(ViewportAPI viewport) { }
 
     @Override
-    public void init(CombatEngineAPI engine) { }
+    public void init(CombatEngineAPI engine) {
+        try {
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
+
+            if (enemyRep != null) {
+                if (enemyRep.hasTraitType("cursed")) CURSED.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("cursed"));
+                if (enemyRep.hasTraitType("phase_mad")) PHASEMAD.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("phase_mad"));
+            }
+        } catch (Exception e) { ModPlugin.reportCrash(e); }
+    }
 }

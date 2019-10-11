@@ -19,6 +19,8 @@ public class AdjustTraits implements BaseCommand {
                 return BaseCommand.CommandResult.WRONG_CONTEXT;
             }
 
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
+
             int shuffleSign = Util.getGoodnessSignFromArgs(args);
 
             args = Util.removeGoodnessKeywordsFromArgs(args);
@@ -41,7 +43,7 @@ public class AdjustTraits implements BaseCommand {
                         continue;
                     }
 
-                    RepChange rc = new RepChange(ship, null);
+                    RepChange rc = new RepChange(ship);
 
                     rc.setTraitChange(traits, sign);
 

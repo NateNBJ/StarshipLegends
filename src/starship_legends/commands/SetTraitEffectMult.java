@@ -15,7 +15,7 @@ public class SetTraitEffectMult implements BaseCommand {
     @Override
     public CommandResult runCommand(String args, CommandContext context) {
         try {
-            if(args.isEmpty()) return CommandResult.BAD_SYNTAX;
+            if(args.isEmpty() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return CommandResult.BAD_SYNTAX;
 
             try {
                 float prevMult = ModPlugin.GLOBAL_EFFECT_MULT;

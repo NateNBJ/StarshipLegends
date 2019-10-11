@@ -3,6 +3,7 @@ package starship_legends.commands;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
 import org.lazywizard.console.commands.List_;
+import starship_legends.ModPlugin;
 import starship_legends.Trait;
 import starship_legends.Util;
 
@@ -18,6 +19,8 @@ public class ListTraits extends List_ {
                 Console.showMessage(CommonStrings.ERROR_CAMPAIGN_ONLY);
                 return CommandResult.WRONG_CONTEXT;
             }
+
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
             if (args.isEmpty()) return CommandResult.BAD_SYNTAX;
 

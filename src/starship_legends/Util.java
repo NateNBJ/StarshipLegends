@@ -1,11 +1,20 @@
 package starship_legends;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.CampaignFleetAPI;
+import com.fs.starfarer.api.campaign.*;
+import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
+import com.fs.starfarer.api.campaign.comm.IntelManagerAPI;
+import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
+import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import org.lazywizard.console.Console;
+import starship_legends.events.FamousDerelictIntel;
+import starship_legends.events.FamousFlagshipIntel;
+import starship_legends.hullmods.Reputation;
 
 import java.util.*;
 
@@ -18,14 +27,33 @@ public class Util {
         }
     };
 
+    static Set<String> vowels = new HashSet<>();
+    static {
+        vowels.add("a");
+        vowels.add("e");
+        vowels.add("i");
+        vowels.add("o");
+        vowels.add("u");
+    }
+
+    public static String getWithAnOrA(String string) {
+        if(string == null || string.isEmpty()) return "";
+
+        return (vowels.contains("" + string.toLowerCase().charAt(0)) ? "an " : "a ") + string;
+    }
+    public static String getShipDescription(FleetMemberAPI ship) {
+        return getShipDescription(ship, true);
+    }
+    public static String getShipDescription(FleetMemberAPI ship, boolean addAnOrA) {
+        String desc = ship.getHullSpec().getHullName() + " class " + ship.getHullSpec().getDesignation();
+
+        return addAnOrA ? getWithAnOrA(desc) : desc;
+    }
     public static void removeRepHullmodFromAutoFitGoalVariants() {
         try {
             for (ShipHullSpecAPI spec : Global.getSettings().getAllShipHullSpecs()) {
                 for (ShipVariantAPI v : Global.getSector().getAutofitVariants().getTargetVariants(spec.getHullId())) {
-                    v.removePermaMod("sun_sl_notable");
-                    v.removePermaMod("sun_sl_wellknown");
-                    v.removePermaMod("sun_sl_famous");
-                    v.removePermaMod("sun_sl_legendary");
+                    if(v != null) removeRepHullmodFromVariant(v);
                 }
             }
         } catch (Exception e) {
@@ -171,5 +199,102 @@ public class Util {
         }
 
         return strength;
+    }
+    public static void removeRepHullmodFromVariant(ShipVariantAPI v) {
+        v.removePermaMod("sun_sl_notable");
+        v.removePermaMod("sun_sl_wellknown");
+        v.removePermaMod("sun_sl_famous");
+        v.removePermaMod("sun_sl_legendary");
+
+        List<String> slots = v.getModuleSlots();
+
+        for(int i = 0; i < slots.size(); ++i) {
+            ShipVariantAPI module = v.getModuleVariant(slots.get(i));
+            Util.removeRepHullmodFromVariant(module);
+        }
+    }
+    public static PersonAPI getHighestLevelEnemyCommanderInBattle(List<CampaignFleetAPI> fleets) {
+        PersonAPI commander = null;
+
+        for(CampaignFleetAPI fleet : fleets) {
+            int lvl = fleet.getCommanderStats().getLevel();
+
+            if(true) Global.getLogger(Util.class).info(fleet.getCommander().getNameString() + " is level " + lvl);
+
+            if(commander == null || commander.getStats().getLevel() < lvl) {
+                commander = fleet.getCommander();
+            }
+        }
+
+        return commander;
+    }
+    public static PersonAPI getHighestLevelEnemyCommanderInBattle(BattleAPI battle) {
+        PersonAPI commander = battle.getNonPlayerCombined().getCommander();
+
+        if(true) Global.getLogger(Util.class).info(commander.getNameString() + " is level " + commander.getStats().getLevel());
+
+        for(CampaignFleetAPI fleet : battle.getNonPlayerSide()) {
+            int lvl = fleet.getCommanderStats().getLevel();
+
+            if(true) Global.getLogger(Util.class).info(fleet.getCommander().getNameString() + " is level " + lvl);
+
+            if(commander == null || commander.getStats().getLevel() < lvl) {
+                commander = fleet.getCommander();
+            }
+        }
+
+        return commander;
+    }
+    public static void showTraits(TooltipMakerAPI tooltip, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {
+        int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
+        int loyaltyEffectAdjustment = 0;
+
+        if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
+            loyaltyEffectAdjustment = rep.getLoyalty(captain).getTraitAdjustment();
+        }
+
+        for(Trait trait : rep.getTraits()) {
+            if (traitsLeft <= 0) break;
+
+            Trait.Teir teir = RepRecord.getTierFromTraitCount(traitsLeft--);
+
+            trait.addParagraphTo(tooltip, teir, loyaltyEffectAdjustment, requiresCrew, size, false);
+        }
+    }
+    public static void showTraits(TextPanelAPI textPanel, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {
+        if(textPanel == null) return;
+
+        TooltipMakerAPI tooltip = textPanel.beginTooltip();
+
+        showTraits(tooltip, rep, captain, requiresCrew, size);
+
+        textPanel.addTooltip();
+    }
+    public static void clearAllStarshipLegendsData() {
+        IntelManagerAPI intelManager = Global.getSector().getIntelManager();
+
+        for(IntelInfoPlugin i : intelManager.getIntel(BattleReport.class)) intelManager.removeIntel(i);
+        for(IntelInfoPlugin i : intelManager.getIntel(FamousFlagshipIntel.class)) intelManager.removeIntel(i);
+        for(IntelInfoPlugin i : intelManager.getIntel(FamousDerelictIntel.class)) intelManager.removeIntel(i);
+
+        intelManager.removeAllThatShouldBeRemoved();
+
+        Util.removeRepHullmodFromAutoFitGoalVariants();
+
+        for(FleetMemberAPI ship : Reputation.getShipsOfNote()) {
+            ShipVariantAPI v = ship.getVariant();
+            Util.removeRepHullmodFromVariant(v);
+        }
+
+        Saved.deletePersistantData();
+
+        ModPlugin.REMOVE_ALL_DATA_AND_FEATURES = true;
+    }
+    public static void teleportEntity(SectorEntityToken entityToMove, SectorEntityToken destination) {
+        entityToMove.getContainingLocation().removeEntity(entityToMove);
+        destination.getContainingLocation().addEntity(entityToMove);
+        Global.getSector().setCurrentLocation(destination.getContainingLocation());
+        entityToMove.setLocation(destination.getLocation().x,
+                destination.getLocation().y-150);
     }
 }

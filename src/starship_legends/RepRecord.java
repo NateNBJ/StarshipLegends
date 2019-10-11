@@ -6,10 +6,12 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
+import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
+import java.util.List;
 
 public class RepRecord {
     static final Saved<Map<String, RepRecord>> INSTANCE_REGISTRY = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
@@ -23,15 +25,8 @@ public class RepRecord {
     public static RepRecord get(FleetMemberAPI ship) { return get(ship.getId()); }
     public static void deleteFor(FleetMemberAPI ship) {
         INSTANCE_REGISTRY.val.remove(ship.getId());
-
         Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
-
-        ShipVariantAPI v = ship.getVariant();
-        v.removePermaMod("sun_sl_notable");
-        v.removePermaMod("sun_sl_wellknown");
-        v.removePermaMod("sun_sl_famous");
-        v.removePermaMod("sun_sl_legendary");
-
+        Util.removeRepHullmodFromVariant(ship.getVariant());
     }
     public static Trait.Teir getTierFromTraitCount(int count) {
         if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Legendary;
@@ -43,10 +38,10 @@ public class RepRecord {
     public static void updateRepHullMod(FleetMemberAPI ship) {
         if(!RepRecord.existsFor(ship)) return;
 
-        Trait.Teir teir = RepRecord.get(ship).getTeir();
+        Trait.Teir tier = RepRecord.get(ship).getTeir();
         ShipVariantAPI v;
 
-        if(teir == Trait.Teir.UNKNOWN) return;
+        if(tier == Trait.Teir.UNKNOWN) return;
 
         if(ship.getVariant().isStockVariant()) {
             v = ship.getVariant().clone();
@@ -56,24 +51,15 @@ public class RepRecord {
 
         v.setHullVariantId(ModPlugin.VARIANT_PREFIX + ship.getId());
 
-        v.removePermaMod("sun_sl_notable");
-        v.removePermaMod("sun_sl_wellknown");
-        v.removePermaMod("sun_sl_famous");
-        v.removePermaMod("sun_sl_legendary");
-        v.addPermaMod(teir.getHullModID());
+        Util.removeRepHullmodFromVariant(v);
+        v.addPermaMod(tier.getHullModID());
 
         List<String> slots = v.getModuleSlots();
 
         for(int i = 0; i < slots.size(); ++i) {
             ShipVariantAPI module = v.getModuleVariant(slots.get(i));
-
             module.setHullVariantId(v.getHullVariantId());
-
-            module.removePermaMod("sun_sl_notable");
-            module.removePermaMod("sun_sl_wellknown");
-            module.removePermaMod("sun_sl_famous");
-            module.removePermaMod("sun_sl_legendary");
-            module.addPermaMod(teir.getHullModID());
+            module.addPermaMod(tier.getHullModID());
         }
 
         Reputation.addShipOfNote(ship);
@@ -82,7 +68,7 @@ public class RepRecord {
     }
     public static float getAdjustedRating(float initialRating, float adjustmentRating, float adjustmentWeight) {
         adjustmentRating = Math.max(-1, Math.min(2, adjustmentRating));
-        return Math.max(-0.004f, Math.min(1.004f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight));
+        return Math.max(-0.004f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight);
     }
     public static float getXpToGuaranteeNewTrait(FleetMemberAPI ship) {
         if(!RepRecord.existsFor(ship)) return Trait.Teir.Notable.getXpToGuaranteeNewTrait();
@@ -94,16 +80,16 @@ public class RepRecord {
 
         return getTierFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
     }
-    public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, float fractionDamageTaken,
-                                       float damageDealtRatio, boolean wasDeployed, boolean wasDisabled) {
+    public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, boolean allowBadDefenseTrait,
+                                       boolean allowBadOffenseTrait, boolean allowCrewTrait, WeightedRandomPicker<TraitType> picker) {
 
-        RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
+        RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : null;
 
-        if(rep.hasMaximumTraits()) return null;
+        if(rep != null) {
+            if (rep.hasMaximumTraits()) return null;
 
-        WeightedRandomPicker<TraitType> picker = TraitType.getPickerCopy(wasDisabled);
-
-        for(Trait trait : rep.getTraits()) picker.remove(trait.getType());
+            for (Trait trait : rep.getTraits()) picker.remove(trait.getType());
+        }
 
         for(RepChange change : CampaignScript.pendingRepChanges.val) {
             if(change.ship == ship && change.trait != null) picker.remove(change.trait.getType());
@@ -117,6 +103,9 @@ public class RepRecord {
 
             for(String tag : type.getTags()) {
                 switch (tag) {
+                    case TraitType.Tags.CREW:
+                        if(!allowCrewTrait) traitIsRelevant = false;
+                        break;
                     case TraitType.Tags.CARRIER:
                         if(!ship.isCarrier()) traitIsRelevant = false;
                         break;
@@ -131,10 +120,31 @@ public class RepRecord {
                         if(ship.getMinCrew() <= 0) traitIsRelevant = false;
                         break;
                     case TraitType.Tags.DEFENSE:
-                        if(traitIsBad && fractionDamageTaken < 0.05f) traitIsRelevant = false;
+                        if(traitIsBad && !allowBadDefenseTrait) traitIsRelevant = false;
                         break;
                     case TraitType.Tags.ATTACK:
-                        if(traitIsBad && damageDealtRatio > 1) traitIsRelevant = false;
+                        if(traitIsBad && !allowBadOffenseTrait) traitIsRelevant = false;
+                        break;
+                    case TraitType.Tags.MISSILE:
+                        float total = ship.getHullSpec().getFighterBays() * 10, missile = 0;
+
+                        for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
+                            float op = 0;
+
+                            switch (slot.getSlotSize()) {
+                                case SMALL: op = 5; break;
+                                case MEDIUM: op = 10; break;
+                                case LARGE: op = 20; break;
+                            }
+
+                            switch (slot.getWeaponType()) {
+                                case MISSILE: case COMPOSITE: case SYNERGY: case UNIVERSAL: missile += op;
+                            }
+
+                            total += op;
+                        }
+
+                        if(missile / total > 0.3f) traitIsRelevant = false;
                         break;
                 }
             }
@@ -165,14 +175,17 @@ public class RepRecord {
                 skipCombatLogisticsMismatch = true;
             }
 
-//            boolean skipCombatLogisticsMismatch = (type.getTags().contains(TraitType.Tags.LOGISTICAL) == wasDeployed)
-//                    && !traitIsBad && rand.nextFloat() <= 0.75f;
-
             if(trait != null && traitIsRelevant && !skipCombatLogisticsMismatch)
                 return trait;
         }
 
         return null;
+    }
+    public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, float fractionDamageTaken,
+                                       float damageDealtRatio, boolean wasDisabled) {
+
+        return chooseNewTrait(ship, rand, traitIsBad, fractionDamageTaken > 0.05f, damageDealtRatio < 1, true,
+                TraitType.getPickerCopy(wasDisabled));
     }
 
     private List<Trait> traits = new ArrayList<>();
@@ -192,6 +205,28 @@ public class RepRecord {
 
         return -1;
     }
+    public float getTraitEffect(Trait trait) {
+        return getTraitEffect(trait.getType(), 0, ShipAPI.HullSize.DEFAULT);
+    }
+    public float getTraitEffect(TraitType type) { return getTraitEffect(type, 0, ShipAPI.HullSize.DEFAULT); }
+    public float getTraitEffect(String typeID) { return getTraitEffect(TraitType.get(typeID), 0, ShipAPI.HullSize.DEFAULT); }
+    public float getTraitEffect(TraitType type, int loyaltyEffectAdjustment, ShipAPI.HullSize size) {
+        int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
+
+
+        for(Trait trait : getTraits()) {
+            if(traitsLeft <= 0) break;
+
+            traitsLeft--;
+
+            if(trait.getType().equals(type)) {
+                return trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size);
+            }
+        }
+
+
+        return -1;
+    }
     public boolean hasMaximumTraits() {
         return getTraits().size() >= Trait.getTraitLimit();
     }
@@ -200,22 +235,35 @@ public class RepRecord {
 
         return false;
     }
+    public boolean hasTraitType(String typeID) {
+        return hasTraitType(TraitType.get(typeID));
+    }
+    public boolean hasTraitType(TraitType type) {
+        for(Trait t : traits) if(t.getType().equals(type)) return true;
+
+        return false;
+    }
+    public boolean hasTraitWithTag(String tag) {
+        for(Trait t : traits) if(t.getType().getTags().contains(tag)) return true;
+
+        return false;
+    }
     public Map<String, Integer> getOpinionsOfOfficers() {
         return opinionsOfOfficers;
     }
-    public LoyaltyLevel getLoyaltyLevel(PersonAPI officer) {
+    public LoyaltyLevel getLoyalty(PersonAPI officer) {
         int index = opinionsOfOfficers.containsKey(officer.getId())
                 ? opinionsOfOfficers.get(officer.getId()) + ModPlugin.LOYALTY_LIMIT
                 : ModPlugin.LOYALTY_LIMIT;
         return LoyaltyLevel.values()[index];
     }
-    public void adjustOpinionOfOfficer(PersonAPI officer, int adjustment) {
+    public void adjustLoyalty(PersonAPI officer, int adjustment) {
         int currentVal = opinionsOfOfficers.containsKey(officer.getId()) ? opinionsOfOfficers.get(officer.getId()) : 0;
         int newVal = Math.max(Math.min(currentVal + adjustment, ModPlugin.LOYALTY_LIMIT), -ModPlugin.LOYALTY_LIMIT);
 
         opinionsOfOfficers.put(officer.getId(), newVal);
     }
-    public void setOpinionOfOfficer(PersonAPI officer, int newOpinionLevel) {
+    public void setLoyalty(PersonAPI officer, int newOpinionLevel) {
         int newVal = Math.max(Math.min(newOpinionLevel, ModPlugin.LOYALTY_LIMIT), -ModPlugin.LOYALTY_LIMIT);
 
         opinionsOfOfficers.put(officer.getId(), newVal);
@@ -238,8 +286,10 @@ public class RepRecord {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
         float goodness = 0, total = 0;
 
+        if(ignoreNewestTrait) traitsLeft--;
+
         for(Trait trait : getTraits()) {
-            if (traitsLeft <= (ignoreNewestTrait ? 1 : 0)) break;
+            if (traitsLeft <= 0) break;
 
             float effect = getTierFromTraitCount(traitsLeft--).getEffectMultiplier();
 
@@ -250,13 +300,35 @@ public class RepRecord {
 
         return total <= 0 ? INITIAL_RATING : goodness / total;
     }
+    public float getFractionOfBonusEffectFromTraits(int signOfAdditionalTrait) {
+        int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit()) + 1;
+        float goodness = 0, total = 0;
+
+        for(Trait trait : getTraits()) {
+            float effect = getTierFromTraitCount(traitsLeft--).getEffectMultiplier();
+
+            total += effect;
+
+            if(trait.effectSign > 0) goodness += effect;
+        }
+
+        if(signOfAdditionalTrait != 0) {
+            float effect = getTierFromTraitCount(traitsLeft--).getEffectMultiplier();
+
+            total += effect;
+
+            if (signOfAdditionalTrait > 0) goodness += effect;
+        }
+
+        return total <= 0 ? INITIAL_RATING : goodness / total;
+    }
     public float getAdjustedRating(float adjustmentRating, float adjustmentWeight) {
         return getAdjustedRating(rating, adjustmentRating, adjustmentWeight);
     }
     public float getLoyaltyBonus(PersonAPI captain) {
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
         int loyaltyEffectAdjustment = (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault())
-                ? getLoyaltyLevel(captain).getTraitAdjustment()
+                ? getLoyalty(captain).getTraitAdjustment()
                 : 0;
 
         for(Trait trait : getTraits()) {
@@ -306,5 +378,14 @@ public class RepRecord {
         }
 
         return null;
+    }
+    public boolean applyToShip(FleetMemberAPI ship) {
+        if(ship == null) return false;
+
+        INSTANCE_REGISTRY.val.put(ship.getId(), this);
+
+        updateRepHullMod(ship);
+
+        return true;
     }
 }

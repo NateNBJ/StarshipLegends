@@ -3,11 +3,11 @@ package starship_legends.commands;
 
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.rpg.Person;
 import org.lazywizard.console.BaseCommand;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
 import starship_legends.LoyaltyLevel;
+import starship_legends.ModPlugin;
 import starship_legends.RepRecord;
 import starship_legends.Util;
 
@@ -19,6 +19,8 @@ public class SetLoyalty implements BaseCommand {
                 Console.showMessage(CommonStrings.ERROR_CAMPAIGN_ONLY);
                 return BaseCommand.CommandResult.WRONG_CONTEXT;
             }
+
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
             if(args.isEmpty()) return CommandResult.BAD_SYNTAX;
 
@@ -41,9 +43,9 @@ public class SetLoyalty implements BaseCommand {
                 } else {
                     RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
 
-                    rep.setOpinionOfOfficer(cap, newLoyalty);
+                    rep.setLoyalty(cap, newLoyalty);
 
-                    LoyaltyLevel ll = rep.getLoyaltyLevel(cap);
+                    LoyaltyLevel ll = rep.getLoyalty(cap);
 
                     Console.showMessage("The crew of the " + ship.getShipName() + " is now " + ll.getName().toUpperCase() + " "
                         + ll.getPreposition() + " " + cap.getNameString().trim());

@@ -3,6 +3,7 @@ package starship_legends;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
@@ -140,9 +141,10 @@ public class Trait {
         }
     }
 
-    public void addParagraphTo(TooltipMakerAPI tooltip, Teir teir, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize) {
+    public void addParagraphTo(TooltipMakerAPI tooltip, Teir teir, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet) {
         float effect = getEffect(teir, loyaltyEffectAdjustment, hullSize);
-        tooltip.addPara("  " + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
+        String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
+        tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
     }
 
     public String getTypeId() {

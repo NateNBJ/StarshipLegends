@@ -8,6 +8,7 @@ import org.lazywizard.console.BaseCommand;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
 import starship_legends.LoyaltyLevel;
+import starship_legends.ModPlugin;
 import starship_legends.RepRecord;
 import starship_legends.Util;
 
@@ -19,6 +20,8 @@ public class SetRating implements BaseCommand {
                 Console.showMessage(CommonStrings.ERROR_CAMPAIGN_ONLY);
                 return BaseCommand.CommandResult.WRONG_CONTEXT;
             }
+
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return CommandResult.WRONG_CONTEXT;
 
             if(args.isEmpty()) return CommandResult.BAD_SYNTAX;
 

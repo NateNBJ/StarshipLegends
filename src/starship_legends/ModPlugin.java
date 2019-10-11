@@ -4,11 +4,14 @@ import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.ModSpecAPI;
-import com.fs.starfarer.api.combat.ShipVariantAPI;
+import com.fs.starfarer.api.campaign.FactionAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
+import com.fs.starfarer.campaign.Faction;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import starship_legends.events.FamousShipBarEventCreator;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
@@ -24,6 +27,7 @@ public class ModPlugin extends BaseModPlugin {
     public static final String VARIANT_PREFIX = "sun_sl_";
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 3;
+    public static final int DEFAULT_TRAIT_LIMIT = 8;
 
     static boolean settingsAreRead = false;
 
@@ -38,11 +42,17 @@ public class ModPlugin extends BaseModPlugin {
             COMPENSATE_FOR_EXPERIENCE_MULT = true,
             USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = false,
             SHOW_COMBAT_RATINGS = true,
-            IGNORE_ALL_MALUSES = false;
+            IGNORE_ALL_MALUSES = false,
+            REMOVE_ALL_DATA_AND_FEATURES = false,
+            ALLOW_CUSTOM_COMMANDER_PRESETS = true;
 
     public static int
             TRAITS_PER_TIER = 2,
-            DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30;
+            DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30,
+            TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = 0,
+            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = 2,
+            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 8;
+
     public static float
             GLOBAL_EFFECT_MULT = 1,
             MAX_XP_FOR_RESERVED_SHIPS = 80000,
@@ -63,8 +73,16 @@ public class ModPlugin extends BaseModPlugin {
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
-            IMPROVE_LOYALTY_CHANCE_MULT = 1.0f,
-            WORSEN_LOYALTY_CHANCE_MULT = 1.0f;
+            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = 0,
+            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = 10,
+
+            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = 4,
+            FAMOUS_DERELICT_BAR_EVENT_CHANCE = 1,
+            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = 5,
+
+            IMPROVE_LOYALTY_CHANCE_MULT = 1,
+            WORSEN_LOYALTY_CHANCE_MULT = 1,
+            AVERAGE_FRACTION_OF_GOOD_TRAITS = 1;
 
     CampaignScript script;
 
@@ -123,10 +141,10 @@ public class ModPlugin extends BaseModPlugin {
 
     @Override
     public void beforeGameSave() {
-        Util.removeRepHullmodFromAutoFitGoalVariants();
         Saved.updatePersistentData();
         Global.getSector().removeTransientScript(script);
         Global.getSector().removeListener(script);
+        Util.removeRepHullmodFromAutoFitGoalVariants();
 
 //        for(ShipVariantAPI v : Global.getSector().getAutofitVariants().getTargetVariants("sunder")) {
 //            v.removeMod();
@@ -148,6 +166,7 @@ public class ModPlugin extends BaseModPlugin {
 
             Saved.loadPersistentData();
             CampaignScript.reset();
+            FactionConfig.clearEnemyFleetRep();
 
             readSettingsIfNecessary();
 
@@ -285,10 +304,20 @@ public class ModPlugin extends BaseModPlugin {
                 } catch (Exception e) { cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID); }
             } else cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
+            FactionConfig.readDerelictChanceMultipliers(cfg.getJSONArray("famousDerelictChanceMultipliersByShipStrength"));
+
+            if(FactionConfig.hasNotBeenRead()) {
+                for (FactionAPI faction : Global.getSector().getAllFactions()) {
+                    new FactionConfig(faction);
+                }
+            }
+
             Trait.Teir.Notable.init(cfg);
             Trait.Teir.Wellknown.init(cfg);
             Trait.Teir.Famous.init(cfg);
             Trait.Teir.Legendary.init(cfg);
+
+            REMOVE_ALL_DATA_AND_FEATURES = cfg.getBoolean("removeAllDataAndFeatures");
 
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = cfg.getBoolean("useRuthlessSectorToCalculateBattleDifficulty");
             USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = cfg.getBoolean("useRuthlessSectorToCalculateShipStrength");
@@ -327,6 +356,29 @@ public class ModPlugin extends BaseModPlugin {
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS  = (float) cfg.getDouble("chanceToIgnoreLogisticsTraitsOnCombatShips");
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = (float) cfg.getDouble("chanceToIgnoreCombatTraitsOnCivilianShips");
 
+            AVERAGE_FRACTION_OF_GOOD_TRAITS = (float) cfg.getDouble("averageFractionOfGoodTraits");
+            TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = cfg.getInt("traitsForFleetsWithNoCommander");
+            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = cfg.getInt("traitsForFleetsWithMinLevelCommander");
+            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = cfg.getInt("traitsForFleetsWithMaxLevelCommander");
+            ALLOW_CUSTOM_COMMANDER_PRESETS = cfg.getBoolean("allowCustomCommanderPresets");
+
+            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForCombatShips");
+            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForCivilianShips");
+
+            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousFlagshipBarEventChance");
+            FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
+
+            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;
+
+            if (REMOVE_ALL_DATA_AND_FEATURES) {
+                Util.clearAllStarshipLegendsData();
+            } else {
+                BarEventManager bar = BarEventManager.getInstance();
+
+                if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
+                    bar.addEventCreator(new FamousShipBarEventCreator());
+                }
+            }
 
             return settingsAreRead = true;
         } catch (Exception e) {
@@ -339,7 +391,8 @@ public class ModPlugin extends BaseModPlugin {
             String stackTrace = "", message = "Starship Legends encountered an error!\nPlease let the mod author know.";
 
             for(int i = 0; i < exception.getStackTrace().length; i++) {
-                stackTrace += "    " + exception.getStackTrace()[i].toString() + System.lineSeparator();
+                StackTraceElement ste = exception.getStackTrace()[i];
+                stackTrace += "    " + ste.toString() + System.lineSeparator();
             }
 
             Global.getLogger(ModPlugin.class).error(exception.getMessage() + System.lineSeparator() + stackTrace);
@@ -347,7 +400,7 @@ public class ModPlugin extends BaseModPlugin {
             if (Global.getCombatEngine() != null && Global.getCurrentState() == GameState.COMBAT) {
                 Global.getCombatEngine().getCombatUI().addMessage(1, Color.ORANGE, exception.getMessage());
                 Global.getCombatEngine().getCombatUI().addMessage(2, Color.RED, message);
-            } else if (Global.getSector() != null) {
+            } else if (Global.getSector() != null && Global.getCurrentState() == GameState.CAMPAIGN) {
                 Global.getSector().getCampaignUI().addMessage(message, Color.RED);
                 Global.getSector().getCampaignUI().addMessage(exception.getMessage(), Color.ORANGE);
                 Global.getSector().getCampaignUI().showConfirmDialog(message + "\n\n"

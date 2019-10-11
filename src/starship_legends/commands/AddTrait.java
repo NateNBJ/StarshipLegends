@@ -5,10 +5,7 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import org.lazywizard.console.BaseCommand;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
-import starship_legends.CampaignScript;
-import starship_legends.RepRecord;
-import starship_legends.Trait;
-import starship_legends.Util;
+import starship_legends.*;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -22,6 +19,8 @@ public class AddTrait implements BaseCommand {
                 Console.showMessage(CommonStrings.ERROR_CAMPAIGN_ONLY);
                 return BaseCommand.CommandResult.WRONG_CONTEXT;
             }
+
+            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
             String aa[] = args.toLowerCase().split("to ");
             List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "");

@@ -70,12 +70,31 @@ public class BattleReport extends BaseIntelPlugin {
 
     @Override
     public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
-        String title = enemyFaction == null
-                ? "Battle report"
-                : "Report for battle against %s";
+        float pad = 3f;
+        float opad = 10f;
+        Color tc = getBulletColorForMode(mode);
+        float initPad = (mode == ListInfoMode.IN_DESC) ? opad : pad;
 
-        info.addPara(title, 0f, Misc.getTextColor(), getFactionForUIColors().getColor(),
-                enemyFaction == null ? "" : enemyFaction.getDisplayNameLongWithArticle());
+        info.addPara("Battle report: " + (wasVictory ? "Victory" : "Defeat"), 0f,tc);
+
+        bullet(info);
+        //boolean isUpdate = getListInfoParam() != null; // true if notification?
+
+        if(enemyFaction != null) {
+            info.addPara("Opposition: %s", initPad, tc, enemyFaction.getColor(), Misc.ucFirst(enemyFaction.getDisplayName()));
+        }
+
+        float days = Global.getSector().getClock().getElapsedDaysSince(timestamp);
+        info.addPara("Occurred " + (days < 1 ? "%s" : "%s days ago") , pad, tc, Misc.getHighlightColor(),
+                days < 1 ? "today" : (int)days + "");
+
+        int changeCount = 0;
+
+        for(RepChange rc : changes) if(rc.captainOpinionChange != 0 || rc.trait != null) changeCount++;
+
+        if(changeCount != 0) {
+            info.addPara("%s notable reputation changes", pad, tc, Misc.getHighlightColor(), changeCount + "");
+        }
     }
 
     @Override
@@ -158,9 +177,11 @@ public class BattleReport extends BaseIntelPlugin {
                     else if(rc.newRating >= 0.505) ratingColor = Misc.getPositiveHighlightColor();
                     else ratingColor = Misc.getTextColor();
                 } else {
-                    ratingColor = Math.abs(rc.ratingAdjustment) < 0.1f ? Misc.getGrayColor()
-                            : (rc.ratingAdjustment > 0
-                            ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor());
+                    if(Math.abs(rc.ratingAdjustment) < 0.1f) ratingColor = Misc.getGrayColor();
+                    else if(Math.abs(rc.ratingAdjustment) < 1) ratingColor = Misc.getTextColor();
+                    else ratingColor = rc.ratingAdjustment > 0
+                                ? Misc.getPositiveHighlightColor()
+                                : Misc.getNegativeHighlightColor();
 
                     if (rc.ratingAdjustment > 0.1f) {
                         rating += " (+" + Misc.getRoundedValueMaxOneAfterDecimal(rc.ratingAdjustment) + ")";
@@ -297,6 +318,14 @@ public class BattleReport extends BaseIntelPlugin {
     @Override
     public boolean shouldRemoveIntel() {
         return Global.getSector().getClock().getElapsedDaysSince(timestamp) >= DURATION && !isImportant();
+    }
+
+    @Override
+    public void reportRemovedIntel() {
+        super.reportRemovedIntel();
+
+        setImportant(false);
+        setNew(false);
     }
 
     public Set<String> getIntelTags(SectorMapAPI map) {
