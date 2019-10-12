@@ -499,7 +499,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             if(!Global.getSector().isPaused() && pendingRepChanges.val.size() > 0 && (timeUntilNextChange.val -= amount) <= 0) {
                 int i = rand.nextInt(pendingRepChanges.val.size());
 
-                if(pendingRepChanges.val.get(i).apply(true)) {
+                if(pendingRepChanges.val.get(i).apply(ModPlugin.SHOW_REPUTATION_CHANGE_NOTIFICATIONS)) {
                     timeUntilNextChange.val = Math.max(1, AVG_TIME_BETWEEN_REP_CHANGES * (0.5f + rand.nextFloat())
                             * (3f / Math.max(pendingRepChanges.val.size(), 3f)));
                 }

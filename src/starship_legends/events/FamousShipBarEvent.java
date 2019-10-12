@@ -82,11 +82,11 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	transient boolean rivalSalvageFleet = false;
 
 	protected boolean isValidDerelictIntel() {
-		return ship != null && derelict != null && orbitedBody != null && wreckData != null
+		return rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null;
 	}
 	protected boolean isValidFlagshipIntel() {
-		return ship != null && faction != null && fleet != null && commander != null;
+		return rep != null && ship != null && faction != null && fleet != null && commander != null;
 	}
 	protected void createIntel() {
 		market.getMemoryWithoutUpdate().set(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY, true,
@@ -172,6 +172,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 			super.regen(market);
 
+			rep = null;
 			ship = null;
 			playerFleet = Global.getSector().getPlayerFleet();
 

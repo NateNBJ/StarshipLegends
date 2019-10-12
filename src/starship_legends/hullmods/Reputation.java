@@ -90,7 +90,7 @@ public class Reputation extends BaseHullMod {
                             stats.getMissileMaxTurnRateBonus().modifyPercent(id, e);
                             break;
                         case "missile_reload":
-                            stats.getMissileRoFMult().modifyFlat(id, e);
+                            stats.getMissileRoFMult().modifyPercent(id, e);
                             break;
                         case "cursed":
                             CombatPlugin.CURSED.put(shipID, e);

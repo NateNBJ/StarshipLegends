@@ -8,6 +8,7 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
@@ -198,7 +199,10 @@ public class FactionConfig {
     }
     public static boolean hasNotBeenRead() { return INSTANCE_REGISTRY.isEmpty(); }
     public static FactionConfig get(FactionAPI faction) { return get(faction.getId()); }
-    public static FactionConfig get(String factionID) { return INSTANCE_REGISTRY.get(factionID); }
+    public static FactionConfig get(String factionID) {
+        if(INSTANCE_REGISTRY.containsKey(factionID)) return INSTANCE_REGISTRY.get(factionID);
+        else return INSTANCE_REGISTRY.get(Factions.PLAYER);
+    }
     public static void addGlobalDerelict(String hullID, float probabilityWeight) {
         ShipHullSpecAPI spec = Global.getSettings().getHullSpec(hullID);
 
