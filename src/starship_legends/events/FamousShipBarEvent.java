@@ -416,7 +416,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							name = commander.getNameString().trim(),
 							location = fleet.isInCurrentLocation() ? "" : fleet.getContainingLocation().getName(),
 							locationDesc = fleet.isInCurrentLocation() ? "%s%sin this system. "
-									: "in the %s, about %s light years from your current location. ",
+									: "in the %s about %s light years from your current location. ",
 							fleetDesc = faction.getId().equals(Factions.NEUTRAL) ? "a wanted fleet"
 									: Util.getWithAnOrA(bestFactionPrefix) + " " + fleet.getName().toLowerCase(),
 							distance = fleet.isInCurrentLocation() ? "" :
@@ -457,7 +457,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				case DERELICT_INIT: {
 					dialog.getVisualPanel().showFleetMemberInfo(ship, true);
 
-					String shape, shapeDesc, lossRecency = timeScale.ordinal() > 1 ? "long lost" : "lost";
+					String shape, shapeDesc, lossRecency = timeScale.ordinal() > 1 ? "long-lost" : "lost";
 
 					switch (wreckData.condition) {
 						case WRECKED:
@@ -480,10 +480,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					text.addPara("You join the sparse group of people near the storyteller as " + getHeOrShe() + " begins " +
 									"a gruesome and gratuitously detailed description of the destruction of a " + lossRecency +" %s with a " +
-									"name you think you may have heard before; the %s. After yet more " +
+									"name you think you may have heard before: the %s. After yet more " +
 									"dismemberment and carnage, " + getHeOrShe() + " reveals that the ship is still in one piece " +
-									shapeDesc + ", drifting lifelessly somewhere in the %s constellation %s later. " +
-									"After making a few queries on your TriPad you determine that this is, in fact, " +
+									shapeDesc + ". Supposedly, it's drifting lifelessly somewhere in the %s constellation %s later. " +
+									"After making a few queries on your TriPad, you determine that this is, in fact, " +
 									"quite plausible. You also learn " +
 									"that the ship is known for the following traits:", Misc.getTextColor(),
 							Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
@@ -510,7 +510,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								", and you're not the first to try to find it. I don't doubt that it's out there " +
 								"somewhere in the " + getConstelationString() + " constellation, but I " +
 								"don't like your odds of finding it.";
-						accept = "Try to find the long lost derelict in spite of " + getHisOrHer() + " warning";
+						accept = "Try to find the long-lost derelict in spite of " + getHisOrHer() + " warning";
 						reject = "Heed " + getHisOrHer() + " advice and forget about this fool's errand";
 					} else if (granularity == FamousDerelictIntel.LocationGranularity.CONSTELATION) {
 						desc += " The storyteller rambles on for a bit, speculating about where the lost derelict might be, but " +
