@@ -357,9 +357,9 @@ public class FactionConfig {
                 newTrait = newType.getTrait(!isBonus);
             }
 
-            if(retVal.hasTraitType(newTrait.getType())) continue;
-            else if(newTrait != null) retVal.getTraits().add(newTrait);
-            else break;
+            if(newTrait == null) break;
+            else if(retVal.hasTraitType(newTrait.getType())) continue;
+            else retVal.getTraits().add(newTrait);
         }
 
         if(commander != null) retVal.setLoyalty(commander, loyalty);

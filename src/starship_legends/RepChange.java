@@ -73,7 +73,7 @@ public class RepChange {
             if(shuffleSign == 0 && trait != null && t.getType() == trait.getType()) return false;
         }
 
-        if(allowNotification && pf != null && ModPlugin.SHOW_REPUTATION_CHANGE_NOTIFICATIONS) {
+        if(allowNotification && pf != null && ModPlugin.SHOW_NEW_TRAIT_NOTIFICATIONS) {
             for (FleetMemberAPI s : pf.getFleetData().getMembersListCopy()) {
                 if(ship == s) {
                     showNotification = true;

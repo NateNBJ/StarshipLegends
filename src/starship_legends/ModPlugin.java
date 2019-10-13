@@ -34,7 +34,6 @@ public class ModPlugin extends BaseModPlugin {
     public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
 
     public static boolean
-            SHOW_REPUTATION_CHANGE_NOTIFICATIONS = true,
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = true,
             USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = true,
             ENABLE_OFFICER_LOYALTY_SYSTEM = true,

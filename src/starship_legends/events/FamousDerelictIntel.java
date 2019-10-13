@@ -53,6 +53,9 @@ public class FamousDerelictIntel extends FleetLogIntel {
 			this.odds = odds;
 		}
 
+		public String getName() {
+			return this == Years ? "Several Cycles" : name();
+		}
 		public float getMinDistance() { return minDistance; }
 		public String getSurvivalDescription() {
 			return odds + ", a small fraction of the original crew has managed to survive after " + name().toLowerCase()

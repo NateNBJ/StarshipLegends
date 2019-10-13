@@ -487,7 +487,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 									"quite plausible. You also learn " +
 									"that the ship is known for the following traits:", Misc.getTextColor(),
 							Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
-							shape, getConstelationString(), timeScale.name().toLowerCase());
+							shape, getConstelationString(), timeScale.getName().toLowerCase());
 
 					Util.showTraits(text, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
 
@@ -506,7 +506,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					if (timeScale.ordinal() > 1 && granularity == FamousDerelictIntel.LocationGranularity.CONSTELATION) {
 						desc += " \"Oh, that's just an old " + (timeScale.ordinal() == 3 ? "legend" : "story") +
 								", I'm afraid\" the storyteller explains wistfully. " +
-								"\"No one has seen the " + ship.getShipName() + " in " + timeScale.name().toLowerCase() +
+								"\"No one has seen the " + ship.getShipName() + " in " + timeScale.getName().toLowerCase() +
 								", and you're not the first to try to find it. I don't doubt that it's out there " +
 								"somewhere in the " + getConstelationString() + " constellation, but I " +
 								"don't like your odds of finding it.";
