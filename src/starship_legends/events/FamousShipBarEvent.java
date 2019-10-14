@@ -339,7 +339,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				int loyalty = (random.nextFloat() < 0.8 ? 1 : -1)
 						* (int)Math.floor(Math.pow(random.nextFloat(), 0.75f) * (ModPlugin.LOYALTY_LIMIT + 1));
 
-				rep = FactionConfig.get(faction).buildReputation(commander, traitCount, rating, ship, allowCrew, loyalty, random);
+				rep = FactionConfig.get(faction).buildReputation(commander, traitCount, rating, ship, allowCrew, loyalty);
 				rep.setRating(rating);
 				rep.applyToShip(ship);
 

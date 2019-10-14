@@ -125,6 +125,11 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 		}
 	}
 
+	public void applyHullmodsToShip() {
+		ship.getVariant().addMod("reinforcedhull");
+		RepRecord.updateRepHullMod(ship);
+	}
+
 	@Override
 	public void reportRemovedIntel() {
 		try {

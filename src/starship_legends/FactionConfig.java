@@ -309,17 +309,19 @@ public class FactionConfig {
         } else exclusiveDerelictProbability.put(hullID, probabilityWeight);
     }
     public RepRecord buildReputation(PersonAPI commander, int traitCount) {
-        Random rand = new Random(commander != null && !commander.isDefault() ? commander.hashCode() : faction.hashCode());
 //        int loyalty = (rand.nextFloat() < (0.4f + commander.getStats().getLevel() * 0.025f) ? 1 : -1)
 //                * (int)Math.floor(Math.pow(rand.nextFloat(), 0.75f) * (ModPlugin.LOYALTY_LIMIT + 1));
 
         int loyalty = 0;
 
-        return buildReputation(commander, traitCount, ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS, null, true, loyalty, rand);
+        return buildReputation(commander, traitCount, ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS, null, true, loyalty);
     }
     public RepRecord buildReputation(PersonAPI commander, int traitCount, float ratingGoal, FleetMemberAPI ship,
-                                     boolean allowCrewTraits, int loyalty, Random rand) {
+                                     boolean allowCrewTraits, int loyalty) {
 
+        Random rand = new Random(commander != null && !commander.isDefault()
+                ? commander.getNameString().hashCode()
+                : faction.getDisplayNameLong().hashCode());
         RepRecord retVal = ship == null ? new RepRecord() : new RepRecord(ship);
         WeightedRandomPicker<TraitType> randomGoodTraits = new WeightedRandomPicker();
         WeightedRandomPicker<TraitType> randomBadTraits = new WeightedRandomPicker();

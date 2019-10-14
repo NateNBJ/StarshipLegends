@@ -310,7 +310,7 @@ public class Reputation extends BaseHullMod {
     @Override
     public void applyEffectsToFighterSpawnedByShip(ShipAPI fighter, ShipAPI ship, String id) {
         if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
-
+        
         PersonAPI liege = ship.getOriginalOwner() == 0 ? ship.getCaptain() : ship.getFleetMember().getFleetCommanderForStats();
 
         applyEffects(ship.getFleetMemberId(), ship.getHullSize(), liege, fighter.getMutableStats(), true, id);

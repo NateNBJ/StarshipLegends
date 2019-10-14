@@ -11,6 +11,7 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
 import starship_legends.events.FamousDerelictIntel;
+import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
@@ -372,6 +373,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             FactionConfig fc  = FactionConfig.get(context.getBattle().getNonPlayerCombined().getFaction());
 
             if(fc != null) fc.showFleetReputation(dialog, commander);
+
+            for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousFlagshipIntel.class)) {
+                ((FamousFlagshipIntel)i).applyHullmodsToShip();
+            }
         } catch (Exception e) {
             ModPlugin.reportCrash(e);
         }
