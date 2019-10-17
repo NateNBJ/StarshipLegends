@@ -26,21 +26,23 @@ public class Saved<T> {
         for(Saved saved : instanceRegistry.values()) {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
                 saved.val = Global.getSector().getPersistentData().get(saved.key);
-            } else if(saved.val.getClass().isPrimitive()) {
+            } else if(saved.val != null && saved.val.getClass().isPrimitive()) {
                 saved.val = saved.defaultVal;
             } else if(saved.val instanceof Collection) {
                 ((Collection)saved.val).clear();
-            }
+            } else saved.val = null;
         }
     }
 
-    public T val, defaultVal;
-    private String key;
+    public T val;
+    private T defaultVal;
+    private final String key;
 
     public Saved(String key, T defaultValue) {
         this.key = PREFIX + key;
         this.val = defaultValue;
-        this.defaultVal = defaultValue;
+        this.defaultVal = val != null && val.getClass().isPrimitive() ? defaultValue : null;
+
         instanceRegistry.put(this.key, this);
     }
 }

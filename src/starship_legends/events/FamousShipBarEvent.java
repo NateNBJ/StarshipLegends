@@ -2,10 +2,12 @@ package starship_legends.events;
 
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
+import com.fs.starfarer.api.campaign.ai.FleetAssignmentDataAPI;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.FullName;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
@@ -72,6 +74,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	transient CampaignFleetAPI fleet = null;
 	transient PersonAPI commander = null;
 	transient String activity = "";
+	transient boolean newFleetWasCreated = false;
 
 	transient SectorEntityToken derelict = null;
 	transient SectorEntityToken orbitedBody = null;
@@ -86,7 +89,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null;
 	}
 	protected boolean isValidFlagshipIntel() {
-		return rep != null && ship != null && faction != null && fleet != null && commander != null;
+		return rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
+				&& commander != null && fleetHasValidAssignment(fleet);
 	}
 	protected void createIntel() {
 		market.getMemoryWithoutUpdate().set(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY, true,
@@ -99,13 +103,20 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 			fleet.setNoAutoDespawn(true);
 		} else if(isValidDerelictIntel()) {
+			derelict.setDiscoverable(true);
+			derelict.setDiscoveryXP(timeScale.xp);
+			orbitedBody.getContainingLocation().addEntity(derelict);
+			derelict.setCircularOrbit(orbitedBody, random.nextFloat() * 360, orbitedBody.getRadius() * (2f + random.nextFloat() * 2), 2 + (float)Math.pow(orbitedBody.getRadius() / 10, 2));
+			derelict.setName("The " + ship.getShipName());
+			derelict.getMemoryWithoutUpdate().set("$sun_sl_customType", "famousWreck");
+
 			intel = new FamousDerelictIntel(this);
 		} else {
 			ModPlugin.reportCrash(new IllegalStateException("Invalid famous ship intel accepted"));
 			return;
 		}
 
-
+		intel.setImportant(true);
 		BarEventManager.getInstance().notifyWasInteractedWith(this);
 		Global.getSector().getIntelManager().addIntel(intel);
 	}
@@ -154,6 +165,19 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected String getConstelationString() {
 		return derelict.getConstellation() == null ? "Core Worlds" : derelict.getConstellation().getName();
 	}
+	protected boolean fleetHasValidAssignment(CampaignFleetAPI flt) {
+		if(flt == null) return false;
+
+		FleetAssignmentDataAPI a = flt.getCurrentAssignment();
+
+		if(a == null || a.getAssignment() == null || a.getMaxDurationInDays() - a.getElapsedDays() < 3) return false;
+
+		switch (a.getAssignment()) {
+			case GO_TO_LOCATION_AND_DESPAWN: return false;
+		}
+
+		return true;
+	}
 
 	@Override
 	public boolean shouldShowAtMarket(MarketAPI market) {
@@ -178,6 +202,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 			derelict = null;
 			commander = null;
+			newFleetWasCreated = false;
 
 			if (Global.getSettings().isDevMode()) random = new Random();
 
@@ -218,6 +243,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					case SYSTEM: cost *= 1; break;
 					case ENTITY: cost *= 2; break;
 				}
+
+				if(wreckData.condition == ShipRecoverySpecial.ShipCondition.PRISTINE && random.nextFloat() < 0.9f) {
+					wreckData.condition = ShipRecoverySpecial.ShipCondition.GOOD;
+				} else if(wreckData.condition == ShipRecoverySpecial.ShipCondition.GOOD && random.nextFloat() < 0.7f) {
+					wreckData.condition = ShipRecoverySpecial.ShipCondition.AVERAGE;
+				}
+
 				switch (wreckData.condition) {
 					case BATTERED: cost *= 0.4f; break;
 					case WRECKED: cost *= 0.6f; break;
@@ -228,13 +260,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 				derelict = BaseThemeGenerator.addSalvageEntity(orbitedBody.getStarSystem(),
 						Entities.WRECK, Factions.NEUTRAL, params);
-				derelict.setDiscoverable(true);
-				derelict.setDiscoveryXP(timeScale.xp);
-				orbitedBody.getContainingLocation().addEntity(derelict);
+				derelict.getContainingLocation().removeEntity(derelict);
 				derelict.setContainingLocation(orbitedBody.getContainingLocation());
-				derelict.setCircularOrbit(orbitedBody, random.nextFloat() * 360, orbitedBody.getRadius() * (2f + random.nextFloat() * 2), 2 + (float)Math.pow(orbitedBody.getRadius() / 10, 2));
-				derelict.setName("The " + ship.getShipName());
-				derelict.getMemoryWithoutUpdate().set("$sun_sl_customType", "famousWreck");
 
 				faction = Global.getSector().getFaction(Factions.NEUTRAL);
 			} else {
@@ -250,15 +277,23 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							}
 						}
 					}
-				}
+				} else if(random.nextFloat() < 0.4f) { // Choose a fleet in the current system
+					for(CampaignFleetAPI flt : Global.getSector().getCurrentLocation().getFleets()) {
+						ShipHullSpecAPI spec = flt == null || flt.getFlagship() == null ? null : flt.getFlagship().getHullSpec();
 
-				if(random.nextFloat() < 0.4f) { // Choose a fleet in the current system
-					for(CampaignFleetAPI fleet : Global.getSector().getCurrentLocation().getFleets()) {
-						if(!fleet.isStationMode() && !fleet.isDespawning() && !fleet.isPlayerFleet()
-								&& FactionConfig.get(fleet.getFaction()).isFamousFlagshipAllowedInFleets()
-								&& !fleet.getFlagship().getHullSpec().isCivilianNonCarrier()) {
+						if(FactionConfig.get(flt.getFaction()).isFamousFlagshipAllowedInFleets()
+								&& !flt.isStationMode()
+								&& !flt.isDespawning()
+								&& !flt.isPlayerFleet()
+								&& flt.getFaction().isShowInIntelTab()
+								&& spec != null
+								&& !spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
+								&& !spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.HIDE_IN_CODEX)
+								&& !spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.STATION)
+								&& !spec.isCivilianNonCarrier()
+								&& fleetHasValidAssignment(flt)) {
 
-							eligibleFleets.add(fleet);
+							eligibleFleets.add(flt);
 						}
 					}
 				}
@@ -299,6 +334,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
 
 					source.getContainingLocation().addEntity(fleet);
+
+					newFleetWasCreated = true;
 				} else {
 					fleet = eligibleFleets.get(random.nextInt(eligibleFleets.size()));
 
@@ -431,6 +468,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					if (faction.getId().equals(Factions.NEUTRAL)) {
 						faction = Global.getSector().getFaction(Factions.PIRATES);
 					}
+
+					activity = activity == null || activity.equals("null") ? "" : activity;
 
 					text.addPara("With an excess of dramatic gestures and exclamations, the storyteller delivers an amateurish " +
 							"narration about %s commander named " + name + " and " + hisOrHer + " flagship, the " + ship.getShipName() +
@@ -586,6 +625,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					done = true;
 					break;
 				case LEAVE:
+					if(newFleetWasCreated && fleet != null && fleet.getContainingLocation() != null) {
+						fleet.getContainingLocation().removeEntity(fleet);
+					}
+
 					noContinue = true;
 					done = true;
 					break;

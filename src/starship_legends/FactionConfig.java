@@ -219,8 +219,8 @@ public class FactionConfig {
         this.faction = faction;
 
         if(defaultData == null) {
-            defaultData = Global.getSettings().loadJSON("sun_sl/data/defaultFactionReputation.json", ModPlugin.ID);
             factionConfigs = Global.getSettings().getMergedJSONForMod("data/config/starship_legends/factionConfigurations.json", ModPlugin.ID);
+            defaultData = Global.getSettings().loadJSON("sun_sl/data/defaultFactionReputation.json", ModPlugin.ID);
         }
 
         readData(defaultData);

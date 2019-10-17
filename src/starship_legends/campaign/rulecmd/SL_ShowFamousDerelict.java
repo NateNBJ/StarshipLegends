@@ -16,21 +16,22 @@ import java.util.Map;
 public class SL_ShowFamousDerelict extends BaseCommandPlugin {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
-        //dialog.getTextPanel().addPara("triggered");
-
-        //Global.getLogger(this.getClass()).info("And again");
-
-        //dialog.getInteractionTarget().getMemoryWithoutUpdate().set("$sun_sl_customType", "famousFoundWreck");
-        //dialog.getVisualPanel().showFleetMemberInfo(Global.getSector().getPlayerFleet().getFlagship(), true);
-
-
-        dialog.setPlugin(new SalvageFamousDerelictDialogPlugin(dialog.getInteractionTarget()));
-        dialog.getPlugin().init(dialog);
-
-
-        //new SalvageFamousDerelictDialogPlugin(derelict).init(dialog);
 
         try {
+            //dialog.getTextPanel().addPara("triggered");
+
+            //Global.getLogger(this.getClass()).info("And again");
+
+            //dialog.getInteractionTarget().getMemoryWithoutUpdate().set("$sun_sl_customType", "famousFoundWreck");
+            //dialog.getVisualPanel().showFleetMemberInfo(Global.getSector().getPlayerFleet().getFlagship(), true);
+
+
+            dialog.setPlugin(new SalvageFamousDerelictDialogPlugin(dialog.getInteractionTarget()));
+            dialog.getPlugin().init(dialog);
+
+
+            //new SalvageFamousDerelictDialogPlugin(derelict).init(dialog);
+
 
             return true;
         } catch (Exception e) {

@@ -4,17 +4,23 @@ import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.ModSpecAPI;
+import com.fs.starfarer.api.campaign.CampaignUIAPI;
 import com.fs.starfarer.api.campaign.FactionAPI;
+import com.fs.starfarer.api.campaign.SectorEntityToken;
+import com.fs.starfarer.api.campaign.StarSystemAPI;
+import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousShipBarEventCreator;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
@@ -27,6 +33,8 @@ public class ModPlugin extends BaseModPlugin {
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 3;
     public static final int DEFAULT_TRAIT_LIMIT = 8;
+
+    static Saved<String> version = new Saved<>("version", null);
 
     static boolean settingsAreRead = false;
 
@@ -117,7 +125,9 @@ public class ModPlugin extends BaseModPlugin {
 
     @Override
     public void onApplicationLoad() throws Exception {
+
         String message = "";
+
 
         try {
             ModSpecAPI spec = Global.getSettings().getModManager().getModSpec("sun_starship_legends");
@@ -171,7 +181,94 @@ public class ModPlugin extends BaseModPlugin {
 
             boolean allRepRecordsHaveNoRating = true;
 
-            // Remove RepRecords for ships that no longer exist
+
+            if(version.val == null) {
+                version.val = Global.getSettings().getModManager().getModSpec("sun_starship_legends").getVersion();
+
+                // Remove bugged famous derelicts from the sector
+                try {
+                    List<SectorEntityToken> buggedDerelictsToRemove = new ArrayList<>();
+
+                    for(StarSystemAPI system : Global.getSector().getStarSystems()) {
+                        for(SectorEntityToken entity : system.getAllEntities()) {
+                            MemoryAPI memory = entity.getMemoryWithoutUpdate();
+
+                            if(memory.contains("$sun_sl_customType") && !memory.contains(FamousDerelictIntel.MEMORY_KEY)) {
+                                buggedDerelictsToRemove.add(entity);
+                            }
+                        }
+                    }
+
+                    for(SectorEntityToken token : buggedDerelictsToRemove) {
+                        token.getContainingLocation().removeEntity(token);
+                    }
+
+                    Global.getLogger(this.getClass()).info("Removed " + buggedDerelictsToRemove.size() + " bugged derelicts");
+                } catch (Exception e) {
+                    Global.getLogger(this.getClass()).info("Failed to update version!");
+                }
+
+                // Remove existing duplicate traits
+                try {
+                    for (RepRecord rep : RepRecord.INSTANCE_REGISTRY.val.values()) {
+                        Set<TraitType> found = new HashSet<>();
+
+                        if (rep.getRating() != 0) allRepRecordsHaveNoRating = false;
+
+                        for (Trait t : new ArrayList<>(rep.getTraits())) {
+                            if (found.contains(t.getType()) || t.getName(true).isEmpty()) {
+                                rep.getTraits().remove(t);
+                            } else found.add(t.getType());
+                        }
+                    }
+                } catch (Exception e) {
+                    Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+                }
+
+                // If no ships have ratings, estimate them
+                try {
+                    if (allRepRecordsHaveNoRating) {
+                        for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
+                            if (!ship.getHullSpec().isCivilianNonCarrier() && RepRecord.existsFor(ship)) {
+                                RepRecord rep = RepRecord.get(ship);
+                                float progress = rep.getTraits().size() / (float) Trait.getTraitLimit();
+
+                                rep.setRating(RepRecord.INITIAL_RATING * (1f - progress)
+                                        + rep.getFractionOfBonusEffectFromTraits() * progress);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+                }
+
+                // Remove RepRecords with no traits
+                try {
+                    for (FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
+                        if (!RepRecord.existsFor(ship) || RepRecord.get(ship).getTraits().isEmpty()) {
+                            RepRecord.deleteFor(ship);
+                        }
+                    }
+                } catch (Exception e) {
+                    Global.getLogger(this.getClass()).info("Failed to remove RepRecords without traits!");
+                }
+
+                // Compile existing RepChanges into a battle report
+                try {
+                    if (!CampaignScript.pendingRepChanges.val.isEmpty()) {
+                        BattleReport report = new BattleReport(1, null, null, null, null, 0, 0);
+                        for (RepChange rc : CampaignScript.pendingRepChanges.val) {
+                            report.addChange(rc);
+                        }
+
+                        CampaignScript.pendingRepChanges.val.clear();
+                        Global.getSector().getIntelManager().addIntel(report);
+                    }
+                } catch (Exception e) {
+                    Global.getLogger(this.getClass()).info("Failed to compile pending reputation changes!");
+                }
+
+                // Remove RepRecords for ships that no longer exist
 //            try {
 //                Set<String> foundIDs = new HashSet<>();
 //
@@ -195,65 +292,6 @@ public class ModPlugin extends BaseModPlugin {
 //            } catch (Exception e) {
 //                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
 //            }
-
-            // Remove existing duplicate traits
-            try {
-                for(RepRecord rep : RepRecord.INSTANCE_REGISTRY.val.values()) {
-                    Set<TraitType> found = new HashSet<>();
-
-                    if(rep.getRating() != 0) allRepRecordsHaveNoRating = false;
-
-                    for (Trait t : new ArrayList<>(rep.getTraits())) {
-                        if (found.contains(t.getType()) || t.getName(true).isEmpty()) {
-                            rep.getTraits().remove(t);
-                        } else found.add(t.getType());
-                    }
-                }
-            } catch (Exception e) {
-                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
-            }
-
-            // If no ships have ratings, estimate them
-            try {
-                if(allRepRecordsHaveNoRating) {
-                    for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
-                        if (!ship.getHullSpec().isCivilianNonCarrier() && RepRecord.existsFor(ship)) {
-                            RepRecord rep = RepRecord.get(ship);
-                            float progress = rep.getTraits().size() / (float) Trait.getTraitLimit();
-
-                            rep.setRating(RepRecord.INITIAL_RATING * (1f - progress)
-                                    + rep.getFractionOfBonusEffectFromTraits() * progress);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
-            }
-
-            // Remove RepRecords with no traits
-            try {
-                for(FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
-                    if(!RepRecord.existsFor(ship) || RepRecord.get(ship).getTraits().isEmpty()) {
-                        RepRecord.deleteFor(ship);
-                    }
-                }
-            } catch (Exception e) {
-                Global.getLogger(this.getClass()).info("Failed to remove RepRecords without traits!");
-            }
-
-            // Compile existing RepChanges into a battle report
-            try {
-                if(!CampaignScript.pendingRepChanges.val.isEmpty()) {
-                    BattleReport report = new BattleReport(1, null, null, null, null, 0, 0);
-                    for (RepChange rc : CampaignScript.pendingRepChanges.val) {
-                        report.addChange(rc);
-                    }
-
-                    CampaignScript.pendingRepChanges.val.clear();
-                    Global.getSector().getIntelManager().addIntel(report);
-                }
-            } catch (Exception e) {
-                Global.getLogger(this.getClass()).info("Failed to compile pending reputation changes!");
             }
         } catch (Exception e) { reportCrash(e); }
     }
@@ -399,10 +437,13 @@ public class ModPlugin extends BaseModPlugin {
                 Global.getCombatEngine().getCombatUI().addMessage(1, Color.ORANGE, exception.getMessage());
                 Global.getCombatEngine().getCombatUI().addMessage(2, Color.RED, message);
             } else if (Global.getSector() != null && Global.getCurrentState() == GameState.CAMPAIGN) {
-                Global.getSector().getCampaignUI().addMessage(message, Color.RED);
-                Global.getSector().getCampaignUI().addMessage(exception.getMessage(), Color.ORANGE);
-                Global.getSector().getCampaignUI().showConfirmDialog(message + "\n\n"
-                        + exception.getMessage(), "Ok", null, null, null);
+                CampaignUIAPI ui = Global.getSector().getCampaignUI();
+
+                ui.addMessage(message, Color.RED);
+                ui.addMessage(exception.getMessage(), Color.ORANGE);
+                ui.showConfirmDialog(message + "\n\n" + exception.getMessage(), "Ok", null, null, null);
+
+                if(ui.getCurrentInteractionDialog() != null) ui.getCurrentInteractionDialog().dismiss();
             } else return false;
 
             return true;

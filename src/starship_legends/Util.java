@@ -246,7 +246,8 @@ public class Util {
         return commander;
     }
     public static void showTraits(TooltipMakerAPI tooltip, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {
-        int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
+        //int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
+        int traitsLeft = rep.getTraits().size();
         int loyaltyEffectAdjustment = 0;
 
         if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {

@@ -79,8 +79,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 			if (bestFactionPrefix.isEmpty()) bestFactionPrefix = faction.getDisplayName();
 
 			info.addPara(timeAgo + " you heard that a %s fleet commanded by " + commander.getNameString().trim() +
-					" was somewhere in the " + location + ".", 10,
-					Misc.getTextColor(), faction.getColor(), bestFactionPrefix);
+					" was somewhere in the " + location + ". It's not clear how much longer this will be the case.",
+					10, Misc.getTextColor(), faction.getColor(), bestFactionPrefix);
 
 			info.addPara(Misc.ucFirst(hisOrHer) + " flagship is %s, notable for the following traits:", 10,
 					Misc.getTextColor(), Misc.getHighlightColor(), Util.getShipDescription(ship));

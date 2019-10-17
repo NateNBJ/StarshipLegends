@@ -28,7 +28,7 @@ public class Reputation extends BaseHullMod {
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.CAPITAL_SHIP, 6);
     }
 
-    static Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
+    static transient Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
 
     public static float getFlatEffectMult(ShipAPI.HullSize size) {
         return size == null ? 1 : FLAT_EFFECT_MULT.get(size);
