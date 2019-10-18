@@ -211,8 +211,9 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			boolean isDerelict = (random.nextFloat() * ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
 					<= ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE);
 
-			Global.getLogger(this.getClass()).info(isDerelict + ".  " + ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
-					+ ", " + ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE + ", " + random.nextFloat());
+//			Global.getLogger(this.getClass()).info(isDerelict + ".  " + ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
+//					+ ", " + ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE + ", " + random.nextFloat());
+			random.nextFloat(); // To preserve RNG consistency with previous saves
 
 			if(!Integration.isFamousFlagshipEventAvailableAtMarket(market)) isDerelict = true;
 			if(!Integration.isFamousDerelictEventAvailableAtMarket(market)) isDerelict = false;
@@ -563,14 +564,14 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							desc += " In fact, I know exactly where she was when she was lost.";
 						}
 
-						if (cost == 0) {
+						if (cost == 0 && orbitedBody != null) {
 							if (granularity == FamousDerelictIntel.LocationGranularity.ENTITY) {
-								desc += " She should still be in orbit around " + derelict.getOrbitFocus().getName()
-										+ (derelict.getOrbitFocus().isStar() ? "." : ", in " + derelict.getStarSystem().getName() + ".");
+								desc += " She should still be in orbit around " + orbitedBody.getName()
+										+ (orbitedBody.isStar() ? "." : ", in " + orbitedBody.getStarSystem().getName() + ".");
 
 							} else {
 								desc += " I don't know the specifics, but the " + ship.getShipName() + "'s fleet was " +
-										"defeated somewhere in " + derelict.getStarSystem().getName() + ".";
+										"defeated somewhere in " + orbitedBody.getStarSystem().getName() + ".";
 							}
 
 							if (rivalSalvageFleet) {
