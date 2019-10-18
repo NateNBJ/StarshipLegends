@@ -34,7 +34,7 @@ public class ModPlugin extends BaseModPlugin {
     public static final int LOYALTY_LIMIT = 3;
     public static final int DEFAULT_TRAIT_LIMIT = 8;
 
-    static Saved<String> version = new Saved<>("version", null);
+    static Saved<String> version = new Saved<>("version", "");
 
     static boolean settingsAreRead = false;
 
@@ -182,8 +182,10 @@ public class ModPlugin extends BaseModPlugin {
             boolean allRepRecordsHaveNoRating = true;
 
 
-            if(version.val == null) {
+            if(version.val == null || version.val.equals("")) {
                 version.val = Global.getSettings().getModManager().getModSpec("sun_starship_legends").getVersion();
+
+                Global.getLogger(this.getClass()).info("Starship Legends version updated to " + version.val);
 
                 // Remove bugged famous derelicts from the sector
                 try {
@@ -203,7 +205,9 @@ public class ModPlugin extends BaseModPlugin {
                         token.getContainingLocation().removeEntity(token);
                     }
 
-                    Global.getLogger(this.getClass()).info("Removed " + buggedDerelictsToRemove.size() + " bugged derelicts");
+                    if(!buggedDerelictsToRemove.isEmpty()) {
+                        Global.getLogger(this.getClass()).info("Removed " + buggedDerelictsToRemove.size() + " bugged derelicts");
+                    }
                 } catch (Exception e) {
                     Global.getLogger(this.getClass()).info("Failed to update version!");
                 }

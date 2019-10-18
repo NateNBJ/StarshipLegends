@@ -26,11 +26,19 @@ public class Saved<T> {
         for(Saved saved : instanceRegistry.values()) {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
                 saved.val = Global.getSector().getPersistentData().get(saved.key);
+
+                if(saved.val == null) saved.val = saved.defaultVal;
             } else if(saved.val != null && saved.val.getClass().isPrimitive()) {
                 saved.val = saved.defaultVal;
             } else if(saved.val instanceof Collection) {
                 ((Collection)saved.val).clear();
-            } else saved.val = null;
+                ((Collection)saved.defaultVal).clear();
+            } else if(saved.val instanceof Map) {
+                ((Map)saved.val).clear();
+                ((Map)saved.defaultVal).clear();
+            } else {
+                saved.val = saved.defaultVal;
+            }
         }
     }
 
@@ -41,7 +49,7 @@ public class Saved<T> {
     public Saved(String key, T defaultValue) {
         this.key = PREFIX + key;
         this.val = defaultValue;
-        this.defaultVal = val != null && val.getClass().isPrimitive() ? defaultValue : null;
+        this.defaultVal = defaultValue;
 
         instanceRegistry.put(this.key, this);
     }
