@@ -45,7 +45,7 @@ public class AddTrait implements BaseCommand {
 
                     traitsCopy.remove(i);
 
-                    if(!rep.hasTrait(newTrait)) {
+                    if(!rep.hasTraitType(newTrait.getType())) {
                         rep.getTraits().add(newTrait);
                         RepRecord.updateRepHullMod(ship);
                         String discrepancyMaybe = Global.getSettings().isDevMode()

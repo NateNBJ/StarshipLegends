@@ -28,6 +28,7 @@ import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.MutableValue;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import com.fs.starfarer.campaign.CampaignTerrain;
+import data.scripts.campaign.intel.VayraPersonBountyIntel;
 import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
 
@@ -269,11 +270,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				List<CampaignFleetAPI> eligibleFleets = new LinkedList<>();
 
 				if(random.nextFloat() < 0.3f) { // Choose a bounty target
-					for (IntelInfoPlugin bounty : Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class)) {
-						for (CampaignFleetAPI fleet : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
-							float daysRemaining = bounty.getTimeRemainingFraction() * PersonBountyIntel.MAX_DURATION;
+					List<IntelInfoPlugin> bounties = Global.getSettings().getModManager().isModEnabled("vayrasector")
+							? Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class)
+							: Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class);
 
-							if(fleet.getFaction().getId().equals(Factions.NEUTRAL) && daysRemaining > FamousFlagshipIntel.MAX_DURATION) {
+					for (IntelInfoPlugin bounty : bounties) {
+						for (CampaignFleetAPI fleet : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
+							if(fleet.getFaction().getId().equals(Factions.NEUTRAL) && bounty.getTimeRemainingFraction() > 0.5f) {
 								eligibleFleets.add(fleet);
 							}
 						}
@@ -470,7 +473,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						faction = Global.getSector().getFaction(Factions.PIRATES);
 					}
 
-					activity = activity == null || activity.equals("null") ? "" : activity;
+					activity = activity == null || activity.equals("null") ? "somewhere " : activity;
 
 					text.addPara("With an excess of dramatic gestures and exclamations, the storyteller delivers an amateurish " +
 							"narration about %s commander named " + name + " and " + hisOrHer + " flagship, the " + ship.getShipName() +

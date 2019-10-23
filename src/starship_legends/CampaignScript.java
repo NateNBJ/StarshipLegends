@@ -458,15 +458,19 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             for (FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
                 if (ship.isMothballed() && RepRecord.existsFor(ship)) {
                     if (!dayMothballed.val.containsKey(ship.getId())) {
-                        //log("Mothballed");
+                        log("Mothballed: " + ship.getHullId());
                         dayMothballed.val.put(ship.getId(), day);
-                    } else if (day > dayMothballed.val.get(ship.getId()) + ModPlugin.DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION * RepRecord.get(ship).getTraits().size()) {
-                        //log("Reputation removed");
+                    } else if (day > (dayMothballed.val.get(ship.getId()) + ModPlugin.DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION * RepRecord.get(ship).getTraits().size())) {
+                        log("Reputation removed: " + ship.getHullId());
                         dayMothballed.val.remove(ship.getId());
                         RepRecord.deleteFor(ship);
                     }
+
+                    if(dayMothballed.val.containsKey(ship.getId())) {
+                        log(ship.getHullId() + " " + ship.getId() + " has " + ((dayMothballed.val.get(ship.getId()) + ModPlugin.DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION * RepRecord.get(ship).getTraits().size()) - day) + " days left before its reputation is cleared.");
+                    }
                 } else if (dayMothballed.val.containsKey(ship.getId())) {
-                    //log("No longer mothballed");
+                    log("No longer mothballed: " + ship.getHullId());
                     dayMothballed.val.remove(ship.getId());
                 }
             }

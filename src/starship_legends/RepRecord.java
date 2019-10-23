@@ -4,6 +4,7 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
+import com.fs.starfarer.api.combat.WeaponAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
@@ -80,6 +81,89 @@ public class RepRecord {
 
         return getTierFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
     }
+    public static boolean isTraitRelevantForShip(FleetMemberAPI ship, Trait trait, boolean allowBadDefenseTrait,
+                                                 boolean allowBadOffenseTrait, boolean allowCrewTrait) {
+
+        ShieldAPI.ShieldType shieldType = ship.getHullSpec().getShieldType();
+        TraitType type = trait.getType();
+        boolean traitIsBad = trait.getEffectSign() == -1;
+
+        for(String tag : type.getTags()) {
+            switch (tag) {
+                case TraitType.Tags.CREW:
+                    if(!allowCrewTrait) return false;
+                    break;
+                case TraitType.Tags.CARRIER:
+                    if(!ship.isCarrier()) return false;
+                    break;
+                case TraitType.Tags.SHIELD:
+                    if(shieldType != ShieldAPI.ShieldType.FRONT && shieldType != ShieldAPI.ShieldType.OMNI)
+                        return false;
+                    break;
+                case TraitType.Tags.CLOAK:
+                    if(shieldType != ShieldAPI.ShieldType.PHASE) return false;
+                    break;
+                case TraitType.Tags.NO_AI:
+                    if(ship.getMinCrew() <= 0) return false;
+                    break;
+                case TraitType.Tags.DEFENSE:
+                    if(traitIsBad && !allowBadDefenseTrait) return false;
+                    break;
+                case TraitType.Tags.ATTACK:
+                    boolean hasWeaponSlot = false;
+
+                    for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
+                        switch (slot.getWeaponType()) {
+                            case SYSTEM: case DECORATIVE: case STATION_MODULE: case LAUNCH_BAY: continue;
+                            default: hasWeaponSlot = true; break;
+                        }
+
+                        if(hasWeaponSlot) break;
+                    }
+
+                    if((traitIsBad && !allowBadOffenseTrait) || !hasWeaponSlot) return false;
+                    break;
+                case TraitType.Tags.MISSILE:
+                    float total = ship.getHullSpec().getFighterBays() * 10, missile = 0;
+
+                    for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
+                        float op = 0;
+
+                        switch (slot.getSlotSize()) {
+                            case SMALL: op = 5; break;
+                            case MEDIUM: op = 10; break;
+                            case LARGE: op = 20; break;
+                        }
+
+                        switch (slot.getWeaponType()) {
+                            case MISSILE:   missile += op * 1.0f; break;
+                            case COMPOSITE: missile += op * 0.8f; break;
+                            case SYNERGY:   missile += op * 0.8f; break;
+                            case UNIVERSAL: missile += op * 0.6f; break;
+                        }
+
+                        total += op;
+                    }
+
+                    if(missile / total < 0.2f) return false;
+                    break;
+            }
+        }
+
+        if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
+            for (String mod : ship.getHullSpec().getBuiltInMods()) {
+                if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
+            }
+        }
+
+        if(!type.getRequiredBuiltInHullmods().isEmpty()) {
+            if (!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, boolean allowBadDefenseTrait,
                                        boolean allowBadOffenseTrait, boolean allowCrewTrait, WeightedRandomPicker<TraitType> picker) {
 
@@ -98,69 +182,7 @@ public class RepRecord {
         while(!picker.isEmpty()) {
             TraitType type = picker.pickAndRemove();
             Trait trait = type.getTrait(traitIsBad);
-            boolean traitIsRelevant = true;
-            ShieldAPI.ShieldType shieldType = ship.getHullSpec().getShieldType();
-
-            for(String tag : type.getTags()) {
-                switch (tag) {
-                    case TraitType.Tags.CREW:
-                        if(!allowCrewTrait) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.CARRIER:
-                        if(!ship.isCarrier()) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.SHIELD:
-                        if(shieldType != ShieldAPI.ShieldType.FRONT && shieldType != ShieldAPI.ShieldType.OMNI)
-                            traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.CLOAK:
-                        if(shieldType != ShieldAPI.ShieldType.PHASE) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.NO_AI:
-                        if(ship.getMinCrew() <= 0) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.DEFENSE:
-                        if(traitIsBad && !allowBadDefenseTrait) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.ATTACK:
-                        if(traitIsBad && !allowBadOffenseTrait) traitIsRelevant = false;
-                        break;
-                    case TraitType.Tags.MISSILE:
-                        float total = ship.getHullSpec().getFighterBays() * 10, missile = 0;
-
-                        for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
-                            float op = 0;
-
-                            switch (slot.getSlotSize()) {
-                                case SMALL: op = 5; break;
-                                case MEDIUM: op = 10; break;
-                                case LARGE: op = 20; break;
-                            }
-
-                            switch (slot.getWeaponType()) {
-                                case MISSILE: case COMPOSITE: case SYNERGY: case UNIVERSAL: missile += op;
-                            }
-
-                            total += op;
-                        }
-
-                        if(missile / total > 0.3f) traitIsRelevant = false;
-                        break;
-                }
-            }
-
-            if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
-                for (String mod : ship.getHullSpec().getBuiltInMods()) {
-                    if (type.getIncompatibleBuiltInHullmods().contains(mod)) traitIsRelevant = false;
-                }
-            }
-
-            if(!type.getRequiredBuiltInHullmods().isEmpty()) {
-                if (!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
-                    traitIsRelevant = false;
-                }
-            }
-
+            boolean traitIsRelevant = isTraitRelevantForShip(ship, trait, allowBadDefenseTrait, allowBadOffenseTrait, allowCrewTrait);
             boolean skipCombatLogisticsMismatch = false;
 
             if(type.getTags().contains(TraitType.Tags.LOGISTICAL)

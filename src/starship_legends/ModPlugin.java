@@ -93,7 +93,9 @@ public class ModPlugin extends BaseModPlugin {
 
     CampaignScript script;
 
-    class Version {
+    static void log(String message) { if(true) Global.getLogger(ModPlugin.class).info(message); }
+
+    static class Version {
         public final int MAJOR, MINOR, PATCH, RC;
 
         public Version(String versionStr) {
@@ -181,11 +183,35 @@ public class ModPlugin extends BaseModPlugin {
 
             boolean allRepRecordsHaveNoRating = true;
 
-
-            if(version.val == null || version.val.equals("")) {
+            if(isUpdateDiagnosticCheckNeeded()) {
+                String oldVersion = version.val;
                 version.val = Global.getSettings().getModManager().getModSpec("sun_starship_legends").getVersion();
 
-                Global.getLogger(this.getClass()).info("Starship Legends version updated to " + version.val);
+                log("Starship Legends version updated from " + oldVersion + " to " + version.val);
+                log("Performing update diagnostics...");
+
+                // Remove irrelevant traits from existing notable ships
+                try {
+                    for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
+                        if(!RepRecord.existsFor(ship)) continue;
+
+                        RepRecord rep = RepRecord.get(ship);
+                        List<Trait> traitsToRemove = new LinkedList<>();
+
+                        for(Trait t : rep.getTraits()) {
+                            if(!RepRecord.isTraitRelevantForShip(ship, t, true, true, true)) {
+                                traitsToRemove.add(t);
+                            }
+                        }
+
+                        for(Trait t : traitsToRemove) {
+                            log("Removing " + t.getName(true) + " from the " + ship.getShipName() + " (" + ship.getHullId() + ")");
+                            rep.getTraits().remove(t);
+                        }
+                    }
+                } catch (Exception e) {
+                    log("An error occurred while removing irrelevant traits from existing notable ships!");
+                }
 
                 // Remove bugged famous derelicts from the sector
                 try {
@@ -206,10 +232,10 @@ public class ModPlugin extends BaseModPlugin {
                     }
 
                     if(!buggedDerelictsToRemove.isEmpty()) {
-                        Global.getLogger(this.getClass()).info("Removed " + buggedDerelictsToRemove.size() + " bugged derelicts");
+                        log("Removed " + buggedDerelictsToRemove.size() + " bugged derelicts");
                     }
                 } catch (Exception e) {
-                    Global.getLogger(this.getClass()).info("Failed to update version!");
+                    log("An error occurred while removing bugged famous derelicts from the sector!");
                 }
 
                 // Remove existing duplicate traits
@@ -226,7 +252,7 @@ public class ModPlugin extends BaseModPlugin {
                         }
                     }
                 } catch (Exception e) {
-                    Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+                    log("An error occurred while removing duplicate traits!");
                 }
 
                 // If no ships have ratings, estimate them
@@ -243,7 +269,7 @@ public class ModPlugin extends BaseModPlugin {
                         }
                     }
                 } catch (Exception e) {
-                    Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
+                    log("An error occurred while estimating ratings!");
                 }
 
                 // Remove RepRecords with no traits
@@ -254,48 +280,8 @@ public class ModPlugin extends BaseModPlugin {
                         }
                     }
                 } catch (Exception e) {
-                    Global.getLogger(this.getClass()).info("Failed to remove RepRecords without traits!");
+                    log("An error occurred while removing RepRecords without traits!");
                 }
-
-                // Compile existing RepChanges into a battle report
-                try {
-                    if (!CampaignScript.pendingRepChanges.val.isEmpty()) {
-                        BattleReport report = new BattleReport(1, null, null, null, null, 0, 0);
-                        for (RepChange rc : CampaignScript.pendingRepChanges.val) {
-                            report.addChange(rc);
-                        }
-
-                        CampaignScript.pendingRepChanges.val.clear();
-                        Global.getSector().getIntelManager().addIntel(report);
-                    }
-                } catch (Exception e) {
-                    Global.getLogger(this.getClass()).info("Failed to compile pending reputation changes!");
-                }
-
-                // Remove RepRecords for ships that no longer exist
-//            try {
-//                Set<String> foundIDs = new HashSet<>();
-//
-//                for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-//                    foundIDs.add(ship.getId());
-//                }
-//
-//                for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
-//                    for(FleetMemberAPI ship : market.getSubmarket(Submarkets.SUBMARKET_STORAGE).getCargo().getMothballedShips().getMembersListCopy()) {
-//                        foundIDs.add(ship.getId());
-//                    }
-//                }
-//
-//                List<String> recordIDs = new ArrayList<>(RepRecord.INSTANCE_REGISTRY.val.keySet());
-//
-//                for(String id : recordIDs) {
-//                    if(!foundIDs.contains(id)) {
-//                        RepRecord.INSTANCE_REGISTRY.val.remove(id);
-//                    }
-//                }
-//            } catch (Exception e) {
-//                Global.getLogger(this.getClass()).info("Failed to remove duplicate traits!");
-//            }
             }
         } catch (Exception e) { reportCrash(e); }
     }
@@ -317,6 +303,15 @@ public class ModPlugin extends BaseModPlugin {
         x.aliasAttribute(RepChange.class, "trait", "t");
         x.aliasAttribute(RepChange.class, "captainOpinionChange", "o");
         x.aliasAttribute(RepChange.class, "shuffleSign", "d");
+    }
+    
+    public static boolean isUpdateDiagnosticCheckNeeded() {
+        if(version.val == null || version.val.equals("")) return true;
+
+        Version lastSavedVersion = new Version(version.val);
+        Version currentVersion = new Version(Global.getSettings().getModManager().getModSpec("sun_starship_legends").getVersion());
+
+        return lastSavedVersion.isOlderThan(currentVersion, true);
     }
 
     public static boolean settingsHaveBeenRead() { return settingsAreRead; }

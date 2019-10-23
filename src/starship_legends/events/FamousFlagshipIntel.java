@@ -22,12 +22,13 @@ import starship_legends.*;
 public class FamousFlagshipIntel extends FleetLogIntel {
 	public static final float MAX_DURATION = PersonBountyIntel.MAX_DURATION / 2f;
 
-	protected final FleetMemberAPI ship;
-	protected final RepRecord rep;
-	protected final FactionAPI faction;
-	protected final CampaignFleetAPI fleet;
-	protected final PersonAPI commander;
-	protected final String location;
+	FleetMemberAPI ship;
+	RepRecord rep;
+	FactionAPI faction;
+	CampaignFleetAPI fleet;
+	PersonAPI commander;
+	String location;
+	String activity;
 
 	public FamousFlagshipIntel(FamousShipBarEvent event) {
 		super(MAX_DURATION * 2f);
@@ -38,6 +39,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 		fleet = event.fleet;
 		commander = event.commander;
 		location = fleet.getContainingLocation().getName();
+		activity = event.activity;
 
 		Misc.makeImportant(fleet, "sun_sl_famous_flagship");
 		setRemoveTrigger(fleet);
@@ -77,9 +79,10 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 			String bestFactionPrefix = faction.getEntityNamePrefix();
 			if (bestFactionPrefix.isEmpty()) bestFactionPrefix = faction.getPersonNamePrefix();
 			if (bestFactionPrefix.isEmpty()) bestFactionPrefix = faction.getDisplayName();
+			if (activity == null || activity.equals("")) activity = "somewhere ";
 
 			info.addPara(timeAgo + " you heard that a %s fleet commanded by " + commander.getNameString().trim() +
-					" was somewhere in the " + location + ". It's not clear how much longer this will be the case.",
+					" was " + activity + "in the " + location + ". It's not clear how much longer this will be the case.",
 					10, Misc.getTextColor(), faction.getColor(), bestFactionPrefix);
 
 			info.addPara(Misc.ucFirst(hisOrHer) + " flagship is %s, notable for the following traits:", 10,

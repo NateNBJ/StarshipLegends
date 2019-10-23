@@ -327,6 +327,13 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		if(getDaysRemaining() > 0 && rivalFleet != null) addDays(info, "left", getDaysRemaining(), tc, 0f);
 	}
 
+	@Override
+	public float getTimeRemainingFraction() {
+		return rivalFleet == null
+				? super.getTimeRemainingFraction()
+				: 1 - Global.getSector().getClock().getElapsedDaysSince(timestamp) / MAX_DURATION;
+	}
+
 	float getDaysRemaining() { return Math.round(MAX_DURATION - Global.getSector().getClock().getElapsedDaysSince(timestamp)); }
 
 	@Override

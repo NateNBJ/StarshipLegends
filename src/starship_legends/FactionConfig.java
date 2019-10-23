@@ -226,20 +226,28 @@ public class FactionConfig {
         readData(defaultData);
 
         try {
+            boolean dataWasFound = false;
+
             if (faction.getCustom().has("starshipLegendsConfig")) {
-                Global.getLogger(this.getClass()).info("Reading custom section for faction: " + faction.getDisplayNameLong());
+                Global.getLogger(this.getClass()).info("Reading custom section for faction: " + faction.getId());
                 readData(faction.getCustom().getJSONObject("starshipLegendsConfig"));
-            } else if (factionConfigs.has(faction.getId())) {
-                Global.getLogger(this.getClass()).info("Reading config file for faction: " + faction.getDisplayNameLong());
+                dataWasFound = true;
+            }
+
+            if (factionConfigs.has(faction.getId())) {
+                Global.getLogger(this.getClass()).info("Reading config file for faction: " + faction.getId());
                 readData(factionConfigs.getJSONObject(faction.getId()));
-            } else {
-                Global.getLogger(this.getClass()).info("No integration data found for faction: " + faction.getDisplayNameLong());
+                dataWasFound = true;
+            }
+
+            if(!dataWasFound){
+                Global.getLogger(this.getClass()).info("No integration data found for faction: " + faction.getId());
                 chooseSettingsBasedOnFactionProperties();
             }
 
             INSTANCE_REGISTRY.put(faction.getId(), this);
         } catch (Exception e) {
-            Global.getLogger(this.getClass()).error("Error reading config for faction: " + faction.getDisplayNameLong(), e);
+            Global.getLogger(this.getClass()).error("Error reading config for faction: " + faction.getId(), e);
         }
     }
 
