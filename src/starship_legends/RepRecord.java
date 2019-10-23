@@ -84,6 +84,8 @@ public class RepRecord {
     public static boolean isTraitRelevantForShip(FleetMemberAPI ship, Trait trait, boolean allowBadDefenseTrait,
                                                  boolean allowBadOffenseTrait, boolean allowCrewTrait) {
 
+        if(ship == null || ship.getHullSpec() == null || trait == null) return false;
+
         ShieldAPI.ShieldType shieldType = ship.getHullSpec().getShieldType();
         TraitType type = trait.getType();
         boolean traitIsBad = trait.getEffectSign() == -1;
@@ -167,6 +169,8 @@ public class RepRecord {
     public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, boolean allowBadDefenseTrait,
                                        boolean allowBadOffenseTrait, boolean allowCrewTrait, WeightedRandomPicker<TraitType> picker) {
 
+        if(ship == null || rand == null) return null;
+
         RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : null;
 
         if(rep != null) {
@@ -182,6 +186,9 @@ public class RepRecord {
         while(!picker.isEmpty()) {
             TraitType type = picker.pickAndRemove();
             Trait trait = type.getTrait(traitIsBad);
+
+            if(trait == null) continue;
+
             boolean traitIsRelevant = isTraitRelevantForShip(ship, trait, allowBadDefenseTrait, allowBadOffenseTrait, allowCrewTrait);
             boolean skipCombatLogisticsMismatch = false;
 
