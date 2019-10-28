@@ -85,6 +85,24 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	transient float cost = 0;
 	transient boolean rivalSalvageFleet = false;
 
+	protected void reset() {
+		ship = null;
+		rep = null;
+
+		faction = null;
+		fleet = null;
+		commander = null;
+		activity = "";
+		newFleetWasCreated = false;
+
+		derelict = null;
+		orbitedBody = null;
+		wreckData = null;
+		timeScale = null;
+		granularity = null;
+		cost = 0;
+		rivalSalvageFleet = false;
+	}
 	protected boolean isValidDerelictIntel() {
 		return rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null;
@@ -131,6 +149,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			if(system.getConstellation() == null
 					|| system.hasTag("theme_core_populated")
 					|| system.hasTag("hidden")
+					|| system.hasTag("sun_sl_hidden")
 					|| !Misc.getMarketsInLocation(system.getCenter().getContainingLocation()).isEmpty()
 					|| distance < timeScale.getMinDistance()) continue;
 
@@ -179,6 +198,22 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 		return true;
 	}
+	protected void pickShipName(FleetMemberAPI ship) {
+		try {
+			WeightedRandomPicker<String> picker = new WeightedRandomPicker<>();
+
+			for(FactionAPI faction : Global.getSector().getAllFactions()) {
+				if(faction.getKnownShips().contains(ship.getHullId())) {
+					picker.add(faction.pickRandomShipName(random));
+				}
+			}
+
+			ship.setShipName(picker.pick());
+		} catch (Exception e) {
+			Global.getLogger(this.getClass()).error("Failed to pick a faction-specific ship name.");
+			ship.setShipName(Global.getSector().getFaction(Factions.NEUTRAL).pickRandomShipName(random));
+		}
+	}
 
 	@Override
 	public boolean shouldShowAtMarket(MarketAPI market) {
@@ -193,17 +228,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	@Override
 	protected void regen(MarketAPI market) {
 		try {
+			playerFleet = Global.getSector().getPlayerFleet();
+			if (playerFleet == null) return;
 			if (!Global.getSettings().isDevMode() && this.market == market) return;
 
 			super.regen(market);
 
-			rep = null;
-			ship = null;
-			playerFleet = Global.getSector().getPlayerFleet();
-
-			derelict = null;
-			commander = null;
-			newFleetWasCreated = false;
+			reset();
 
 			if (Global.getSettings().isDevMode()) random = new Random();
 
@@ -211,10 +242,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
             int traitCount = 0;
 			boolean isDerelict = (random.nextFloat() * ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
 					<= ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE);
-
-//			Global.getLogger(this.getClass()).info(isDerelict + ".  " + ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
-//					+ ", " + ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE + ", " + random.nextFloat());
-			random.nextFloat(); // To preserve RNG consistency with previous saves
 
 			if(!Integration.isFamousFlagshipEventAvailableAtMarket(market)) isDerelict = true;
 			if(!Integration.isFamousDerelictEventAvailableAtMarket(market)) isDerelict = false;
@@ -228,7 +255,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 				wreckData = params.ship;
 				ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
-				ship.setShipName(Global.getSector().getFaction(Factions.NEUTRAL).pickRandomShipName(random));
+				pickShipName(ship);
 				params.ship.shipName = ship.getShipName();
                 timeScale = FamousDerelictIntel.TimeScale.chooseTimeScale(random);
 
@@ -328,7 +355,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						activity = fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling ";
 						fleet.addAssignment(fleet.getFaction().isHostileTo(Factions.INDEPENDENT)
 										? FleetAssignment.RAID_SYSTEM : FleetAssignment.PATROL_SYSTEM,
-								source.getStarSystem().getCenter(), FamousFlagshipIntel.MAX_DURATION);
+								source.getPrimaryEntity(), FamousFlagshipIntel.MAX_DURATION);
 					} else {
 						activity = "defending " + source.getPrimaryEntity().getName() + " ";
 						fleet.addAssignment(FleetAssignment.DEFEND_LOCATION, source.getPrimaryEntity(),

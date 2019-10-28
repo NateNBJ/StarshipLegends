@@ -20,7 +20,7 @@ import org.lwjgl.input.Keyboard;
 import starship_legends.*;
 
 public class FamousFlagshipIntel extends FleetLogIntel {
-	public static final float MAX_DURATION = PersonBountyIntel.MAX_DURATION / 2f;
+	public static float MAX_DURATION = PersonBountyIntel.MAX_DURATION / 2f;
 
 	FleetMemberAPI ship;
 	RepRecord rep;

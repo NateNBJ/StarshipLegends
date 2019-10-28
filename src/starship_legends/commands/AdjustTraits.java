@@ -53,7 +53,7 @@ public class AdjustTraits implements BaseCommand {
 
                     if(!rep.hasTrait(traits[0])) {
                         String message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
-                                + traits[0].getDescPrefix(ship.getMinCrew() > 0) + " %s.";
+                                + traits[0].getDescPrefix(ship.getMinCrew() > 0 || ship.isMothballed()) + " %s.";
 
                         Console.showMessage(String.format(message, traits[0].getName(true).toUpperCase()));
                     } else {
@@ -69,12 +69,6 @@ public class AdjustTraits implements BaseCommand {
 
                         Console.showMessage(String.format(message, tUp.getName(true).toUpperCase(),
                                 tDown.getName(true).toUpperCase()));
-
-//                        String message = "The reputation of the " + ship.getShipName()
-//                                + " for " + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s has become %s prominent.";
-//
-//                        Console.showMessage(String.format(message, trait.getName(true),
-//                                (shuffleDirection < 0 ? "more" : "less")));
                     }
                 }
             }
@@ -83,7 +77,6 @@ public class AdjustTraits implements BaseCommand {
             Console.showException("Error: unhandled exception!", e);
             return CommandResult.ERROR;
         }
-
 
         return CommandResult.SUCCESS;
     }

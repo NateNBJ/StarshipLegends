@@ -190,17 +190,19 @@ public class BattleReport extends BaseIntelPlugin {
                     }
                 }
 
+                boolean requiresCrew = rc.ship.getMinCrew() > 0 || rc.ship.isMothballed();
+
                 if (rc.trait == null) {
                     traitColor = Misc.getGrayColor();
                     trait = "-";
                 } else if (rc.shuffleSign == 0) {
                     traitColor = rc.trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor();
-                    trait = "+ " + rc.trait.getName(rc.ship.getMinCrew() > 0);
+                    trait = "+ " + rc.trait.getName(requiresCrew);
                 } else {
                     traitColor = rc.shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor();
 
                     if (RepRecord.existsFor(rc.ship) && !RepRecord.get(rc.ship).hasTrait(rc.trait)) {
-                        trait = "- " + rc.trait.getName(rc.ship.getMinCrew() > 0);
+                        trait = "- " + rc.trait.getName(requiresCrew);
                     } else {
                         trait = rc.shuffleSign > 0 ? "[ + ]" : "[ - ]";
                     }

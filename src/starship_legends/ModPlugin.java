@@ -51,7 +51,8 @@ public class ModPlugin extends BaseModPlugin {
             IGNORE_ALL_MALUSES = false,
             REMOVE_ALL_DATA_AND_FEATURES = false,
             SHOW_NEW_TRAIT_NOTIFICATIONS = true,
-            ALLOW_CUSTOM_COMMANDER_PRESETS = true;
+            ALLOW_CUSTOM_COMMANDER_PRESETS = true,
+            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true;
 
     public static int
             TRAITS_PER_TIER = 2,
@@ -361,6 +362,7 @@ public class ModPlugin extends BaseModPlugin {
             IGNORE_ALL_MALUSES = cfg.getBoolean("ignoreAllMaluses");
             SHOW_COMBAT_RATINGS = cfg.getBoolean("showCombatRatings");
             SHOW_NEW_TRAIT_NOTIFICATIONS = cfg.getBoolean("showNewTraitNotifications");
+            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = cfg.getBoolean("multiplyRatingLossesByPercentageOfLostHull");
 
             GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
             TRAITS_PER_TIER = cfg.getInt("traitsPerTier");

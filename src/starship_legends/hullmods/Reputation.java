@@ -345,7 +345,7 @@ public class Reputation extends BaseHullMod {
             Trait.Teir previousTeir = Trait.Teir.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
-            boolean requiresCrew = fm.getStats().getMinCrewMod().computeEffective(fm.getHullSpec().getMinCrew()) > 0;
+            boolean requiresCrew = fm.getMinCrew() > 0 || fm.isMothballed();
 
             if(Global.getSettings().isDevMode() || (ModPlugin.SHOW_COMBAT_RATINGS && !fm.getHullSpec().isCivilianNonCarrier())) {
                 tooltip.addPara("It has a rating of %s on the Evans-Zhao combat performance scale.", 10,

@@ -217,22 +217,26 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
                         : ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS;
 
-                if(rc.deployed) {
+                if(ship.getHullSpec().isCivilianNonCarrier()) {
+                    rc.newRating = bonusChance = br.rating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
+                } else if(rc.deployed) {
                     if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
                         rc.newRating = br.rating;
                         bonusChance = br.rating;
                     } else {
-                        rc.newRating = rep.getAdjustedRating(br.rating, 0.1f);
+                        float adjustmentAmount = 0.1f;
+
+                        if(ModPlugin.MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL && br.rating < rep.getRating()) {
+                            adjustmentAmount *= br.fractionDamageTaken;
+                        }
+
+                        rc.newRating = rep.getAdjustedRating(br.rating, adjustmentAmount);
                         rc.ratingAdjustment = rc.newRating - rep.getRating();
                         adjustmentSign = (int)Math.signum(rc.ratingAdjustment);
-                        //bonusChance = 0.5f + rc.newRating - rep.getFractionOfBonusEffectFromTraits();
-
                         bonusChance = 0.5f
                                 + (rc.newRating - rep.getFractionOfBonusEffectFromTraits(1))
                                 + (rc.newRating - rep.getFractionOfBonusEffectFromTraits(-1));
                     }
-                } else if(ship.getHullSpec().isCivilianNonCarrier()) {
-                    rc.newRating = bonusChance = br.rating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
                 } else {
                     rc.newRating = rep.getRating();
                     bonusChance = ModPlugin.BASE_RATING * ModPlugin.BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT;

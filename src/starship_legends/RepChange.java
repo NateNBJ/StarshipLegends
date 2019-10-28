@@ -125,7 +125,7 @@ public class RepChange {
         }
 
         if(showNotification) {
-            boolean requiresCrew = ship.getMinCrew() > 0;
+            boolean requiresCrew = ship.getMinCrew() > 0 || ship.isMothballed();
             String message = "The " + ship.getShipName() + " has gained a reputation for "
                     + trait.getDescPrefix(requiresCrew) + " %s";
 
@@ -148,42 +148,43 @@ public class RepChange {
 
         RepRecord rep = RepRecord.get(ship);
         String message;
+        boolean requiresCrew = ship.getMinCrew() > 0 || ship.isMothballed();
 
         if(trait != null) {
             if (shuffleSign == 0) {
                 message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " has gained a reputation for "
-                        + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s  %s";
+                        + trait.getDescPrefix(requiresCrew) + " %s  %s";
                 String desc = (trait.effectSign * trait.getType().getBaseBonus() > 0 ? "(increased " : "(reduced ")
                         + trait.getType().getEffectDescription() + ")";
 
-                tooltip.addPara(message, 3, Misc.getTextColor(), trait.getLowerCaseName(ship.getMinCrew() > 0), desc)
+                tooltip.addPara(message, 3, Misc.getTextColor(), trait.getLowerCaseName(requiresCrew), desc)
                         .setHighlightColors(trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
                                 Misc.getGrayColor());
             } else if(!rep.hasTrait(trait)) {
                 message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
-                        + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s.";
+                        + trait.getDescPrefix(requiresCrew) + " %s.";
 
                 tooltip.addPara(message, 3, Misc.getTextColor(),
                         shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                        trait.getLowerCaseName(ship.getMinCrew() > 0));
+                        trait.getLowerCaseName(requiresCrew));
             } else {
                 int shuffleDirection = trait.effectSign > 0 ? -shuffleSign : shuffleSign;
 
                 if(traitDown == null) {
                     message = BaseIntelPlugin.BULLET + "The reputation of the " + ship.getShipName()
-                            + " for " + trait.getDescPrefix(ship.getMinCrew() > 0) + " %s has become %s prominent.";
+                            + " for " + trait.getDescPrefix(requiresCrew) + " %s has become %s prominent.";
 
                     tooltip.addPara(message, 3, Misc.getTextColor(),
                             shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                            trait.getLowerCaseName(ship.getMinCrew() > 0), (shuffleDirection < 0 ? "more" : "less"));
+                            trait.getLowerCaseName(requiresCrew), (shuffleDirection < 0 ? "more" : "less"));
                 } else {
                     message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is now known better for "
                             + trait.getDescPrefix(true) + " %s than " + traitDown.getDescPrefix(true) + " %s";
 
                     tooltip.addPara(message, 3, Misc.getTextColor(),
                             shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                            trait.getLowerCaseName(ship.getMinCrew() > 0),
-                            traitDown.getLowerCaseName(ship.getMinCrew() > 0));
+                            trait.getLowerCaseName(requiresCrew),
+                            traitDown.getLowerCaseName(requiresCrew));
                 }
             }
         }
@@ -194,7 +195,7 @@ public class RepChange {
             int llSign = (int)Math.signum(ll.getIndex());
             String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
             String merelyMaybe = llSign != captainOpinionChange ? "merely " : "";
-            String crewOrAI = ship.getMinCrew() > 0 ? "crew" : "AI persona";
+            String crewOrAI = ship.getMinCrew() > 0 || ship.isMothballed() ? "crew" : "AI persona";
             message = BaseIntelPlugin.BULLET + "The " + crewOrAI + " of the " + ship.getShipName() + " has %s "
                     + captain.getNameString().trim() + " and is now " + merelyMaybe + "%s.";
 

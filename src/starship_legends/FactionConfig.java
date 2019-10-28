@@ -10,13 +10,11 @@ import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
-import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.Console;
 import java.io.IOException;
 import java.util.*;
 
@@ -55,7 +53,7 @@ public class FactionConfig {
 
     static final Map<String, Float> DERELICT_PROBABILITY = new HashMap<>();
 
-    final FactionAPI faction;
+    final String factionID;
 
     boolean useCrewlessTraitNames = false;
     boolean allowFamousFlagshipsInFleets = true;
@@ -150,7 +148,7 @@ public class FactionConfig {
     void chooseSettingsBasedOnFactionProperties() {
         useCrewlessTraitNames = true;
 
-        if(!faction.isShowInIntelTab()) {
+        if(!getFaction().isShowInIntelTab()) {
             descriptionOverride = "The ships in this fleet have the following traits:";
             allowFamousFlagshipsInFleets = false;
             allowFamousFlagshipBarEvent = false;
@@ -159,7 +157,7 @@ public class FactionConfig {
             return;
         }
 
-        for(String specID : faction.getKnownShips()) {
+        for(String specID : getFaction().getKnownShips()) {
             ShipHullSpecAPI spec = Global.getSettings().getHullSpec(specID);
 
             if(spec == null || spec.isCivilianNonCarrier() || spec.isDHull()
@@ -180,16 +178,20 @@ public class FactionConfig {
     private static RepRecord rep = null;
 
     public static void readDerelictChanceMultipliers(JSONArray list) throws JSONException {
-        for(int i = 0; i < list.length() - 1; i++) {
-            float chance = (float) list.getDouble(i);
+        int start = list.length() - 8;
+        // We're reading the last 8 entries, not the first, in-case someone has "overwritten" the list
 
-            derelictChanceMults[i*4 + 0] = chance;
-            derelictChanceMults[i*4 + 1] = chance;
-            derelictChanceMults[i*4 + 2] = chance;
-            derelictChanceMults[i*4 + 3] = chance;
+        for(int i = start; i < list.length() - 1; i++) {
+            float chance = (float) list.getDouble(i);
+            int at = (i - start) * 4;
+
+            derelictChanceMults[at + 0] = chance;
+            derelictChanceMults[at + 1] = chance;
+            derelictChanceMults[at + 2] = chance;
+            derelictChanceMults[at + 3] = chance;
         }
 
-        derelictChanceMults[31] = (float) list.getDouble(8);
+        derelictChanceMults[31] = (float) list.getDouble(list.length() - 1);
     }
     public static RepRecord getEnemyFleetRep() { return rep; }
     public static void clearEnemyFleetRep() { rep = null; }
@@ -216,7 +218,7 @@ public class FactionConfig {
     }
 
     FactionConfig(FactionAPI faction) throws JSONException, IOException {
-        this.faction = faction;
+        this.factionID = faction.getId();
 
         if(defaultData == null) {
             factionConfigs = Global.getSettings().getMergedJSONForMod("data/config/starship_legends/factionConfigurations.json", ModPlugin.ID);
@@ -249,6 +251,10 @@ public class FactionConfig {
         } catch (Exception e) {
             Global.getLogger(this.getClass()).error("Error reading config for faction: " + faction.getId(), e);
         }
+    }
+
+    public FactionAPI getFaction() {
+        return Global.getSector().getFaction(factionID);
     }
 
     public String chooseDerelictHullType(Random rand) {
@@ -329,7 +335,7 @@ public class FactionConfig {
 
         Random rand = new Random(commander != null && !commander.isDefault()
                 ? commander.getNameString().hashCode()
-                : faction.getDisplayNameLong().hashCode());
+                : getFaction().getDisplayNameLong().hashCode());
         RepRecord retVal = ship == null ? new RepRecord() : new RepRecord(ship);
         WeightedRandomPicker<TraitType> randomGoodTraits = new WeightedRandomPicker();
         WeightedRandomPicker<TraitType> randomBadTraits = new WeightedRandomPicker();

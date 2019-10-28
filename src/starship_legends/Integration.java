@@ -13,6 +13,8 @@ public class Integration {
     public static boolean isFamousDerelictEventAvailableAtMarket(MarketAPI market) {
         FactionConfig cfg = FactionConfig.get(market.getFactionId());
 
+        if(ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE <= 0) return false;
+
         if(derelictAvailabilityOverride.containsKey(market.getId())) {
             return derelictAvailabilityOverride.get(market.getId());
         } else if(cfg != null) {
@@ -23,6 +25,8 @@ public class Integration {
     }
     public static boolean isFamousFlagshipEventAvailableAtMarket(MarketAPI market) {
         FactionConfig cfg = FactionConfig.get(market.getFactionId());
+
+        if(ModPlugin.FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE <= 0) return false;
 
         if(flagshipAvailabilityOverride.containsKey(market.getId())) {
             return flagshipAvailabilityOverride.get(market.getId());

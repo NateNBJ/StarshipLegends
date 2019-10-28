@@ -86,7 +86,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		}
 	}
 
-	public static final float MAX_DURATION = PersonBountyIntel.MAX_DURATION * 0.8f;
+	public static float MAX_DURATION = PersonBountyIntel.MAX_DURATION * 0.8f;
 	public static final String MEMORY_KEY = "$sun_sl_famousDerelictKey";
 
 	boolean derelictRecoveredByPlayer = false, derelictRecoveredByRival = false, survivorsWereRescued = false;
