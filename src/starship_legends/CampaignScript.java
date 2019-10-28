@@ -303,17 +303,21 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     float loyaltyAdjustChance = (br.rating - 0.5f) + rep.getLoyaltyBonus(rc.captain);
                     boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
 
-                    if(loyaltyAdjustChance > 0.05f && !ll.isAtBest() && adjustmentSign >= 0 && rc.newRating >= ll.getRatingRequiredToImprove()) {
-                        loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
-                        msg += NEW_LINE + "Loyalty Increase Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
+                    if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
+                            || Math.signum(loyaltyAdjustChance) == Math.signum(rc.ratingAdjustment)) {
 
-                        if(success) loyaltyChange = 1;
-                    } else if(loyaltyAdjustChance < 0.05f && !ll.isAtWorst() && adjustmentSign <= 0) {
-                        loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
-                        loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULT;
-                        msg += NEW_LINE + "Loyalty Reduction Chance: " + (int)(loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
+                        if (loyaltyAdjustChance > 0.05f && !ll.isAtBest() && adjustmentSign >= 0 && rc.newRating >= ll.getRatingRequiredToImprove()) {
+                            loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
+                            msg += NEW_LINE + "Loyalty Increase Chance: " + (int) (loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
-                        if(success) loyaltyChange = -1;
+                            if (success) loyaltyChange = 1;
+                        } else if (loyaltyAdjustChance < 0.05f && !ll.isAtWorst() && adjustmentSign <= 0) {
+                            loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
+                            loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULT;
+                            msg += NEW_LINE + "Loyalty Reduction Chance: " + (int) (loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
+
+                            if (success) loyaltyChange = -1;
+                        }
                     }
                 }
 
