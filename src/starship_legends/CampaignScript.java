@@ -232,7 +232,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                         rc.newRating = rep.getAdjustedRating(br.rating, adjustmentAmount);
                         rc.ratingAdjustment = rc.newRating - rep.getRating();
-                        adjustmentSign = (int)Math.signum(rc.ratingAdjustment);
+                        adjustmentSign = Math.abs(rc.ratingAdjustment) > 0.01f ? (int)Math.signum(rc.ratingAdjustment) : 0;
                         bonusChance = 0.5f
                                 + (rc.newRating - rep.getFractionOfBonusEffectFromTraits(1))
                                 + (rc.newRating - rep.getFractionOfBonusEffectFromTraits(-1));
