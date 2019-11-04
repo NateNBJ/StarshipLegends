@@ -11,9 +11,11 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
+import com.sun.deploy.util.ArrayUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.lazywizard.lazylib.CollectionUtils;
 
 import java.io.IOException;
 import java.util.*;
@@ -61,8 +63,8 @@ public class FactionConfig {
     boolean allowFamousDerelictBarEvent = false;
     String descriptionOverride = null;
     ForcedRepPreset forcedPreset = null;
-    Map<Trait, Float> goodTraitFrequency = new HashMap();
-    Map<Trait, Float> badTraitFrequency = new HashMap();
+    Map<Trait, Float> goodTraitFrequency = new TreeMap();
+    Map<Trait, Float> badTraitFrequency = new TreeMap();
     Map<String, Float> exclusiveDerelictProbability = new HashMap<>();
     Map<String, ForcedRepPreset> forcedCommanderPresets = new HashMap();
 
@@ -337,8 +339,8 @@ public class FactionConfig {
                 ? commander.getNameString().hashCode()
                 : getFaction().getDisplayNameLong().hashCode());
         RepRecord retVal = ship == null ? new RepRecord() : new RepRecord(ship);
-        WeightedRandomPicker<TraitType> randomGoodTraits = new WeightedRandomPicker();
-        WeightedRandomPicker<TraitType> randomBadTraits = new WeightedRandomPicker();
+        WeightedRandomPicker<TraitType> randomGoodTraits = new WeightedRandomPicker(rand);
+        WeightedRandomPicker<TraitType> randomBadTraits = new WeightedRandomPicker(rand);
         ForcedRepPreset preset = getPreset(commander);
 
         for(Map.Entry<Trait, Float> e : goodTraitFrequency.entrySet()) randomGoodTraits.add(e.getKey().getType(), e.getValue());
@@ -368,8 +370,7 @@ public class FactionConfig {
                 newTrait = forcedTraits.get(0);
                 forcedTraits.remove(0);
             } else if(!randomTraits.isEmpty()) {
-                TraitType newType = randomTraits.pick(rand);
-                randomTraits.remove(newType);
+                TraitType newType = randomTraits.pickAndRemove();
                 newTrait = newType.getTrait(!isBonus);
             }
 

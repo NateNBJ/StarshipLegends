@@ -1,24 +1,21 @@
 package starship_legends;
 
-import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
-import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import com.fs.starfarer.api.util.WeightedRandomPicker;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.awt.Color;
 import java.util.Set;
 
-public class Trait {
-    public enum Teir {
+public class Trait implements Comparable<Trait> {
+    public enum Tier {
         Notable, Wellknown, Famous, Legendary, UNKNOWN;
 
         long xpToGuaranteeNewTrait = 1;
@@ -141,8 +138,8 @@ public class Trait {
         }
     }
 
-    public void addParagraphTo(TooltipMakerAPI tooltip, Teir teir, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet) {
-        float effect = getEffect(teir, loyaltyEffectAdjustment, hullSize);
+    public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet) {
+        float effect = getEffect(tier, loyaltyEffectAdjustment, hullSize);
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
         tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
     }
@@ -157,11 +154,21 @@ public class Trait {
 
     public int getEffectSign() { return effectSign; }
 
-    public float getEffect(Teir teir, int loyaltyEffectAdjustment, ShipAPI.HullSize hullSize) {
+    public float getEffect(Tier tier, int loyaltyEffectAdjustment, ShipAPI.HullSize hullSize) {
         float baseBonus = (getType().getBaseBonus()
                 * ((getTags().contains(TraitType.Tags.FLAT_EFFECT) || (getTags().contains(TraitType.Tags.FLAT_PERCENT)))
                         ? Reputation.getFlatEffectMult(hullSize) : 1));
-        return (baseBonus * effectSign * teir.getEffectMultiplier() + baseBonus * loyaltyEffectAdjustment)
+        return (baseBonus * effectSign * tier.getEffectMultiplier() + baseBonus * loyaltyEffectAdjustment)
                 * ModPlugin.GLOBAL_EFFECT_MULT;
+    }
+
+    @Override
+    public String toString() {
+        return (effectSign > 0 ? "+" : "-") + typeID;
+    }
+
+    @Override
+    public int compareTo(@NotNull Trait trait) {
+        return this.toString().compareTo(trait.toString());
     }
 }

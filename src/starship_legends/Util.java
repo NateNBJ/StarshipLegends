@@ -9,7 +9,6 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import org.lazywizard.console.Console;
 import starship_legends.events.FamousDerelictIntel;
@@ -137,7 +136,7 @@ public class Util {
         if(matches.isEmpty()) {
             Console.showMessage("Error: no traits matching the description provided: " + desc);
             Console.showMessage("Trait descriptions may be trait names or be composed of the following keywords:");
-            Console.showMessage("good, bad, positive, negative, pos, neg, logistical, combat, disabled, disabled_only, carrier, crew, attack, shield, cloak, no_ai, flat_effect, defense, flux");
+            Console.showMessage("good, bad, positive, negative, pos, neg, logistical, combat, disabled, disabled_only, carrier, crew, attack, shield, cloak, no_ai, flat_effect, defense, flux, relevant");
         }
 
         return matches;
@@ -219,8 +218,6 @@ public class Util {
         for(CampaignFleetAPI fleet : fleets) {
             int lvl = fleet.getCommanderStats().getLevel();
 
-            if(true) Global.getLogger(Util.class).info(fleet.getCommander().getNameString() + " is level " + lvl);
-
             if(commander == null || commander.getStats().getLevel() < lvl) {
                 commander = fleet.getCommander();
             }
@@ -231,12 +228,8 @@ public class Util {
     public static PersonAPI getHighestLevelEnemyCommanderInBattle(BattleAPI battle) {
         PersonAPI commander = battle.getNonPlayerCombined().getCommander();
 
-        if(true) Global.getLogger(Util.class).info(commander.getNameString() + " is level " + commander.getStats().getLevel());
-
         for(CampaignFleetAPI fleet : battle.getNonPlayerSide()) {
             int lvl = fleet.getCommanderStats().getLevel();
-
-            if(true) Global.getLogger(Util.class).info(fleet.getCommander().getNameString() + " is level " + lvl);
 
             if(commander == null || commander.getStats().getLevel() < lvl) {
                 commander = fleet.getCommander();
@@ -257,9 +250,9 @@ public class Util {
         for(Trait trait : rep.getTraits()) {
             if (traitsLeft <= 0) break;
 
-            Trait.Teir teir = RepRecord.getTierFromTraitCount(traitsLeft--);
+            Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
-            trait.addParagraphTo(tooltip, teir, loyaltyEffectAdjustment, requiresCrew, size, false);
+            trait.addParagraphTo(tooltip, tier, loyaltyEffectAdjustment, requiresCrew, size, false);
         }
     }
     public static void showTraits(TextPanelAPI textPanel, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {

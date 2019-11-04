@@ -10,10 +10,15 @@ import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
+import com.fs.starfarer.api.impl.campaign.ids.HullMods;
+import com.fs.starfarer.api.impl.campaign.rulecmd.ShowDefaultVisual;
+import com.fs.starfarer.api.impl.campaign.rulecmd.ShowImageVisual;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
+import starship_legends.events.FamousShipBarEvent;
 import starship_legends.hullmods.Reputation;
 
+import java.io.Console;
 import java.util.*;
 import java.util.List;
 
@@ -30,6 +35,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public CampaignScript() { super(true); }
 
+    static boolean isResetNeeded = false;
     static float playerFP = 0, enemyFP = 0, fpWorthOfDamageDealtDuringEngagement = 0;
     static long previousXP = Long.MAX_VALUE;
     static Random rand = new Random();
@@ -72,17 +78,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         }
     }
     public static void recordDamageSustained(String shipID, float damageSustained) {
-        if(damageSustained > 0) {
-            if(ModPlugin.HULL_REGEN_SHIPS.containsKey(shipID)) damageSustained *= ModPlugin.HULL_REGEN_SHIPS.get(shipID);
+        if(damageSustained > 0) getBattleRecord(shipID).fractionDamageTaken += damageSustained;
 
-            getBattleRecord(shipID).fractionDamageTaken += damageSustained;
-        }
     }
     public static void collectRealSnapshotInfoIfNeeded() {
         if(Global.getSector() == null || Global.getSector().getPlayerFleet() == null) return;
 
         if(originalShipList == null) {
-            reset();
+            //reset();
 
             originalShipList = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
 
@@ -137,6 +140,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             CombatPlugin.CURSED.clear();
             CombatPlugin.PHASEMAD.clear();
             previousXP = Global.getSector().getPlayerStats().getXP();
+            Reputation.clearMembersOfNotableEnemyFleet();
 
             if(originalShipList != null) {
                 Set<FleetMemberAPI> survivingShips = new HashSet(Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy());
@@ -145,6 +149,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     if (!survivingShips.contains(ship)) RepRecord.deleteFor(ship);
                 }
             }
+
+            isResetNeeded = false;
         } catch (Exception e) { ModPlugin.reportCrash(e); }
 
     }
@@ -357,6 +363,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {
                 ((FamousDerelictIntel)i).checkIfPlayerRecoveredDerelict();
             }
+
+            if(battle.getNonPlayerCombined() != null) {
+                for (FleetMemberAPI enemy : battle.getNonPlayerCombined().getFleetData().getMembersListCopy()) {
+                    enemy.getVariant().removePermaMod("sun_sl_enemy_reputation");
+                }
+            }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
 
         reset();
@@ -365,22 +377,32 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportShownInteractionDialog(InteractionDialogAPI dialog) {
         try {
-            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
-
-            if (dialog == null || dialog.getPlugin() == null || !(dialog.getPlugin() instanceof FleetInteractionDialogPluginImpl))
+            if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || dialog == null || dialog.getPlugin() == null
+                    || !(dialog.getPlugin() instanceof FleetInteractionDialogPluginImpl))
                 return;
+
+            isResetNeeded = true;
 
             FleetInteractionDialogPluginImpl plugin = (FleetInteractionDialogPluginImpl) dialog.getPlugin();
 
             if (!(plugin.getContext() instanceof FleetEncounterContext)) return;
             FleetEncounterContext context = (FleetEncounterContext) plugin.getContext();
+            CampaignFleetAPI combined = context.getBattle() == null ? null : context.getBattle().getNonPlayerCombined();
 
-            if (context.getBattle() == null || context.getBattle().getNonPlayerCombined() == null) return;
+            if (combined == null) return;
             PersonAPI commander = Util.getHighestLevelEnemyCommanderInBattle(context.getBattle().getNonPlayerSide());
 
-            FactionConfig fc  = FactionConfig.get(context.getBattle().getNonPlayerCombined().getFaction());
+            FactionConfig fc  = FactionConfig.get(combined.getFaction());
 
-            if(fc != null) fc.showFleetReputation(dialog, commander);
+            if(fc != null) {
+                fc.showFleetReputation(dialog, commander);
+
+                Reputation.setMembersOfNotableEnemyFleet(combined.getFleetData().getMembersListCopy());
+
+                for(FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
+                    ship.getVariant().addPermaMod("sun_sl_enemy_reputation");
+                }
+            }
 
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousFlagshipIntel.class)) {
                 ((FamousFlagshipIntel)i).applyHullmodsToShip();
@@ -431,7 +453,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             if(deployedFP > 0) {
                 float contribution = fpWorthOfDamageDealtDuringEngagement / deployedFP;
-                Global.getLogger(this.getClass()).info("Support Contribution: " + contribution);
 
                 for (FleetMemberAPI fm : shipsDeployed) {
                     recordSupportContribution(fm.getId(), contribution);
@@ -486,6 +507,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     }
 
     @Override
+    public void reportEconomyMonthEnd() {
+        FamousShipBarEvent.clearPreviousMonthsClaimedFleets();
+    }
+
+    @Override
     public boolean isDone() { return false; }
 
     @Override
@@ -495,6 +521,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     public void advance(float amount) {
         try {
             if (!ModPlugin.readSettingsIfNecessary()) return;
+
+            if(isResetNeeded) reset();
 
             if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) {
                 Util.clearAllStarshipLegendsData();

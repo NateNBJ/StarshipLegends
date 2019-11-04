@@ -347,10 +347,10 @@ public class ModPlugin extends BaseModPlugin {
                 }
             }
 
-            Trait.Teir.Notable.init(cfg);
-            Trait.Teir.Wellknown.init(cfg);
-            Trait.Teir.Famous.init(cfg);
-            Trait.Teir.Legendary.init(cfg);
+            Trait.Tier.Notable.init(cfg);
+            Trait.Tier.Wellknown.init(cfg);
+            Trait.Tier.Famous.init(cfg);
+            Trait.Tier.Legendary.init(cfg);
 
             REMOVE_ALL_DATA_AND_FEATURES = cfg.getBoolean("removeAllDataAndFeatures");
 

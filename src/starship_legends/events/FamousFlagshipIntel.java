@@ -161,6 +161,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 
 	@Override
 	public SectorEntityToken getMapLocation(SectorMapAPI map) {
-		return fleet == null ? super.getMapLocation(map) : fleet;
+		return fleet == null || fleet.getStarSystem() == null || fleet.getStarSystem().getCenter() == null
+				? super.getMapLocation(map)
+				: fleet.getStarSystem().getCenter();
 	}
 }

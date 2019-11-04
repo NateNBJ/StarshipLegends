@@ -54,27 +54,29 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                 for(ShipAPI ship : engine.getShips()) {
                     if(ship.isFighter()) continue;
 
-                    String id = ship.getOriginalOwner() == 0 ? ship.getFleetMemberId() : ID_FOR_ALL_ENEMIES;
+                    //String id = ship.getOriginalOwner() == 0 ? ship.getFleetMemberId() : ID_FOR_ALL_ENEMIES;
+                    String id = ship.getFleetMemberId();
 
                     if(CURSED.containsKey(id) && CURSED.get(id) >= rand.nextInt(101)) disableRandom(ship);
                     if(PHASEMAD.containsKey(id) && ship.isPhased() && PHASEMAD.get(id) >= rand.nextInt(101)) disableRandom(ship);
                 }
             }
 
-            if(!engine.isPaused() && enemyRep != null) {
-                if(shipsToApplyRepTo.isEmpty()) {
-                    shipsToApplyRepTo.addAll(engine.getShips());
-                } else {
-                    int i = rand.nextInt(shipsToApplyRepTo.size());
-                    ShipAPI ship = shipsToApplyRepTo.get(i);
-                    shipsToApplyRepTo.remove(i);
-
-                    if(ship.getOriginalOwner() == 1) {
-                        Reputation.applyEffects(enemyRep, ship.getFleetMemberId(), ship.getHullSize(), null,
-                                ship.getMutableStats(), ship.isFighter(), "sun_sl_enemy_fleet_rep");
-                    }
-                }
-            }
+//            if(!engine.isPaused() && enemyRep != null) {
+//                if(shipsToApplyRepTo.isEmpty()) {
+//                    shipsToApplyRepTo.addAll(engine.getShips());
+//                } else {
+//                    int i = rand.nextInt(shipsToApplyRepTo.size());
+//                    ShipAPI ship = shipsToApplyRepTo.get(i);
+//                    shipsToApplyRepTo.remove(i);
+//
+//                    if(ship.getOriginalOwner() == 1) {
+//                        //CombatEngine.getInstance().getCombatUI().addMessage(1, "Applying rep affects to enemy " + ship.getHullSpec().getHullId());
+//                        Reputation.applyEffects(enemyRep, ship.getFleetMemberId(), ship.getHullSize(), null,
+//                                ship.getMutableStats(), ship.isFighter(), "sun_sl_enemy_fleet_rep");
+//                    }
+//                }
+//            }
 
             if (!engine.isInCampaign() || Global.getSector() == null || Global.getSector().getPlayerFleet() == null)
                 return;
@@ -85,6 +87,11 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                 for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
                     playerShips.add(ship.getId());
                 }
+
+//                if (enemyRep != null) {
+//                    if (enemyRep.hasTraitType("cursed")) CURSED.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("cursed"));
+//                    if (enemyRep.hasTraitType("phase_mad")) PHASEMAD.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("phase_mad"));
+//                }
 
                 isFirstFrame = false;
             }
@@ -108,7 +115,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 //                    else if(ship.getOriginalOwner() == 1) CampaignScript.enemyDeployedFP.put(fm, getShipStrength(fm));
 //                    else Global.getLogger(this.getClass()).info("Owner: " + ship.getOriginalOwner());
 
-                    if (ship.isFighter() && ship.getWing() != null && !wingSourceMap.containsKey(key)) {
+                    if (ship.isFighter() && ship.getWing() != null && ship.getWing().getSourceShip() != null && !wingSourceMap.containsKey(key)) {
                         ShipAPI source = ship.getWing().getSourceShip();
 
                         if(source.getParentStation() != null) source = source.getParentStation();
@@ -190,7 +197,16 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             //msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
 
-            if(playerShips.contains(targetID)) CampaignScript.recordDamageSustained(targetID, dmg / hp);
+            if(playerShips.contains(targetID)) {
+                float damageFraction = dmg / hp;
+
+                if(ModPlugin.HULL_REGEN_SHIPS.containsKey(target.getHullId())) {
+                    damageFraction *= ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId());
+                    Global.getLogger(CampaignScript.class).info("damage reduced to " + ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId()) + " for " + target.getHullId());
+                }
+
+                CampaignScript.recordDamageSustained(targetID, damageFraction);
+            }
 
             if(playerShips.contains(sourceID) && !playerShips.contains(targetID) && !target.isAlly()
                     && dealer.getOwner() != target.getOwner()) {
@@ -260,14 +276,5 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     public void renderInUICoords(ViewportAPI viewport) { }
 
     @Override
-    public void init(CombatEngineAPI engine) {
-        try {
-            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
-
-            if (enemyRep != null) {
-                if (enemyRep.hasTraitType("cursed")) CURSED.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("cursed"));
-                if (enemyRep.hasTraitType("phase_mad")) PHASEMAD.put(ID_FOR_ALL_ENEMIES, enemyRep.getTraitEffect("phase_mad"));
-            }
-        } catch (Exception e) { ModPlugin.reportCrash(e); }
-    }
+    public void init(CombatEngineAPI engine) {}
 }

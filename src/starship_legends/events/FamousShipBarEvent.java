@@ -27,15 +27,15 @@ import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.special.ShipRecoverySp
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.MutableValue;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
-import com.fs.starfarer.campaign.CampaignTerrain;
 import data.scripts.campaign.intel.VayraPersonBountyIntel;
+import org.lwjgl.Sys;
 import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
 
 import java.util.*;
 
 public class FamousShipBarEvent extends BaseBarEventWithPerson {
-	public static String KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY = "$sun_sl_fsme_acceptedAtThisMarket";
+	public static final String KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY = "$sun_sl_fsme_acceptedAtThisMarket";
 	public static float MAX_RATING = 1.1f;
 
 	public static float ACCEPTED_AT_THIS_MARKET_DURATION = 7f;
@@ -49,7 +49,23 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		LEAVE,
 	}
 
-	static final Set<String> APPROVED_FLEET_NAMES = new HashSet();
+	transient static final Saved<HashSet<String>> // These are cleared on odd / even months
+			claimedFleetIDsOdd = new Saved<>("claimedFleetIDsOdd", new HashSet<String>()),
+			claimedFleetIDsEven = new Saved<>("claimedFleetIDsEven", new HashSet<String>());
+
+	public static void claimFleet(CampaignFleetAPI fleet) {
+		if(Global.getSector().getClock().getMonth() % 2 == 0) claimedFleetIDsEven.val.add(fleet.getId());
+		else claimedFleetIDsOdd.val.add(fleet.getId());
+	}
+	public static boolean isFleetClaimed(CampaignFleetAPI fleet) {
+		return claimedFleetIDsOdd.val.contains(fleet.getId()) || claimedFleetIDsEven.val.contains(fleet.getId());
+	}
+	public static void clearPreviousMonthsClaimedFleets() {
+		if(Global.getSector().getClock().getMonth() % 2 == 1) claimedFleetIDsEven.val.clear();
+		else claimedFleetIDsOdd.val.clear();
+	}
+
+	transient static final Set<String> APPROVED_FLEET_NAMES = new HashSet();
 	static {
 		APPROVED_FLEET_NAMES.add("fleet");
 		APPROVED_FLEET_NAMES.add("group");
@@ -66,7 +82,9 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		APPROVED_FLEET_NAMES.add("division");
 	}
 
-	CampaignFleetAPI playerFleet;
+	transient CampaignFleetAPI playerFleet;
+	transient boolean isDerelictMission = false;
+	transient String flagshipType = null;
 
 	transient FleetMemberAPI ship = null;
 	transient RepRecord rep = null;
@@ -104,12 +122,47 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		rivalSalvageFleet = false;
 	}
 	protected boolean isValidDerelictIntel() {
-		return rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
+		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null;
+
+		if(!isValid) {
+			String nl = System.lineSeparator() + "    ";
+
+			Global.getLogger(this.getClass()).error("Invalid derelict mission generated!"
+					+ nl + "rep: " + rep
+					+ nl + "ship: " + ship
+					+ nl + "derelict: " + derelict
+					+ nl + "orbitedBody: " + orbitedBody
+					+ nl + "wreckData: " + wreckData
+					+ nl + "timeScale: " + timeScale
+					+ nl + "granularity: " + granularity
+					+ nl + "constellation: " + (derelict == null ? null : derelict.getConstellation())
+			);
+		}
+
+		return isValid;
 	}
 	protected boolean isValidFlagshipIntel() {
-		return rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
+		boolean isValid = rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
 				&& commander != null && fleetHasValidAssignment(fleet);
+
+		if(!isValid) {
+			String nl = System.lineSeparator() + "    ";
+			
+			Global.getLogger(this.getClass()).error("Invalid flagship mission generated!"
+                    + nl + "type: " + flagshipType
+					+ nl + "rep: " + rep
+					+ nl + "ship: " + ship
+					+ nl + "faction: " + faction
+					+ nl + "fleet: " + fleet
+					+ nl + "commander: " + commander
+					+ nl + "fleetHasValidAssignment: " + (fleet == null ? false : fleetHasValidAssignment(fleet))
+					+ nl + "fleetNotDespawning: " + (fleet == null ? false : !fleet.isDespawning())
+			);
+		}
+
+
+		return isValid;
 	}
 	protected void createIntel() {
 		market.getMemoryWithoutUpdate().set(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY, true,
@@ -117,11 +170,11 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 		BaseIntelPlugin intel;
 
-		if(isValidFlagshipIntel()) {
+		if(!isDerelictMission && isValidFlagshipIntel()) {
 			intel = new FamousFlagshipIntel(this);
 
 			fleet.setNoAutoDespawn(true);
-		} else if(isValidDerelictIntel()) {
+		} else if(isDerelictMission && isValidDerelictIntel()) {
 			derelict.setDiscoverable(true);
 			derelict.setDiscoveryXP(timeScale.xp);
 			orbitedBody.getContainingLocation().addEntity(derelict);
@@ -141,7 +194,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected SectorEntityToken chooseOrbitedBody(Random random) {
 		float sectorInnerRadius = Global.getSettings().getFloat("sectorHeight") * 0.5f;
-		WeightedRandomPicker<SectorEntityToken> eligibleEntities = new WeightedRandomPicker<>();
+		WeightedRandomPicker<SectorEntityToken> eligibleEntities = new WeightedRandomPicker<>(random);
 
 		for(StarSystemAPI system : Global.getSector().getStarSystems()) {
 			float distance = system.getLocation().length() / sectorInnerRadius;
@@ -200,7 +253,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected void pickShipName(FleetMemberAPI ship) {
 		try {
-			WeightedRandomPicker<String> picker = new WeightedRandomPicker<>();
+			WeightedRandomPicker<String> picker = new WeightedRandomPicker<>(random);
 
 			for(FactionAPI faction : Global.getSector().getAllFactions()) {
 				if(faction.getKnownShips().contains(ship.getHullId())) {
@@ -240,13 +293,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
             boolean allowCrew = true;
             int traitCount = 0;
-			boolean isDerelict = (random.nextFloat() * ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
+			isDerelictMission = (random.nextFloat() * ModPlugin.ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT
 					<= ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE);
 
-			if(!Integration.isFamousFlagshipEventAvailableAtMarket(market)) isDerelict = true;
-			if(!Integration.isFamousDerelictEventAvailableAtMarket(market)) isDerelict = false;
+			if(!Integration.isFamousFlagshipEventAvailableAtMarket(market)) isDerelictMission = true;
+			if(!Integration.isFamousDerelictEventAvailableAtMarket(market)) isDerelictMission = false;
 
-			if(isDerelict) {
+			if(isDerelictMission) {
 				String variantID = chooseDerelictVariant(market, random);
 
 				if(variantID == null) return;
@@ -297,18 +350,23 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				List<CampaignFleetAPI> eligibleFleets = new LinkedList<>();
 
 				if(random.nextFloat() < 0.3f) { // Choose a bounty target
+                    flagshipType = "Bounty";
 					List<IntelInfoPlugin> bounties = Global.getSettings().getModManager().isModEnabled("vayrasector")
 							? Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class)
 							: Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class);
 
 					for (IntelInfoPlugin bounty : bounties) {
-						for (CampaignFleetAPI fleet : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
-							if(fleet.getFaction().getId().equals(Factions.NEUTRAL) && bounty.getTimeRemainingFraction() > 0.5f) {
-								eligibleFleets.add(fleet);
+						for (CampaignFleetAPI flt : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
+							if(flt.getFaction().getId().equals(Factions.NEUTRAL)
+									&& bounty.getTimeRemainingFraction() > 0.5f
+									&& !isFleetClaimed(flt)) {
+
+								eligibleFleets.add(flt);
 							}
 						}
 					}
 				} else if(random.nextFloat() < 0.4f) { // Choose a fleet in the current system
+                    flagshipType = "Local";
 					for(CampaignFleetAPI flt : Global.getSector().getCurrentLocation().getFleets()) {
 						ShipHullSpecAPI spec = flt == null || flt.getFlagship() == null ? null : flt.getFlagship().getHullSpec();
 
@@ -322,6 +380,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								&& !spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.HIDE_IN_CODEX)
 								&& !spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.STATION)
 								&& !spec.isCivilianNonCarrier()
+								&& !isFleetClaimed(flt)
 								&& fleetHasValidAssignment(flt)) {
 
 							eligibleFleets.add(flt);
@@ -330,6 +389,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				}
 
 				if(eligibleFleets.isEmpty()) { // Create a fleet in another core system
+                    flagshipType = "Remote";
 					List<MarketAPI> eligibleMarkets = new LinkedList<>();
 
 					for(StarSystemAPI system : Global.getSector().getStarSystems()) {
@@ -344,29 +404,53 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						}
 					}
 
-					MarketAPI source = eligibleMarkets.get(random.nextInt(eligibleMarkets.size()));
-					FleetFactory.PatrolType type = FleetFactory.PatrolType.values()[random.nextInt(FleetFactory.PatrolType.values().length)];
-					Vector2f at = source.getPrimaryEntity().getLocation();
+					final int MAX_ATTEMPTS = 5;
 
-					fleet = MilitaryBase.createPatrol(type, source.getFactionId(), null, source, source.getLocationInHyperspace(), this.random);
-					fleet.setLocation(at.x, at.y);
+					for(int i = 0; i < MAX_ATTEMPTS; i++) {
+						MarketAPI source = eligibleMarkets.get(random.nextInt(eligibleMarkets.size()));
+						FleetFactory.PatrolType type = FleetFactory.PatrolType.values()[random.nextInt(FleetFactory.PatrolType.values().length)];
+						Vector2f at = source.getPrimaryEntity().getLocation();
 
-					if(random.nextFloat() < 0.2f) {
-						activity = fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling ";
-						fleet.addAssignment(fleet.getFaction().isHostileTo(Factions.INDEPENDENT)
-										? FleetAssignment.RAID_SYSTEM : FleetAssignment.PATROL_SYSTEM,
-								source.getPrimaryEntity(), FamousFlagshipIntel.MAX_DURATION);
-					} else {
-						activity = "defending " + source.getPrimaryEntity().getName() + " ";
-						fleet.addAssignment(FleetAssignment.DEFEND_LOCATION, source.getPrimaryEntity(),
-								FamousFlagshipIntel.MAX_DURATION);
+						fleet = MilitaryBase.createPatrol(type, source.getFactionId(), null, source, source.getLocationInHyperspace(), this.random);
 
+						if (fleet == null || at == null) {
+							String nl = System.lineSeparator() + "    ";
+
+							Global.getLogger(this.getClass()).error("Failed to generate valid fleet!"
+									+ nl + "attempt:" + (i + 1)
+									+ nl + "fleet: " + fleet
+									+ nl + "at: " + at
+									+ nl + "source: " + source
+									+ nl + "faction: " + (source == null ? null : source.getFactionId())
+									+ nl + "type: " + type
+							);
+
+							if(source != null) eligibleMarkets.remove(source);
+
+							if(i == MAX_ATTEMPTS - 1) return;
+							else continue;
+						}
+
+						fleet.setLocation(at.x, at.y);
+
+						if(random.nextFloat() < 0.2f) {
+							activity = fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling ";
+							fleet.addAssignment(fleet.getFaction().isHostileTo(Factions.INDEPENDENT)
+											? FleetAssignment.RAID_SYSTEM : FleetAssignment.PATROL_SYSTEM,
+									source.getPrimaryEntity(), FamousFlagshipIntel.MAX_DURATION);
+						} else {
+							activity = "defending " + source.getPrimaryEntity().getName() + " ";
+							fleet.addAssignment(FleetAssignment.DEFEND_LOCATION, source.getPrimaryEntity(),
+									FamousFlagshipIntel.MAX_DURATION);
+
+						}
+						fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
+
+						source.getContainingLocation().addEntity(fleet);
+
+						newFleetWasCreated = true;
 					}
-					fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
 
-					source.getContainingLocation().addEntity(fleet);
-
-					newFleetWasCreated = true;
 				} else {
 					fleet = eligibleFleets.get(random.nextInt(eligibleFleets.size()));
 
@@ -390,7 +474,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					}
 				}
 
-
 				if(fleet != null) {
 					fleet.inflateIfNeeded();
 
@@ -398,6 +481,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					ship = fleet.getFlagship();
 					faction = fleet.getFaction();
 					traitCount = 5 + random.nextInt(3);
+
+					claimFleet(fleet);
 				}
 			}
 
@@ -411,7 +496,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				rep.setRating(rating);
 				rep.applyToShip(ship);
 
-				if(isDerelict) {
+				if(isDerelictMission) {
 					ship.setOwner(1);
 					CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.NEUTRAL, FleetTypes.PATROL_SMALL, true);
 					temp.getFleetData().addFleetMember(ship);
@@ -453,8 +538,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 			dialog.getVisualPanel().showPersonInfo(person, true);
 
-			if(isValidFlagshipIntel()) optionSelected(null, OptionId.FLAGSHIP_INIT);
-			else if(isValidDerelictIntel()) optionSelected(null, OptionId.DERELICT_INIT);
+			if(!isDerelictMission && isValidFlagshipIntel()) optionSelected(null, OptionId.FLAGSHIP_INIT);
+			else if(isDerelictMission && isValidDerelictIntel()) optionSelected(null, OptionId.DERELICT_INIT);
 			else optionSelected(null, OptionId.BOGUS_STORY);
 		} catch (Exception e) {
 			ModPlugin.reportCrash(e);

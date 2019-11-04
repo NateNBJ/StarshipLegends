@@ -4,10 +4,12 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.MarketCMD;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.Nex_MarketCMD;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.*;
+import starship_legends.hullmods.Reputation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,13 +28,21 @@ public class SL_ShowMarketDefenses extends MarketCMD {
 
         try {
             FactionConfig.clearEnemyFleetRep();
-            //CampaignFleetAPI primary = getInteractionTargetForFIDPI();
+            List<CampaignFleetAPI> pulledIn = new ArrayList();
 
-            PersonAPI commander = guessCommander();
+            PersonAPI commander = guessCommander(pulledIn);
 
             if (commander == null || commander.isDefault()) return false;
 
             FactionConfig.get(commander.getFaction()).showFleetReputation(dialog, commander);
+
+            ArrayList<FleetMemberAPI> allEnemyShips = new ArrayList<>();
+
+            for(CampaignFleetAPI fleet : pulledIn) allEnemyShips.addAll(fleet.getFleetData().getMembersListCopy());
+
+            Reputation.setMembersOfNotableEnemyFleet(allEnemyShips);
+
+            for(FleetMemberAPI ship : allEnemyShips) ship.getVariant().addPermaMod("sun_sl_enemy_reputation");
 
             return true;
         } catch (Exception e) {
@@ -41,9 +51,7 @@ public class SL_ShowMarketDefenses extends MarketCMD {
         }
     }
 
-    protected PersonAPI guessCommander() {
-        List<CampaignFleetAPI> pulledIn = new ArrayList();
-
+    protected PersonAPI guessCommander(List<CampaignFleetAPI> pulledIn) {
         try {
             CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
             CampaignFleetAPI actualOther = getInteractionTargetForFIDPI();
@@ -80,7 +88,7 @@ public class SL_ShowMarketDefenses extends MarketCMD {
             b.leave(actualOther, false);
             b.finish(BattleAPI.BattleSide.NO_JOIN, false);
 
-            //pulledIn.add(actualOther);
+            pulledIn.add(actualOther);
         } catch (Exception e) {
             return null;
         }

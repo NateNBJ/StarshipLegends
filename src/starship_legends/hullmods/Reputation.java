@@ -9,7 +9,6 @@ import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import com.fs.starfarer.rpg.Person;
 import starship_legends.*;
 
 import java.awt.*;
@@ -29,11 +28,19 @@ public class Reputation extends BaseHullMod {
     }
 
     static transient Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
+    static transient HashMap<String, FleetMemberAPI> membersOfNotableEnemyFleet = new HashMap();
 
     public static float getFlatEffectMult(ShipAPI.HullSize size) {
         return size == null ? 1 : FLAT_EFFECT_MULT.get(size);
     }
-
+    public static void setMembersOfNotableEnemyFleet(Collection<FleetMemberAPI> members) {
+        for(FleetMemberAPI ship : members) {
+            membersOfNotableEnemyFleet.put(ship.getVariant().getHullVariantId(), ship);
+        }
+    }
+    public static void clearMembersOfNotableEnemyFleet() {
+        membersOfNotableEnemyFleet.clear();
+    }
     public static void addShipOfNote(FleetMemberAPI ship) {
         shipsOfNote.val.put(ship.getVariant().getHullVariantId(), ship);
     }
@@ -51,10 +58,7 @@ public class Reputation extends BaseHullMod {
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
                 loyaltyEffectAdjustment = rep.getLoyalty(captain).getTraitAdjustment();
-//                int before = (int)stats.getCRLossPerSecondPercent().computeEffective(100);
                 stats.getCRLossPerSecondPercent().modifyPercent(id, rep.getLoyalty(captain).getCrDecayMult());
-//                int after = (int)stats.getCRLossPerSecondPercent().computeEffective(100);
-//                Global.getLogger(this.getClass()).info(captain.getNameString() + " : " + before + " - " + after + " = " + (before - after));
             }
 
             for(Trait trait : rep.getTraits()) {
@@ -220,6 +224,7 @@ public class Reputation extends BaseHullMod {
                         case "range":
                             stats.getBallisticWeaponRangeBonus().modifyPercent(id, e);
                             stats.getEnergyWeaponRangeBonus().modifyPercent(id, e);
+                            stats.getMissileWeaponRangeBonus().modifyPercent(id, e);
                             break;
                         case "repair":
                             stats.getCombatEngineRepairTimeMult().modifyPercent(id, -e);
@@ -259,6 +264,7 @@ public class Reputation extends BaseHullMod {
         String key = stats.getVariant().getHullVariantId();
 
         if(shipsOfNote.val.containsKey(key)) return shipsOfNote.val.get(key);
+        else if(membersOfNotableEnemyFleet.containsKey(key)) return membersOfNotableEnemyFleet.get(key);
 
         List<FleetMemberAPI> members;
 
@@ -296,14 +302,16 @@ public class Reputation extends BaseHullMod {
 
             FleetMemberAPI ship = findShip(hullSize, stats);
 
-            if(ship == null) {
-                //Global.getLogger(this.getClass()).info("Could not find ship with matching variant id: " + stats.getVariant().getHullVariantId());
-                return;
+            if(ship == null) return;
+
+            // ship.getOwner() will sometimes return 0 here for ships not owned by the player
+
+            if(id.equals("sun_sl_enemy_reputation") && FactionConfig.getEnemyFleetRep() != null) {
+                applyEffects(FactionConfig.getEnemyFleetRep(), ship.getId(), hullSize, ship.getFleetCommanderForStats(),
+                        stats, false, id);
+            } else {
+                applyEffects(ship.getId(), hullSize, ship.getCaptain(), stats, false, id);
             }
-
-            PersonAPI liege = ship.getOwner() == 0 ? ship.getCaptain() : ship.getFleetCommanderForStats();
-
-            applyEffects(ship.getId(), hullSize, liege, stats, false, id);
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
@@ -336,13 +344,26 @@ public class Reputation extends BaseHullMod {
 
             FleetMemberAPI fm = findShip(hullSize, ship.getMutableStats());
 
-            if(fm == null || !RepRecord.existsFor(fm)) return;
+            if(fm == null || !RepRecord.existsFor(fm)) {
+                String msg = fm == null
+                        ? "ERROR: Could not find any ship with a matching key: "
+                            + ship.getMutableStats().getVariant().getHullVariantId()
+                        : "ERROR: No reputation record was found for this ship." +
+                            "\r\n Type: " + ship.getHullSpec().getDesignation() +
+                            "\r\n ID: " + ship.getId();
+
+                msg += "\r\n Please notify the mod author with this information.";
+
+                tooltip.addPara(msg, 10, Misc.getNegativeHighlightColor());
+
+                return;
+            }
 
 //            if(ship == null) throw new RuntimeException("Could not find matching ship for reputation hullmod");
 //            if(!RepRecord.existsFor(ship)) throw new RuntimeException("Reputation hullmod exists without RepRecord entry for ship");
 
             RepRecord rep = RepRecord.get(fm);
-            Trait.Teir previousTeir = Trait.Teir.UNKNOWN;
+            Trait.Tier previousTier = Trait.Tier.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = fm.getMinCrew() > 0 || fm.isMothballed();
@@ -357,8 +378,19 @@ public class Reputation extends BaseHullMod {
                 }
             }
 
-            tooltip.addPara(RepRecord.getTierFromTraitCount(traitsLeft).getFlavorText(requiresCrew), 10,
-                    Misc.getGrayColor(), Misc.getGrayColor(), fm.getShipName());
+            Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft);
+
+
+            if(tier == Trait.Tier.UNKNOWN) {
+                String details = "\r\n Limit: "  + Trait.getTraitLimit()
+                        + "\r\n Traits: " + rep.getTraits()
+                        + "\r\n Please notify the mod author with this information.";
+
+                tooltip.addPara(tier.getFlavorText(requiresCrew) + details, 10, Misc.getNegativeHighlightColor());
+            } else {
+                tooltip.addPara(tier.getFlavorText(requiresCrew), 10, Misc.getGrayColor(), Misc.getGrayColor(),
+                        fm.getShipName());
+            }
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
                 if(fm.getCaptain() != null && !fm.getCaptain().isDefault()) {
@@ -437,14 +469,14 @@ public class Reputation extends BaseHullMod {
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
-                Trait.Teir teir = RepRecord.getTierFromTraitCount(traitsLeft--);
+                Trait.Tier currentTier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
-                if(teir != previousTeir) {
-                    tooltip.addPara("%s traits:", 10, Color.WHITE, teir.getDisplayName());
-                    previousTeir = teir;
+                if(currentTier != previousTier) {
+                    tooltip.addPara("%s traits:", 10, Color.WHITE, currentTier.getDisplayName());
+                    previousTier = currentTier;
                 }
 
-                trait.addParagraphTo(tooltip, teir, loyaltyEffectAdjustment, requiresCrew, hullSize, false);
+                trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }

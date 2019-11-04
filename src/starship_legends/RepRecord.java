@@ -4,7 +4,6 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
-import com.fs.starfarer.api.combat.WeaponAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
@@ -29,20 +28,20 @@ public class RepRecord {
         Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
         Util.removeRepHullmodFromVariant(ship.getVariant());
     }
-    public static Trait.Teir getTierFromTraitCount(int count) {
-        if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Legendary;
-        if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Famous;
-        if(count > 1 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Wellknown;
-        if(count > 0 * ModPlugin.TRAITS_PER_TIER) return Trait.Teir.Notable;
-        else return Trait.Teir.UNKNOWN;
+    public static Trait.Tier getTierFromTraitCount(int count) {
+        if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Legendary;
+        if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Famous;
+        if(count > 1 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Wellknown;
+        if(count > 0 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Notable;
+        else return Trait.Tier.UNKNOWN;
     }
     public static void updateRepHullMod(FleetMemberAPI ship) {
         if(!RepRecord.existsFor(ship)) return;
 
-        Trait.Teir tier = RepRecord.get(ship).getTeir();
+        Trait.Tier tier = RepRecord.get(ship).getTeir();
         ShipVariantAPI v;
 
-        if(tier == Trait.Teir.UNKNOWN) return;
+        if(tier == Trait.Tier.UNKNOWN) return;
 
         if(ship.getVariant().isStockVariant()) {
             v = ship.getVariant().clone();
@@ -72,7 +71,7 @@ public class RepRecord {
         return Math.max(-0.004f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight);
     }
     public static float getXpToGuaranteeNewTrait(FleetMemberAPI ship) {
-        if(!RepRecord.existsFor(ship)) return Trait.Teir.Notable.getXpToGuaranteeNewTrait();
+        if(!RepRecord.existsFor(ship)) return Trait.Tier.Notable.getXpToGuaranteeNewTrait();
 
         RepRecord rr = RepRecord.get(ship);
         int increase = 1;
@@ -148,6 +147,13 @@ public class RepRecord {
                     }
 
                     if(missile / total < 0.2f) return false;
+                    break;
+                case TraitType.Tags.FLUX:
+                    switch (ship.getHullId()) {
+                        case "swp_excelsior":
+                        case "swp_boss_excelsior":
+                            return false;
+                    }
                     break;
             }
         }
@@ -298,7 +304,7 @@ public class RepRecord {
         opinionsOfOfficers.put(officer.getId(), newVal);
     }
     public List<Trait> getTraits() { return traits; }
-    public Trait.Teir getTeir() { return getTierFromTraitCount(traits.size()); }
+    public Trait.Tier getTeir() { return getTierFromTraitCount(traits.size()); }
     public float getRating() {
         return rating;
     }

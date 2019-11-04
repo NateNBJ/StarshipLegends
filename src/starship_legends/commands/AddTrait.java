@@ -20,9 +20,15 @@ public class AddTrait implements BaseCommand {
                 return BaseCommand.CommandResult.WRONG_CONTEXT;
             }
 
+            args = args.toLowerCase();
+
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
-            String aa[] = args.toLowerCase().split("to ");
+            boolean requireRelevance = args.toLowerCase().contains("relevant");
+
+            if(requireRelevance) args = args.replace("relevant", "");
+
+            String aa[] = args.split("to ");
             List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "");
             List<FleetMemberAPI> ships = Util.getShipsMatchingDescription(aa.length > 1 ? aa[1] : "");
             Random rand = new Random();
@@ -45,7 +51,9 @@ public class AddTrait implements BaseCommand {
 
                     traitsCopy.remove(i);
 
-                    if(!rep.hasTraitType(newTrait.getType())) {
+                    if(!rep.hasTraitType(newTrait.getType())
+                            && (!requireRelevance || RepRecord.isTraitRelevantForShip(ship, newTrait, true, true, true))) {
+
                         rep.getTraits().add(newTrait);
                         RepRecord.updateRepHullMod(ship);
                         String discrepancyMaybe = Global.getSettings().isDevMode()
