@@ -27,10 +27,12 @@ public class Saved<T> {
             if(Global.getSector().getPersistentData().containsKey(saved.key)) {
                 saved.val = Global.getSector().getPersistentData().get(saved.key);
 
-                if(saved.val == null) saved.val = saved.defaultVal;
-
-                if(saved.val instanceof Collection) ((Collection)saved.defaultVal).clear();
-                else if(saved.val instanceof Map) ((Map)saved.defaultVal).clear();
+                if(saved.val == null) {
+                    saved.val = saved.defaultVal;
+                } else if(saved.val != saved.defaultVal) {
+                    if (saved.val instanceof Collection) ((Collection) saved.defaultVal).clear();
+                    else if (saved.val instanceof Map) ((Map) saved.defaultVal).clear();
+                }
             } else if(saved.val != null && saved.val.getClass().isPrimitive()) {
                 saved.val = saved.defaultVal;
             } else if(saved.val instanceof Collection) {

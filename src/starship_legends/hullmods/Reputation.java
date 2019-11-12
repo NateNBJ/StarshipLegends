@@ -9,6 +9,7 @@ import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
+import org.lazywizard.console.Console;
 import starship_legends.*;
 
 import java.awt.*;
@@ -30,6 +31,16 @@ public class Reputation extends BaseHullMod {
     static transient Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
     static transient HashMap<String, FleetMemberAPI> membersOfNotableEnemyFleet = new HashMap();
 
+    public static void printRegistry() {
+        String msg = "";
+
+        for(Map.Entry<String, FleetMemberAPI> entry : shipsOfNote.val.entrySet()) {
+            msg += System.lineSeparator() + entry.getKey() + " : " + entry.getValue().toString();
+        }
+
+        if(Global.getSettings().getModManager().isModEnabled("lw_console")) Console.showMessage(msg);
+        Global.getLogger(RepRecord.class).info(msg);
+    }
     public static float getFlatEffectMult(ShipAPI.HullSize size) {
         return size == null ? 1 : FLAT_EFFECT_MULT.get(size);
     }
@@ -262,11 +273,10 @@ public class Reputation extends BaseHullMod {
 
     FleetMemberAPI findShip(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats) {
         String key = stats.getVariant().getHullVariantId();
+        List<FleetMemberAPI> members;
 
         if(shipsOfNote.val.containsKey(key)) return shipsOfNote.val.get(key);
         else if(membersOfNotableEnemyFleet.containsKey(key)) return membersOfNotableEnemyFleet.get(key);
-
-        List<FleetMemberAPI> members;
 
         try {
             members = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
@@ -349,18 +359,18 @@ public class Reputation extends BaseHullMod {
                         ? "ERROR: Could not find any ship with a matching key: "
                             + ship.getMutableStats().getVariant().getHullVariantId()
                         : "ERROR: No reputation record was found for this ship." +
-                            "\r\n Type: " + ship.getHullSpec().getDesignation() +
-                            "\r\n ID: " + ship.getId();
+                            "\n Hull ID: " + fm.getHullSpec().getHullId() +
+                            "\n Hull Variant ID: " + fm.getVariant().getHullVariantId() +
+                            "\n Is registered: " + shipsOfNote.val.containsKey(fm.getVariant().getHullVariantId()) +
+                            "\n Ship ID: " + fm.getId();
 
-                msg += "\r\n Please notify the mod author with this information.";
+                msg += "\n Please notify the mod author with this information.";
 
                 tooltip.addPara(msg, 10, Misc.getNegativeHighlightColor());
 
                 return;
             }
 
-//            if(ship == null) throw new RuntimeException("Could not find matching ship for reputation hullmod");
-//            if(!RepRecord.existsFor(ship)) throw new RuntimeException("Reputation hullmod exists without RepRecord entry for ship");
 
             RepRecord rep = RepRecord.get(fm);
             Trait.Tier previousTier = Trait.Tier.UNKNOWN;
@@ -380,11 +390,10 @@ public class Reputation extends BaseHullMod {
 
             Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft);
 
-
             if(tier == Trait.Tier.UNKNOWN) {
-                String details = "\r\n Limit: "  + Trait.getTraitLimit()
-                        + "\r\n Traits: " + rep.getTraits()
-                        + "\r\n Please notify the mod author with this information.";
+                String details = "\n Limit: "  + Trait.getTraitLimit()
+                        + "\n Traits: " + rep.getTraits()
+                        + "\n Please notify the mod author with this information.";
 
                 tooltip.addPara(tier.getFlavorText(requiresCrew) + details, 10, Misc.getNegativeHighlightColor());
             } else {

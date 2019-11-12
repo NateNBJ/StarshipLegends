@@ -303,7 +303,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 int loyaltyChange = 0;
 
                 if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && rc.captain != null
-                        && !rc.captain.isDefault() && RepRecord.existsFor(ship)) {
+                        && !rc.captain.isDefault() && !rep.getTraits().isEmpty()) {
 
                     LoyaltyLevel ll = rep.getLoyalty(rc.captain);
                     float loyaltyAdjustChance = (br.rating - 0.5f) + rep.getLoyaltyBonus(rc.captain);
@@ -344,7 +344,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             float excessRating = 0;
 
             for(RepChange rc : report.changes) {
-                excessRating += Math.max(0, rc.newRating - 1);
+                excessRating += Math.max(0, rc.newRating - 1.004f);
                 rc.newRating = Math.min(1.004f, rc.newRating);
             }
             // Don't merge these loops

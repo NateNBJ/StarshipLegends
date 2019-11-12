@@ -1,5 +1,6 @@
 package starship_legends;
 
+import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
@@ -8,6 +9,7 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
+import org.lazywizard.console.Console;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
@@ -17,6 +19,16 @@ public class RepRecord {
     static final Saved<Map<String, RepRecord>> INSTANCE_REGISTRY = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
     static final float INITIAL_RATING = 0.5f;
 
+    public static void printRegistry() {
+        String msg = "";
+
+        for(Map.Entry<String, RepRecord> entry : INSTANCE_REGISTRY.val.entrySet()) {
+            msg += System.lineSeparator() + entry.getKey() + " : " + entry.getValue().toString();
+        }
+
+        if(Global.getSettings().getModManager().isModEnabled("lw_console")) Console.showMessage(msg);
+        Global.getLogger(RepRecord.class).info(msg);
+    }
     public static boolean existsFor(String shipID) { return INSTANCE_REGISTRY.val.containsKey(shipID); }
     public static boolean existsFor(ShipAPI ship) { return existsFor(ship.getFleetMemberId()); }
     public static boolean existsFor(FleetMemberAPI ship) { return existsFor(ship.getId()); }
@@ -422,5 +434,14 @@ public class RepRecord {
         updateRepHullMod(ship);
 
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "{" +
+                "rating:" + (int)(100 * rating) + "%" +
+                ", loyalties:" + opinionsOfOfficers.size() +
+                ", traits:" + traits +
+                '}';
     }
 }
