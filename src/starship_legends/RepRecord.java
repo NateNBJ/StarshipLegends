@@ -40,6 +40,16 @@ public class RepRecord {
         Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
         Util.removeRepHullmodFromVariant(ship.getVariant());
     }
+    public static void transfer(FleetMemberAPI from, FleetMemberAPI to) {
+        if(from == null || to == null || from == to || !existsFor(from)) return;
+
+        deleteFor(to);
+
+        INSTANCE_REGISTRY.val.put(to.getId(), get(from));
+
+        deleteFor(from);
+        updateRepHullMod(to);
+    }
     public static Trait.Tier getTierFromTraitCount(int count) {
         if(count > 3 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Legendary;
         if(count > 2 * ModPlugin.TRAITS_PER_TIER) return Trait.Tier.Famous;
@@ -236,7 +246,6 @@ public class RepRecord {
     }
 
     private List<Trait> traits = new ArrayList<>();
-
     private Map<String, Integer> opinionsOfOfficers = new HashMap<>();
     private float rating = INITIAL_RATING;
 

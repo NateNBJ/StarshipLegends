@@ -371,7 +371,6 @@ public class Reputation extends BaseHullMod {
                 return;
             }
 
-
             RepRecord rep = RepRecord.get(fm);
             Trait.Tier previousTier = Trait.Tier.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
@@ -426,12 +425,14 @@ public class Reputation extends BaseHullMod {
                     Set<String> unfoundOfficers = new HashSet<>();
 
                     for(Map.Entry<String, Integer> e : rep.getOpinionsOfOfficers().entrySet()) {
-                        boolean officerNotFound = true;
+                        boolean officerNotFound = !e.getKey().equals(Global.getSector().getPlayerPerson().getId());
 
-                        for(OfficerDataAPI officer : Global.getSector().getPlayerFleet().getFleetData().getOfficersCopy()) {
-                            if(e.getKey().equals(officer.getPerson().getId())) {
-                                officerNotFound = false;
-                                break;
+                        if(!officerNotFound) {
+                            for (OfficerDataAPI officer : Global.getSector().getPlayerFleet().getFleetData().getOfficersCopy()) {
+                                if (e.getKey().equals(officer.getPerson().getId())) {
+                                    officerNotFound = false;
+                                    break;
+                                }
                             }
                         }
 

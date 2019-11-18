@@ -124,7 +124,7 @@ public class RepChange {
 //                    captainOpinionChange < 0 ? Misc.getNegativeHighlightColor() : Misc.getHighlightColor());
         }
 
-        if(showNotification) {
+        if(showNotification && trait != null) {
             boolean requiresCrew = ship.getMinCrew() > 0 || ship.isMothballed();
             String message = "The " + ship.getShipName() + " has gained a reputation for "
                     + trait.getDescPrefix(requiresCrew) + " %s";

@@ -82,26 +82,26 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		APPROVED_FLEET_NAMES.add("division");
 	}
 
-	transient CampaignFleetAPI playerFleet;
-	transient boolean isDerelictMission = false;
-	transient String flagshipType = null;
+	CampaignFleetAPI playerFleet;
+	boolean isDerelictMission = false;
+	String flagshipType = null;
 
-	transient FleetMemberAPI ship = null;
-	transient RepRecord rep = null;
+	FleetMemberAPI ship = null;
+	RepRecord rep = null;
 
-	transient FactionAPI faction = null;
-	transient CampaignFleetAPI fleet = null;
-	transient PersonAPI commander = null;
-	transient String activity = "";
-	transient boolean newFleetWasCreated = false;
+	FactionAPI faction = null;
+	CampaignFleetAPI fleet = null;
+	PersonAPI commander = null;
+	String activity = "";
+	boolean newFleetWasCreated = false;
 
-	transient SectorEntityToken derelict = null;
-	transient SectorEntityToken orbitedBody = null;
-	transient ShipRecoverySpecial.PerShipData wreckData = null;
-	transient FamousDerelictIntel.TimeScale timeScale = null;
-	transient FamousDerelictIntel.LocationGranularity granularity = null;
-	transient float cost = 0;
-	transient boolean rivalSalvageFleet = false;
+	SectorEntityToken derelict = null;
+	SectorEntityToken orbitedBody = null;
+	ShipRecoverySpecial.PerShipData wreckData = null;
+	FamousDerelictIntel.TimeScale timeScale = null;
+	FamousDerelictIntel.LocationGranularity granularity = null;
+	float cost = 0;
+	boolean rivalSalvageFleet = false;
 
 	protected void reset() {
 		ship = null;
@@ -165,6 +165,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		return isValid;
 	}
 	protected void createIntel() {
+		if(random == null) random = new Random(seed + market.getId().hashCode());
+
 		market.getMemoryWithoutUpdate().set(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY, true,
 				ACCEPTED_AT_THIS_MARKET_DURATION * (0.75f + random.nextFloat() * 0.5f));
 
@@ -275,7 +277,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		boolean isAllowed = Integration.isFamousFlagshipEventAvailableAtMarket(market)
 				|| Integration.isFamousDerelictEventAvailableAtMarket(market);
 
-		return isAllowed && !market.getMemoryWithoutUpdate().getBoolean(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY);
+		return isAllowed
+				&& !market.getMemoryWithoutUpdate().getBoolean(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY);
 	}
 
 	@Override
@@ -707,7 +710,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 										" location to anyone else, and agrees not to if you strike a deal.";
 							}
 
-							desc += " After some haggling, the fee ends up bing %s.";
+							desc += " After some haggling, the fee ends up being %s.";
 
 							accept = "Agree to pay " + Misc.getDGSCredits(cost) + " for the location of the " + ship.getShipName();
 						}

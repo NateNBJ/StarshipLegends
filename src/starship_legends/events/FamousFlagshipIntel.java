@@ -38,7 +38,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 		faction = event.faction;
 		fleet = event.fleet;
 		commander = event.commander;
-		location = fleet.getContainingLocation().getName();
+		location = (fleet.getContainingLocation().isHyperspace() ? "" : "the ") + fleet.getContainingLocation().getName();
 		activity = event.activity;
 
 		Misc.makeImportant(fleet, "sun_sl_famous_flagship");
@@ -82,7 +82,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 			if (activity == null || activity.equals("")) activity = "somewhere ";
 
 			info.addPara(timeAgo + " you heard that a %s fleet commanded by " + commander.getNameString().trim() +
-					" was " + activity + "in the " + location + ". It's not clear how much longer this will be the case.",
+					" was " + activity + "in " + location + ". It's not clear how much longer this will be the case.",
 					10, Misc.getTextColor(), faction.getColor(), bestFactionPrefix);
 
 			info.addPara(Misc.ucFirst(hisOrHer) + " flagship is %s, notable for the following traits:", 10,

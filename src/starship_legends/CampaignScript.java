@@ -10,9 +10,6 @@ import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
-import com.fs.starfarer.api.impl.campaign.ids.HullMods;
-import com.fs.starfarer.api.impl.campaign.rulecmd.ShowDefaultVisual;
-import com.fs.starfarer.api.impl.campaign.rulecmd.ShowImageVisual;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.events.FamousShipBarEvent;
@@ -30,6 +27,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     static void log(String message) { if(true) Global.getLogger(CampaignScript.class).info(message); }
 
+    static final long INITIAL_TIMESTAMP = -55661070348000L;
     static final float AVG_TIME_BETWEEN_REP_CHANGES = 10f;
     static final String NEW_LINE = "\n    ";
 
@@ -482,7 +480,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         try {
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
 
-            int day = Global.getSector().getClock().getDay();
+            int day = (int)Global.getSector().getClock().getElapsedDaysSince(INITIAL_TIMESTAMP);
 
             for (FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
                 if (ship.isMothballed() && RepRecord.existsFor(ship)) {

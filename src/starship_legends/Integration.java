@@ -1,6 +1,7 @@
 package starship_legends;
 
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.campaign.Faction;
 
 import java.util.HashMap;
@@ -42,5 +43,8 @@ public class Integration {
     public static void setAvailabilityOfFamousFlagshipEventAtMarket(MarketAPI market, boolean isAvailable) {
         flagshipAvailabilityOverride.put(market.getId(), isAvailable);
 
+    }
+    public static void transferReputation(FleetMemberAPI from, FleetMemberAPI to) {
+        RepRecord.transfer(from, to);
     }
 }
