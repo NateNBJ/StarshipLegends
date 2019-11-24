@@ -191,6 +191,15 @@ public class ModPlugin extends BaseModPlugin {
                 log("Starship Legends version updated from " + oldVersion + " to " + version.val);
                 log("Performing update diagnostics...");
 
+                // Remove any enemy rep hullmods from player ships
+                try {
+                    for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                        ship.getVariant().removePermaMod(Reputation.ENEMY_HULLMOD_ID);
+                    }
+                } catch (Exception e) {
+                    log("An error occurred while removing enemy rep hullmods from player ships!");
+                }
+
                 // Remove irrelevant traits from existing notable ships
                 try {
                     for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
