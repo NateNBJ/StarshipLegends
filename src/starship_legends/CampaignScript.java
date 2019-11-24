@@ -362,9 +362,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 ((FamousDerelictIntel)i).checkIfPlayerRecoveredDerelict();
             }
 
-            if(battle.getNonPlayerCombined() != null) {
-                for (FleetMemberAPI enemy : battle.getNonPlayerCombined().getFleetData().getMembersListCopy()) {
-                    enemy.getVariant().removePermaMod("sun_sl_enemy_reputation");
+            if(battle != null && battle.getSnapshotBothSides() != null) {
+                for(CampaignFleetAPI fleet : battle.getSnapshotBothSides()) {
+                    for (FleetMemberAPI enemy : fleet.getFleetData().getMembersListCopy()) {
+                        enemy.getVariant().removePermaMod(Reputation.ENEMY_HULLMOD_ID);
+                    }
                 }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
@@ -398,7 +400,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 Reputation.setMembersOfNotableEnemyFleet(combined.getFleetData().getMembersListCopy());
 
                 for(FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
-                    ship.getVariant().addPermaMod("sun_sl_enemy_reputation");
+                    ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
                 }
             }
 

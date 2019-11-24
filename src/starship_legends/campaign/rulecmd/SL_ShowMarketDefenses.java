@@ -42,7 +42,7 @@ public class SL_ShowMarketDefenses extends MarketCMD {
 
             Reputation.setMembersOfNotableEnemyFleet(allEnemyShips);
 
-            for(FleetMemberAPI ship : allEnemyShips) ship.getVariant().addPermaMod("sun_sl_enemy_reputation");
+            for(FleetMemberAPI ship : allEnemyShips) ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
 
             return true;
         } catch (Exception e) {
@@ -77,9 +77,10 @@ public class SL_ShowMarketDefenses extends MarketCMD {
                 if (fleet.getFaction().isPlayerFaction() && !fleet.isStationMode()) {
                     joinRange += Global.getSettings().getFloat("battleJoinRangePlayerFactionBonus");
                 }
-                if (dist < joinRange &&
-                        (dist < baseSensorRange || (visible && level != SectorEntityToken.VisibilityLevel.SENSOR_CONTACT)) &&
-                        ((fleet.getAI() != null && fleet.getAI().wantsToJoin(b, true)) || fleet.isStationMode())) {
+                if (dist < joinRange
+                        && !fleet.isPlayerFleet()
+                        && (dist < baseSensorRange || (visible && level != SectorEntityToken.VisibilityLevel.SENSOR_CONTACT))
+                        && ((fleet.getAI() != null && fleet.getAI().wantsToJoin(b, true)) || fleet.isStationMode())) {
 
                     pulledIn.add(fleet);
                 }

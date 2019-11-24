@@ -23,10 +23,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     Map<String, Float> stationDeployCosts = new HashMap();
     Set<String> playerShips = new HashSet();
     String msg = "";
-    RepRecord enemyRep = FactionConfig.getEnemyFleetRep();
-    List<ShipAPI> shipsToApplyRepTo = new LinkedList();
 
-    public static final String ID_FOR_ALL_ENEMIES = "sun_sl_enemy_fleet_rep_id";
     public static Map<String, Float> CURSED = new HashMap();
     public static Map<String, Float> PHASEMAD = new HashMap();
 

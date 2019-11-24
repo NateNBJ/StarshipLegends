@@ -31,6 +31,8 @@ public class Reputation extends BaseHullMod {
     static transient Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
     static transient HashMap<String, FleetMemberAPI> membersOfNotableEnemyFleet = new HashMap();
 
+    public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
+
     public static void printRegistry() {
         String msg = "";
 
@@ -314,12 +316,12 @@ public class Reputation extends BaseHullMod {
 
             if(ship == null) return;
 
-            // ship.getOwner() will sometimes return 0 here for ships not owned by the player
+            // ship.getOwner() will sometimes return 0 here for ships not owned by the player (e.g. for some tooltips)
 
-            if(id.equals("sun_sl_enemy_reputation") && FactionConfig.getEnemyFleetRep() != null) {
+            if(id.equals(ENEMY_HULLMOD_ID) && FactionConfig.getEnemyFleetRep() != null) {
                 applyEffects(FactionConfig.getEnemyFleetRep(), ship.getId(), hullSize, ship.getFleetCommanderForStats(),
                         stats, false, id);
-            } else {
+            } else if(ship.getOwner() == 0) {
                 applyEffects(ship.getId(), hullSize, ship.getCaptain(), stats, false, id);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
