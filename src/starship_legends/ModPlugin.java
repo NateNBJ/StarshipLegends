@@ -182,6 +182,16 @@ public class ModPlugin extends BaseModPlugin {
 
             readSettingsIfNecessary();
 
+            if (REMOVE_ALL_DATA_AND_FEATURES) {
+                Util.clearAllStarshipLegendsData();
+            } else {
+                BarEventManager bar = BarEventManager.getInstance();
+
+                if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
+                    bar.addEventCreator(new FamousShipBarEventCreator());
+                }
+            }
+
             boolean allRepRecordsHaveNoRating = true;
 
             if(isUpdateDiagnosticCheckNeeded()) {
@@ -415,16 +425,6 @@ public class ModPlugin extends BaseModPlugin {
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
 
             ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;
-
-            if (REMOVE_ALL_DATA_AND_FEATURES) {
-                Util.clearAllStarshipLegendsData();
-            } else {
-                BarEventManager bar = BarEventManager.getInstance();
-
-                if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
-                    bar.addEventCreator(new FamousShipBarEventCreator());
-                }
-            }
 
             return settingsAreRead = true;
         } catch (Exception e) {
