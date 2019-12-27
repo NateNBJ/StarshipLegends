@@ -29,6 +29,7 @@ import com.fs.starfarer.api.util.MutableValue;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import data.scripts.campaign.intel.VayraPersonBountyIntel;
 import org.lwjgl.Sys;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
 
@@ -88,12 +89,14 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 	FleetMemberAPI ship = null;
 	RepRecord rep = null;
+	MarketAPI source = null;
 
 	FactionAPI faction = null;
 	CampaignFleetAPI fleet = null;
 	PersonAPI commander = null;
 	String activity = "";
 	boolean newFleetWasCreated = false;
+	boolean isRoaming = false;
 
 	SectorEntityToken derelict = null;
 	SectorEntityToken orbitedBody = null;
@@ -106,6 +109,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected void reset() {
 		ship = null;
 		rep = null;
+		source = null;
 
 		faction = null;
 		fleet = null;
@@ -123,7 +127,9 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected boolean isValidDerelictIntel() {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
-				&& timeScale != null && granularity != null && derelict.getConstellation() != null;
+				&& timeScale != null && granularity != null && derelict.getConstellation() != null
+				&& ship.getVariant().getModuleSlots().isEmpty();
+		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
 
 		if(!isValid) {
 			String nl = System.lineSeparator() + "    ";
@@ -143,8 +149,11 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		return isValid;
 	}
 	protected boolean isValidFlagshipIntel() {
+		if(!fleetHasValidAssignment(fleet) && flagshipType.equals("Remote")) setAssignmentForRemoteFleet();
+
 		boolean isValid = rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
-				&& commander != null && fleetHasValidAssignment(fleet);
+				&& commander != null && fleetHasValidAssignment(fleet) && ship.getVariant().getModuleSlots().isEmpty();
+		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
 
 		if(!isValid) {
 			String nl = System.lineSeparator() + "    ";
@@ -208,8 +217,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					|| !Misc.getMarketsInLocation(system.getCenter().getContainingLocation()).isEmpty()
 					|| distance < timeScale.getMinDistance()) continue;
 
-			for (MarketAPI m : Misc.getMarketsInLocation(system)) if (!m.isHidden()) continue;
-
 			float flatSystemBonus = 3f / system.getPlanets().size();
 
 			for(PlanetAPI planet : system.getPlanets()) {
@@ -252,6 +259,24 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 
 		return true;
+	}
+	protected void setAssignmentForRemoteFleet() {
+		if(source == null || fleet == null) return;
+
+		if(isRoaming) {
+			fleet.addAssignment(fleet.getFaction().isHostileTo(Factions.INDEPENDENT)
+							? FleetAssignment.RAID_SYSTEM : FleetAssignment.PATROL_SYSTEM,
+					source.getPrimaryEntity(), FamousFlagshipIntel.MAX_DURATION);
+		} else {
+			fleet.addAssignment(FleetAssignment.DEFEND_LOCATION, source.getPrimaryEntity(),
+					FamousFlagshipIntel.MAX_DURATION);
+
+		}
+		fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
+
+		source.getContainingLocation().addEntity(fleet);
+
+		newFleetWasCreated = true;
 	}
 	protected void pickShipName(FleetMemberAPI ship) {
 		try {
@@ -410,7 +435,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					final int MAX_ATTEMPTS = 5;
 
 					for(int i = 0; i < MAX_ATTEMPTS; i++) {
-						MarketAPI source = eligibleMarkets.get(random.nextInt(eligibleMarkets.size()));
+						source = eligibleMarkets.get(random.nextInt(eligibleMarkets.size()));
 						FleetFactory.PatrolType type = FleetFactory.PatrolType.values()[random.nextInt(FleetFactory.PatrolType.values().length)];
 						Vector2f at = source.getPrimaryEntity().getLocation();
 
@@ -436,22 +461,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 						fleet.setLocation(at.x, at.y);
 
-						if(random.nextFloat() < 0.2f) {
-							activity = fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling ";
-							fleet.addAssignment(fleet.getFaction().isHostileTo(Factions.INDEPENDENT)
-											? FleetAssignment.RAID_SYSTEM : FleetAssignment.PATROL_SYSTEM,
-									source.getPrimaryEntity(), FamousFlagshipIntel.MAX_DURATION);
-						} else {
-							activity = "defending " + source.getPrimaryEntity().getName() + " ";
-							fleet.addAssignment(FleetAssignment.DEFEND_LOCATION, source.getPrimaryEntity(),
-									FamousFlagshipIntel.MAX_DURATION);
+						isRoaming = random.nextFloat() < 0.2f;
 
-						}
-						fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
+						setAssignmentForRemoteFleet();
 
-						source.getContainingLocation().addEntity(fleet);
-
-						newFleetWasCreated = true;
+						activity = isRoaming
+								? fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling "
+								: "defending " + source.getPrimaryEntity().getName() + " ";
 					}
 
 				} else {
@@ -610,6 +626,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					options.addOption("Take note of the whereabouts of " + commander.getNameString() + "'s fleet", OptionId.ACCEPT);
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
+					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 					break;
 				}
 				case DERELICT_INIT: {
@@ -651,6 +668,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					options.addOption("Ask where the " + ship.getShipName() + " might be found", OptionId.INQUIRE);
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
+					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 					break;
 				}
 				case INQUIRE: {
@@ -721,6 +739,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					options.addOption(accept, OptionId.ACCEPT);
 					options.addOption(reject, OptionId.LEAVE);
+					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 
 					if (cost > 0 && cost > purse.get()) {
 						options.setEnabled(OptionId.ACCEPT, false);
@@ -732,6 +751,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					text.addPara("For a while you listen to the story, but it quickly becomes obvious that it's nothing " +
 									"but a fanciful fabrication.");
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
+					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 					break;
 				case ACCEPT:
 					if(cost > 0) {

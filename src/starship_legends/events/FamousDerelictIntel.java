@@ -185,7 +185,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 				fleet.clearAssignments();
 				fleet.addAssignment(FleetAssignment.ORBIT_AGGRESSIVE, derelict,
 						MAX_DURATION - Global.getSector().getClock().getElapsedDaysSince(timestamp),
-						"recovering the " + ship.getShipName());
+						"preparing to recover the " + ship.getShipName());
 				fleet.addAssignment(FleetAssignment.GO_TO_LOCATION, derelict, 30, "recovering the " + ship.getShipName(),
 						new Script() {
 							@Override
