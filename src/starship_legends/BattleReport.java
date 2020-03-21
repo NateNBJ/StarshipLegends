@@ -162,7 +162,7 @@ public class BattleReport extends BaseIntelPlugin {
                         loyalty = rc.captain != null && !rc.captain.isDefault() && RepRecord.existsFor(rc.ship)
                                 ? rc.getLoyaltyLevel().getName() : "-",
                         rating = rc.ship.getHullSpec().isCivilianNonCarrier() || !RepRecord.existsFor(rc.ship) || rc.newRating == Integer.MIN_VALUE
-                                ? "-" : (int)rc.newRating + "%";
+                                ? "-" : (int)Math.min(100, Math.max(0, rc.newRating)) + "%";
 
                 Color statusColor = rc.disabled ? Misc.getHighlightColor() : (rc.deployed ? Misc.getTextColor() : Misc.getGrayColor()),
                         takenColor = rc.damageTakenFraction == 0 ? Misc.getGrayColor() : (rc.damageTakenFraction > 0.25 ? Misc.getNegativeHighlightColor() : Misc.getTextColor()),
@@ -205,6 +205,11 @@ public class BattleReport extends BaseIntelPlugin {
                         trait = "- " + rc.trait.getName(requiresCrew);
                     } else {
                         trait = rc.shuffleSign > 0 ? "[ + ]" : "[ - ]";
+
+                        if(rc.traitDown != null && rc.trait.getEffectSign() == rc.traitDown.getEffectSign()) {
+                            traitColor = Misc.getHighlightColor();
+                            trait = "[ = ]";
+                        }
                     }
                 }
 
@@ -255,12 +260,18 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addTable("", 0, 3);
 
-            if(!changes.isEmpty()) {
+            boolean changesWereFound = false;
+
+            for (RepChange rc : changes) {
+                if (rc.hasAnyChanges()) {
+                    changesWereFound = true;
+                    break;
+                }
+            }
+
+            if(changesWereFound) {
                 e.addPara("", 0);
-
-                if (!changes.isEmpty()) e.addSectionHeading(" Notes on Crew Disposition", Alignment.LMID, 10);
-
-                inner.addUIElement(e);
+                e.addSectionHeading(" Notes on Crew Disposition", Alignment.LMID, 10);
 
                 List<FleetMemberAPI> sl = new ArrayList<>();
 
@@ -284,6 +295,8 @@ public class BattleReport extends BaseIntelPlugin {
                     totalHeight += NOTE_HEIGHT;
                 }
             }
+
+            inner.addUIElement(e);
 
             e.addPara("", 0);
 
@@ -332,7 +345,8 @@ public class BattleReport extends BaseIntelPlugin {
 
     public Set<String> getIntelTags(SectorMapAPI map) {
         Set<String> tags = super.getIntelTags(map);
-        tags.add(Tags.INTEL_FLEET_LOG);
+        tags.add("Reports");
+        //tags.add(Tags.INTEL_FLEET_LOG);
         if(enemyFaction != null) tags.add(enemyFaction.getId());
         return tags;
     }

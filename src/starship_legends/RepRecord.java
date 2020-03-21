@@ -5,6 +5,7 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
+import com.fs.starfarer.api.combat.WeaponAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
@@ -14,6 +15,8 @@ import starship_legends.hullmods.Reputation;
 
 import java.util.*;
 import java.util.List;
+
+import static com.fs.starfarer.api.combat.WeaponAPI.WeaponType.*;
 
 public class RepRecord {
     static final Saved<Map<String, RepRecord>> INSTANCE_REGISTRY = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
@@ -80,6 +83,13 @@ public class RepRecord {
 
         for(int i = 0; i < slots.size(); ++i) {
             ShipVariantAPI module = v.getModuleVariant(slots.get(i));
+
+            if(module.isStockVariant()) {
+                module = module.clone();
+                module.setSource(VariantSource.REFIT);
+                v.setModuleVariant(slots.get(i), module);
+            }
+
             module.setHullVariantId(v.getHullVariantId());
             module.addPermaMod(tier.getHullModID());
         }
@@ -113,6 +123,21 @@ public class RepRecord {
 
         for(String tag : type.getTags()) {
             switch (tag) {
+                case TraitType.Tags.DMOD:
+                    boolean hasAdmod = false;
+
+                    for(String id : ship.getVariant().getPermaMods()) {
+                        if(Global.getSettings().getHullModSpec(id).hasTag("dmod")) {
+                            hasAdmod = true;
+                            break;
+                        }
+                    }
+
+                    if(!hasAdmod) return false;
+                    break;
+                case TraitType.Tags.LOYALTY:
+                    if(!ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) return false;
+                    break;
                 case TraitType.Tags.CREW:
                     if(!allowCrewTrait) return false;
                     break;
@@ -146,30 +171,26 @@ public class RepRecord {
 
                     if((traitIsBad && !allowBadOffenseTrait) || !hasWeaponSlot) return false;
                     break;
-                case TraitType.Tags.MISSILE:
-                    float total = ship.getHullSpec().getFighterBays() * 10, missile = 0;
+                case TraitType.Tags.TURRET:
+                    boolean hasTurretSlot = false;
 
                     for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
-                        float op = 0;
-
-                        switch (slot.getSlotSize()) {
-                            case SMALL: op = 5; break;
-                            case MEDIUM: op = 10; break;
-                            case LARGE: op = 20; break;
+                        if(slot.isTurret()) {
+                            hasTurretSlot = true;
+                            break;
                         }
-
-                        switch (slot.getWeaponType()) {
-                            case MISSILE:   missile += op * 1.0f; break;
-                            case COMPOSITE: missile += op * 0.8f; break;
-                            case SYNERGY:   missile += op * 0.8f; break;
-                            case UNIVERSAL: missile += op * 0.6f; break;
-                        }
-
-                        total += op;
                     }
 
-                    if(missile / total < 0.2f) return false;
+                    if(!hasTurretSlot) return false;
                     break;
+                case TraitType.Tags.MISSILE:
+                    if(Util.getFractionOfFittingSlots(ship, MISSILE, COMPOSITE, SYNERGY) < 0.2f) return false;
+                    break;
+                case TraitType.Tags.BALLISTIC:
+                    if(Util.getFractionOfFittingSlots(ship, BALLISTIC, COMPOSITE, HYBRID) < 0.4f) return false;
+                    break;
+                case TraitType.Tags.ENERGY:
+                    if(Util.getFractionOfFittingSlots(ship, ENERGY, SYNERGY, HYBRID) < 0.4f) return false;
                 case TraitType.Tags.FLUX:
                     switch (ship.getHullId()) {
                         case "swp_excelsior":
@@ -195,7 +216,8 @@ public class RepRecord {
         return true;
     }
     public static Trait chooseNewTrait(FleetMemberAPI ship, Random rand, boolean traitIsBad, boolean allowBadDefenseTrait,
-                                       boolean allowBadOffenseTrait, boolean allowCrewTrait, WeightedRandomPicker<TraitType> picker) {
+                                       boolean allowBadOffenseTrait, boolean allowCrewTrait,
+                                       WeightedRandomPicker<TraitType> picker) {
 
         if(ship == null || rand == null) return null;
 

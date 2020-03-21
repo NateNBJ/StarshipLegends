@@ -10,6 +10,8 @@ import com.fs.starfarer.api.impl.campaign.intel.MessageIntel;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 
+import java.awt.*;
+
 public class RepChange {
     FleetMemberAPI ship;
     PersonAPI captain;
@@ -181,9 +183,11 @@ public class RepChange {
                     message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is now known better for "
                             + trait.getDescPrefix(true) + " %s than " + traitDown.getDescPrefix(true) + " %s";
 
-                    tooltip.addPara(message, 3, Misc.getTextColor(),
-                            shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                            trait.getLowerCaseName(requiresCrew),
+                    Color hl = traitDown != null && trait.getEffectSign() == traitDown.getEffectSign()
+                            ? Misc.getHighlightColor()
+                            : (shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor());
+
+                    tooltip.addPara(message, 3, Misc.getTextColor(), hl, trait.getLowerCaseName(requiresCrew),
                             traitDown.getLowerCaseName(requiresCrew));
                 }
             }

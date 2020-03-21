@@ -8,7 +8,9 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
+import com.fs.starfarer.api.combat.WeaponAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import org.lazywizard.console.Console;
 import starship_legends.events.FamousDerelictIntel;
@@ -35,6 +37,30 @@ public class Util {
         vowels.add("u");
     }
 
+    public static float getFractionOfFittingSlots(FleetMemberAPI ship, WeaponAPI.WeaponType primary,
+                                                  WeaponAPI.WeaponType hybrid1, WeaponAPI.WeaponType hybrid2) {
+
+        float total = ship.getHullSpec().getFighterBays() * 10, fit = 0;
+
+        for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
+            float op = 0;
+
+            switch (slot.getSlotSize()) {
+                case SMALL: op = 5; break;
+                case MEDIUM: op = 10; break;
+                case LARGE: op = 20; break;
+            }
+
+            if(slot.getWeaponType() == primary) fit += op * 1.0f;
+            else if(slot.getWeaponType() == hybrid1) fit += op * 0.8f;
+            else if(slot.getWeaponType() == hybrid2) fit += op * 0.8f;
+            else if(slot.getWeaponType() == WeaponAPI.WeaponType.UNIVERSAL) fit += op * 0.6f;
+
+            total += op;
+        }
+
+        return fit / total;
+    }
     public static String getWithAnOrA(String string) {
         if(string == null || string.isEmpty()) return "";
 

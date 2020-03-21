@@ -45,10 +45,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
     static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
     static Map<String, BattleRecord> battleRecords = new HashMap<>();
-//    static Map<String, Float> fractionDamageTaken = new HashMap<>();
-//    static Map<String, PersonAPI> originalCaptains = new HashMap<>();
-//    static Map<String, Float> damageDealt = new HashMap<>();
-//    static Map<String, Float> supportContribution = new HashMap<>();
     static List<FleetMemberAPI> originalShipList;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
@@ -158,8 +154,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         for (FleetMemberAPI ship : deployedShips) {
             BattleRecord br = getBattleRecord(ship.getId());
 
-            br.fractionDamageTaken = Math.min(Math.max(0, br.fractionDamageTaken), 1);
             br.damageDealt = Math.max(0, br.damageDealt) / Math.max(1, ship.getDeploymentCostSupplies());
+            br.fractionDamageTaken = !disabledShips.contains(ship) ? Math.min(Math.max(0, br.fractionDamageTaken), 1) : 1;
 
             br.rating = ModPlugin.BASE_RATING
                     + ModPlugin.BATTLE_DIFFICULTY_MULT * difficulty
@@ -212,14 +208,19 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 float xpToGuarantee = RepRecord.getXpToGuaranteeNewTrait(ship);
                 float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
                         * Global.getSector().getPlayerStats().getLevel();
-                float xp = rc.deployed ? xpEarned : Math.min(xpEarned, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
+                float xp = xpEarned * (ship.getHullSpec().getFleetPoints() / 30f + br.fractionDamageTaken + br.damageDealt);
+                xp = rc.deployed ? xp : Math.min(xp, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
                 float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
                 int adjustmentSign = 0;
                 float bonusChance;
 
-                if(!rc.deployed) traitChance *= ship.getHullSpec().isCivilianNonCarrier()
-                        ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
-                        : ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS;
+                if(rc.deployed) {
+                    traitChance *= ModPlugin.TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS;
+                } else {
+                    traitChance *= ship.getHullSpec().isCivilianNonCarrier()
+                            ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
+                            : ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS;
+                }
 
                 if(ship.getHullSpec().isCivilianNonCarrier()) {
                     rc.newRating = bonusChance = br.rating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
@@ -293,6 +294,23 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                                 msg += "SUCCEEDED";
                             } else {
                                 msg += "FAILED";
+                            }
+                        }
+                    } else {
+                        for(int i = rep.getTraits().size() - 1; i >= 0; --i) {
+                            Trait trait = rep.getTraits().get(i);
+
+                            if(trait.getType().getTags().contains(TraitType.Tags.DMOD)
+                                    && !RepRecord.isTraitRelevantForShip(ship, trait, true, true, true)) {
+
+                                boolean isNewestTrait = i == rep.getTraits().size() - 1;
+                                Trait[] shuffleTraits = isNewestTrait
+                                        ? new Trait[] { trait }
+                                        : new Trait[] { rep.getTraits().get(i + 1), trait };
+
+                                rc.setTraitChange(shuffleTraits, isNewestTrait ? -trait.getEffectSign() : rep.getTraits().get(i + 1).getEffectSign());
+
+                                break;
                             }
                         }
                     }
@@ -551,6 +569,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 pendingRepChanges.val.remove(i);
             } else if(pendingRepChanges.val.isEmpty()) timeUntilNextChange.val = 0f;
+
+            for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {
+                ((FamousDerelictIntel)i).updateFleetActions();
+            }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 }

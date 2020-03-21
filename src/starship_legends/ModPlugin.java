@@ -52,6 +52,7 @@ public class ModPlugin extends BaseModPlugin {
             REMOVE_ALL_DATA_AND_FEATURES = false,
             SHOW_NEW_TRAIT_NOTIFICATIONS = true,
             ALLOW_CUSTOM_COMMANDER_PRESETS = true,
+            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = false,
             MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true;
 
     public static int
@@ -64,8 +65,6 @@ public class ModPlugin extends BaseModPlugin {
     public static float
             GLOBAL_EFFECT_MULT = 1,
             MAX_XP_FOR_RESERVED_SHIPS = 80000,
-            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
-            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
             BONUS_CHANCE_FOR_CIVILIAN_SHIPS = 0.5f,
 
@@ -81,12 +80,16 @@ public class ModPlugin extends BaseModPlugin {
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
-            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = 0,
-            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = 10,
+            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = 1.0f,
+            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
+            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
 
-            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = 4,
-            FAMOUS_DERELICT_BAR_EVENT_CHANCE = 1,
-            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = 5,
+            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = 0,
+            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = 0,
+
+            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = 2f,
+            FAMOUS_DERELICT_BAR_EVENT_CHANCE = 0.5f,
+            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = 2.5f,
 
             IMPROVE_LOYALTY_CHANCE_MULT = 1,
             WORSEN_LOYALTY_CHANCE_MULT = 1,
@@ -128,9 +131,7 @@ public class ModPlugin extends BaseModPlugin {
 
     @Override
     public void onApplicationLoad() throws Exception {
-
         String message = "";
-
 
         try {
             ModSpecAPI spec = Global.getSettings().getModManager().getModSpec("sun_starship_legends");
@@ -189,6 +190,14 @@ public class ModPlugin extends BaseModPlugin {
 
                 if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
                     bar.addEventCreator(new FamousShipBarEventCreator());
+                }
+
+                if(settingsHaveBeenRead()) {
+                    for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                        Reputation.applyEffects(ship);
+                    }
+
+                    Global.getSector().getPlayerFleet().getFleetData().updateCargoCapacities();
                 }
             }
 
@@ -423,6 +432,9 @@ public class ModPlugin extends BaseModPlugin {
 
             FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousFlagshipBarEventChance");
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
+
+            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = (float) cfg.getDouble("traitChanceMultForDeployedShips");
+            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
 
             ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;
 

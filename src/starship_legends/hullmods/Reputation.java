@@ -64,7 +64,15 @@ public class Reputation extends BaseHullMod {
         return shipsOfNote.val.values();
     }
 
-    public static void applyEffects(RepRecord rep, String shipID, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
+    public static void applyEffects(FleetMemberAPI ship) {
+        if(!RepRecord.existsFor(ship)) return;
+
+        RepRecord rep = RepRecord.get(ship);
+
+        applyEffects(rep, ship, ship.getHullSpec().getHullSize(), ship.getCaptain(), ship.getStats(),
+                ship.isFighterWing(), rep.getTeir().getHullModID());
+    }
+    public static void applyEffects(RepRecord rep, FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
         try {
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
@@ -99,6 +107,28 @@ public class Reputation extends BaseHullMod {
                     }
                 } else {
                     switch (trait.getTypeId()) {
+                        case "ballistics_rof":
+                            stats.getBallisticRoFMult().modifyPercent(id, e);
+                            break;
+                        case "energy_cost":
+                            stats.getEnergyWeaponFluxCostMod().modifyPercent(id, e);
+                            break;
+                        case "pd_range":
+                            stats.getNonBeamPDWeaponRangeBonus().modifyPercent(id, e);
+                            stats.getBeamPDWeaponRangeBonus().modifyPercent(id, e);
+                            break;
+                        case "pd_damage":
+                            stats.getDamageToMissiles().modifyPercent(id, e);
+                            stats.getDamageToFighters().modifyPercent(id, e);
+                            break;
+                        case "dmod_integrity":
+                            int dmods = 0;
+                            for(String modId : ship.getVariant().getPermaMods()) {
+                                if(Global.getSettings().getHullModSpec(modId).hasTag("dmod")) dmods++;
+                            }
+
+                            stats.getHullBonus().modifyPercent(id, e * dmods);
+                            break;
                         case "missile_guidance":
                             stats.getMissileGuidance().modifyPercent(id, e);
                             stats.getMissileAccelerationBonus().modifyPercent(id, e);
@@ -110,10 +140,10 @@ public class Reputation extends BaseHullMod {
                             stats.getMissileRoFMult().modifyPercent(id, e);
                             break;
                         case "cursed":
-                            CombatPlugin.CURSED.put(shipID, e);
+                            CombatPlugin.CURSED.put(ship.getId(), e);
                             break;
                         case "phase_mad":
-                            CombatPlugin.PHASEMAD.put(shipID, e);
+                            CombatPlugin.PHASEMAD.put(ship.getId(), e);
                             break;
                         case "dmod_effect":
                             stats.getDynamic().getStat(Stats.DMOD_EFFECT_MULT).modifyPercent(id, e);
@@ -261,15 +291,13 @@ public class Reputation extends BaseHullMod {
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
-    public static void applyEffects(String shipID, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
+    public static void applyEffects(FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
         try {
             if(!ModPlugin.settingsHaveBeenRead()) return;
-            if(shipID == null || !RepRecord.existsFor(shipID)) return;
-//            if(shipID == null) throw new RuntimeException("Could not find matching ship for reputation hullmod");
-//            if(!RepRecord.existsFor(shipID)) throw new RuntimeException("Reputation hullmod exists without RepRecord entry for ship");
+            if(ship == null || !RepRecord.existsFor(ship)) return;
 
-            RepRecord rep = RepRecord.get(shipID);
-            applyEffects(rep, shipID, size, captain, stats, isFighter, id);
+            RepRecord rep = RepRecord.get(ship);
+            applyEffects(rep, ship, size, captain, stats, isFighter, id);
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
@@ -310,7 +338,8 @@ public class Reputation extends BaseHullMod {
     @Override
     public void applyEffectsBeforeShipCreation(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats, String id) {
         try {
-            if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
+            if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || shipsOfNote.val.isEmpty())
+                return;
 
             FleetMemberAPI ship = findShip(hullSize, stats);
 
@@ -319,10 +348,10 @@ public class Reputation extends BaseHullMod {
             // ship.getOwner() will sometimes return 0 here for ships not owned by the player (e.g. for some tooltips)
 
             if(id.equals(ENEMY_HULLMOD_ID) && FactionConfig.getEnemyFleetRep() != null) {
-                applyEffects(FactionConfig.getEnemyFleetRep(), ship.getId(), hullSize, ship.getFleetCommanderForStats(),
+                applyEffects(FactionConfig.getEnemyFleetRep(), ship, hullSize, ship.getFleetCommanderForStats(),
                         stats, false, id);
             } else if(ship.getOwner() == 0) {
-                applyEffects(ship.getId(), hullSize, ship.getCaptain(), stats, false, id);
+                applyEffects(ship, hullSize, ship.getCaptain(), stats, false, id);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
@@ -333,7 +362,7 @@ public class Reputation extends BaseHullMod {
 
         PersonAPI liege = ship.getOriginalOwner() == 0 ? ship.getCaptain() : ship.getFleetMember().getFleetCommanderForStats();
 
-        applyEffects(ship.getFleetMemberId(), ship.getHullSize(), liege, fighter.getMutableStats(), true, id);
+        applyEffects(ship.getFleetMember(), ship.getHullSize(), liege, fighter.getMutableStats(), true, id);
     }
 
     @Override

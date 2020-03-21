@@ -152,6 +152,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 	public Set<String> getIntelTags(SectorMapAPI map) {
 		Set<String> tags = super.getIntelTags(map);
 		tags.add(faction.getId());
+		tags.add(Tags.INTEL_ACCEPTED);
 		return tags;
 	}
 
@@ -165,4 +166,5 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 				? super.getMapLocation(map)
 				: fleet.getStarSystem().getCenter();
 	}
+
 }

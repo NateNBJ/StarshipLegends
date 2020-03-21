@@ -7,20 +7,18 @@ import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.fleets.FleetFactoryV3;
 import com.fs.starfarer.api.impl.campaign.fleets.FleetParamsV3;
-import com.fs.starfarer.api.impl.campaign.ids.Commodities;
-import com.fs.starfarer.api.impl.campaign.ids.Factions;
-import com.fs.starfarer.api.impl.campaign.ids.FleetTypes;
-import com.fs.starfarer.api.impl.campaign.ids.MemFlags;
+import com.fs.starfarer.api.impl.campaign.ids.*;
 import com.fs.starfarer.api.impl.campaign.intel.PersonBountyIntel;
 import com.fs.starfarer.api.impl.campaign.intel.misc.FleetLogIntel;
+import com.fs.starfarer.api.impl.campaign.procgen.themes.RemnantSeededFleetManager;
 import com.fs.starfarer.api.impl.campaign.rulecmd.AddRemoveCommodity;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.special.ShipRecoverySpecial;
-import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.IntelUIAPI;
 import com.fs.starfarer.api.ui.SectorMapAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
+import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
 
 import java.awt.*;
@@ -29,22 +27,23 @@ import java.util.*;
 public class FamousDerelictIntel extends FleetLogIntel {
 	public enum LocationGranularity {CONSTELATION, SYSTEM, ENTITY }
 	public enum TimeScale {
-		//         survv  dist  slvg  grnu  trts  xp
-		Months    (0.60f, 0.0f, 0.8f, 0.9f, 5, 6, 100,   "Surprisingly"),
-		Years     (0.20f, 0.3f, 0.4f, 0.6f, 5, 7, 500,   "Amazingly"),
-		Decades   (0.05f, 0.6f, 0.1f, 0.3f, 6, 7, 2500,  "Miraculously"),
-		Centuries (0.00f, 0.9f, 0.0f, 0.1f, 6, 8, 12500, "Impossibly");
+		//         survv  dist  slvg  ambsh grnu  trts  xp
+		Months    (0.60f, 0.0f, 0.8f, 0.0f, 0.9f, 5, 6, 100,   "Surprisingly"),
+		Years     (0.20f, 0.3f, 0.4f, 0.4f, 0.6f, 5, 7, 500,   "Amazingly"),
+		Decades   (0.05f, 0.6f, 0.1f, 0.8f, 0.3f, 6, 7, 2500,  "Miraculously"),
+		Centuries (0.00f, 0.9f, 0.0f, 1.0f, 0.1f, 6, 8, 12500, "Impossibly");
 
-		final float survivorChance, salvagerChance, improveGranularityChance, minDistance, xp;
+		final float survivorChance, salvagerChance, baseAmbushChance, improveGranularityChance, minDistance, xp;
 		final int minTraits, maxTraits;
 		final String odds;
 
 
-		TimeScale(float survivorChance, float minDistance, float salvagerChance, float improveGranularityChance,
+		TimeScale(float survivorChance, float minDistance, float salvagerChance, float ambushChance, float improveGranularityChance,
 				  int minTraits, int maxTraits, int xp, String odds) {
 
 			this.survivorChance = survivorChance;
 			this.salvagerChance = salvagerChance;
+			this.baseAmbushChance = ambushChance;
 			this.improveGranularityChance = improveGranularityChance;
 			this.minDistance = minDistance;
 			this.minTraits = minTraits;
@@ -89,14 +88,15 @@ public class FamousDerelictIntel extends FleetLogIntel {
 	public static float MAX_DURATION = PersonBountyIntel.MAX_DURATION * 0.8f;
 	public static final String MEMORY_KEY = "$sun_sl_famousDerelictKey";
 
-	boolean derelictRecoveredByPlayer = false, derelictRecoveredByRival = false, survivorsWereRescued = false;
+	boolean derelictRecoveredByPlayer = false, derelictRecoveredByRival = false, survivorsWereRescued = false,
+			fleetsDespawning = false;
 
 	protected FleetMemberAPI ship;
 	protected final SectorEntityToken derelict;
 	protected final RepRecord rep;
 	protected final ShipRecoverySpecial.PerShipData wreckData;
 	protected final LocationGranularity granularity;
-	protected final CampaignFleetAPI rivalFleet;
+	protected final CampaignFleetAPI rivalFleet, ambushFleet;
 	protected final TimeScale timeScale;
 	protected final MarketAPI market;
 	protected final SectorEntityToken rivalOrigin;
@@ -109,6 +109,23 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		rivalFleet.clearAssignments();
 		rivalFleet.setFaction(Factions.INDEPENDENT);
 		rivalFleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, rivalOrigin, Float.MAX_VALUE);
+	}
+	protected void despawnAmbushFleet() {
+		if(ambushFleet == null || ambushFleet.isDespawning() || !ambushFleet.isAlive() || ambushFleet.isEmpty()) return;
+
+		SectorEntityToken despawnPlace = null;
+
+		try {
+			despawnPlace = ambushFleet.getStarSystem().getStar();
+
+			if(despawnPlace == null) despawnPlace = ambushFleet.getContainingLocation().getAllEntities().get(0);
+		} catch (Exception e) {
+			ambushFleet.getContainingLocation().removeEntity(ambushFleet);
+		}
+
+		ambushFleet.clearAssignments();
+		ambushFleet.addAssignment(FleetAssignment.ORBIT_AGGRESSIVE, despawnPlace, 15);
+		ambushFleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, despawnPlace, Float.MAX_VALUE);
 	}
 	protected CampaignFleetAPI spawnRivalFleet(FamousShipBarEvent event) {
 		Random random = event.getRandom();
@@ -211,6 +228,39 @@ public class FamousDerelictIntel extends FleetLogIntel {
 
 		return fleet;
 	}
+	protected CampaignFleetAPI spawnAmbushFleet(FamousShipBarEvent event) {
+		CampaignFleetAPI fleet = null;
+		Random random = event.getRandom();
+
+		while (fleet == null) {
+			String type = FleetTypes.PATROL_SMALL;
+			if (event.ambushFleetFP > 64) type = FleetTypes.PATROL_MEDIUM;
+			if (event.ambushFleetFP > 128) type = FleetTypes.PATROL_LARGE;
+
+			FleetParamsV3 params = new FleetParamsV3(derelict.getLocation(), Factions.REMNANTS, 1f, type,
+					event.ambushFleetFP, 0f, 0f, 0f, 0f, 0f, 0f);
+			params.withOfficers = true;
+			params.random = random;
+
+			fleet = FleetFactoryV3.createFleet(params);
+		}
+
+		derelict.getContainingLocation().addEntity(fleet);
+		RemnantSeededFleetManager.initRemnantFleetProperties(random, fleet, false);
+		fleet.setLocation(derelict.getLocation().x, derelict.getLocation().y);
+		fleet.setFacing(random.nextFloat() * 360f);
+		fleet.addAssignment(FleetAssignment.ORBIT_AGGRESSIVE, derelict, Float.MAX_VALUE, "laying in wait");
+		//fleet.addAbility(Abilities.GO_DARK);
+
+		//fleet.setAI(null);
+		//fleet.setNullAIActionText("laying in wait");
+		//fleet.setDoNotAdvanceAI(true);
+		//fleet.setTransponderOn(false);
+		//fleet.getAbility(Abilities.GO_DARK).activate();
+
+		return fleet;
+	}
+
 	protected void showRecoveryDescription(TextPanelAPI text) {
 		text.addPara("Signature markings and energy readings indicate that this is, in fact, the "
 				+ ship.getShipName() + ". Your salvage crews determine that the ship could be restored to basic "
@@ -238,6 +288,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 	public void notifyThatPlayerRecoveredDerelict() {
 		derelictRecoveredByPlayer = true;
 		sendRivalFleetHome();
+		despawnAmbushFleet();
 	}
 	public void checkIfPlayerRecoveredDerelict() {
 		if(rivalFleet == null) return;
@@ -260,9 +311,9 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		granularity = event.granularity;
 		market = event.getMarket();
 		timeScale = event.timeScale;
+		ambushFleet = event.ambushFleetFP > 0 ? spawnAmbushFleet(event) : null;
 
 		if(event.rivalSalvageFleet) {
-
 			WeightedRandomPicker<SectorEntityToken> eligibleMarkets = new WeightedRandomPicker<>();
 
 			for(StarSystemAPI system : Global.getSector().getStarSystems()) {
@@ -285,8 +336,6 @@ public class FamousDerelictIntel extends FleetLogIntel {
 			}
 
 			rivalOrigin = eligibleMarkets.pick(event.getRandom());
-
-			//rivalOrigin = market.getPrimaryEntity();
 			rivalFleet = spawnRivalFleet(event);
 		} else {
 			rivalOrigin = null;
@@ -299,9 +348,28 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		setRemoveTrigger(derelict);
 	}
 
-	@Override
-	protected void advanceImpl(float amount) {
-		if(MAX_DURATION < Global.getSector().getClock().getElapsedDaysSince(timestamp)) sendRivalFleetHome();
+	public void updateFleetActions() {
+		if(fleetsDespawning) return;
+
+		if(MAX_DURATION < Global.getSector().getClock().getElapsedDaysSince(timestamp)) {
+			sendRivalFleetHome();
+			despawnAmbushFleet();
+			fleetsDespawning = true;
+		} else if(ambushFleet != null) {
+//			FleetAssignment fa = ambushFleet.getCurrentAssignment().getAssignment();
+
+//			if(fa == FleetAssignment.ORBIT_AGGRESSIVE && !ambushFleet.isInCurrentLocation()) {
+//				ambushFleet.setDoNotAdvanceAI(true);
+//				ambushFleet.setTransponderOn(false);
+//				//ambushFleet.getAbility(Abilities.GO_DARK).activate();
+//			} else if(ambushFleet.isVisibleToPlayerFleet()
+//					&& ambushFleet.getVisibilityLevelOfPlayerFleet() == SectorEntityToken.VisibilityLevel.COMPOSITION_DETAILS) {
+//				ambushFleet.setDoNotAdvanceAI(false);
+//				ambushFleet.setTransponderOn(true);
+//				//ambushFleet.getAbility(Abilities.GO_DARK).deactivate();
+//			}
+
+		}
 	}
 
 	@Override
@@ -426,6 +494,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 			derelict.getMemoryWithoutUpdate().clear();
 
 			sendRivalFleetHome();
+			despawnAmbushFleet();
 
 			if (!derelictRecoveredByPlayer) RepRecord.deleteFor(ship);
 
@@ -451,5 +520,12 @@ public class FamousDerelictIntel extends FleetLogIntel {
 			case CONSTELATION: return map.getConstellationLabelEntity(derelict.getConstellation());
 			default: return super.getMapLocation(map);
 		}
+	}
+
+	@Override
+	public Set<String> getIntelTags(SectorMapAPI map) {
+		Set<String> tags = super.getIntelTags(map);
+		tags.add(Tags.INTEL_ACCEPTED);
+		return tags;
 	}
 }

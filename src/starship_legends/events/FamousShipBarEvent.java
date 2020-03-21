@@ -27,8 +27,8 @@ import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.special.ShipRecoverySp
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.MutableValue;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
+import data.scripts.VayraModPlugin;
 import data.scripts.campaign.intel.VayraPersonBountyIntel;
-import org.lwjgl.Sys;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
@@ -105,6 +105,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	FamousDerelictIntel.LocationGranularity granularity = null;
 	float cost = 0;
 	boolean rivalSalvageFleet = false;
+	float ambushFleetFP = 0;
 
 	protected void reset() {
 		ship = null;
@@ -124,6 +125,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		granularity = null;
 		cost = 0;
 		rivalSalvageFleet = false;
+		ambushFleetFP = 0;
 	}
 	protected boolean isValidDerelictIntel() {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
@@ -311,7 +313,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		try {
 			playerFleet = Global.getSector().getPlayerFleet();
 			if (playerFleet == null) return;
-			if (!Global.getSettings().isDevMode() && this.market == market) return;
+			//if (!Global.getSettings().isDevMode() && this.market == market) return;
+            if (this.market == market) return;
 
 			super.regen(market);
 
@@ -346,7 +349,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
                 allowCrew = random.nextFloat() <= timeScale.survivorChance;
                 rivalSalvageFleet = random.nextFloat() <= timeScale.salvagerChance;
 				cost = random.nextInt(rivalSalvageFleet ? 4 : 6) * ship.getHullSpec().getBaseValue() * 0.03f;
-
+				ambushFleetFP = ModPlugin.FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET
+						&& random.nextFloat() <= timeScale.baseAmbushChance * (ship.getHullSpec().getFleetPoints() / 15f)
+						? Math.max(0, ship.getHullSpec().getFleetPoints() - 10 * random.nextFloat()) * 8
+						: 0;
 
                 switch (granularity) {
 					case CONSTELATION: cost *= 0; break;
@@ -376,18 +382,26 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				faction = Global.getSector().getFaction(Factions.NEUTRAL);
 			} else {
 				List<CampaignFleetAPI> eligibleFleets = new LinkedList<>();
+				HashMap<String, FactionAPI> bountyFactions = new HashMap<>();
 
 				if(random.nextFloat() < 0.3f) { // Choose a bounty target
                     flagshipType = "Bounty";
-					List<IntelInfoPlugin> bounties = Global.getSettings().getModManager().isModEnabled("vayrasector")
-							? Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class)
-							: Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class);
+                    boolean vayraBounties = Global.getSettings().getModManager().isModEnabled("vayrasector");
+
+					List<IntelInfoPlugin> bounties = Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class);
+					if(vayraBounties) bounties.addAll(Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class));
 
 					for (IntelInfoPlugin bounty : bounties) {
 						for (CampaignFleetAPI flt : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
 							if(flt.getFaction().getId().equals(Factions.NEUTRAL)
 									&& bounty.getTimeRemainingFraction() > 0.5f
 									&& !isFleetClaimed(flt)) {
+
+								// TODO
+//								if(vayraBounties && bounty instanceof VayraPersonBountyIntel) {
+//									bountyFactions.put(flt.getId(), ((VayraPersonBountyIntel)bounty).getBountyFaction());
+//								} else bountyFactions.put(flt.getId(), Global.getSector().getFaction(Factions.PIRATES));
+
 
 								eligibleFleets.add(flt);
 							}
@@ -605,6 +619,11 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					}
 
 					activity = activity == null || activity.equals("null") ? "somewhere " : activity;
+
+					if( fleet.isInCurrentLocation()) {
+						if (activity.startsWith("raiding")) activity = "raiding ";
+						else if (activity.startsWith("patrolling")) activity = "patrolling ";
+					}
 
 					text.addPara("With an excess of dramatic gestures and exclamations, the storyteller delivers an amateurish " +
 							"narration about %s commander named " + name + " and " + hisOrHer + " flagship, the " + ship.getShipName() +

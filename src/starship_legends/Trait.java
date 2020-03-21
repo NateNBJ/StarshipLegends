@@ -12,6 +12,7 @@ import starship_legends.hullmods.Reputation;
 import java.util.ArrayList;
 import java.util.List;
 import java.awt.Color;
+import java.util.Objects;
 import java.util.Set;
 
 public class Trait implements Comparable<Trait> {
@@ -170,5 +171,19 @@ public class Trait implements Comparable<Trait> {
     @Override
     public int compareTo(@NotNull Trait trait) {
         return this.toString().compareTo(trait.toString());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Trait trait = (Trait) o;
+        return effectSign == trait.effectSign &&
+                typeID.equals(trait.typeID);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(typeID, effectSign);
     }
 }
