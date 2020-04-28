@@ -4,7 +4,6 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
@@ -170,7 +169,7 @@ public class Trait implements Comparable<Trait> {
     }
 
     @Override
-    public int compareTo(@NotNull Trait trait) {
+    public int compareTo(Trait trait) {
         return this.toString().compareTo(trait.toString());
     }
 
