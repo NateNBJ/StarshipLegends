@@ -278,7 +278,8 @@ public class Util {
 
             Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
-            trait.addParagraphTo(tooltip, tier, loyaltyEffectAdjustment, requiresCrew, size, false);
+            trait.addParagraphTo(tooltip, tier, loyaltyEffectAdjustment, requiresCrew, size, false,
+                    rep.equals(FactionConfig.getEnemyFleetRep()));
         }
     }
     public static void showTraits(TextPanelAPI textPanel, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {

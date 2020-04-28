@@ -140,7 +140,8 @@ public class FactionConfig {
         ForcedRepPreset preset = getPreset(commander);
 
         if(preset != null && preset.defaultNumberOfForcedTraits > 0) {
-            return (int)(preset.defaultNumberOfForcedTraits * (Trait.getTraitLimit() / (float)ModPlugin.DEFAULT_TRAIT_LIMIT));
+            return (int)(preset.defaultNumberOfForcedTraits
+                    * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / (float)ModPlugin.DEFAULT_TRAIT_LIMIT));
         } else if(commander != null && !commander.isDefault()) {
             return (int)(ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER
                     + (commander.getStats().getLevel() / Global.getSettings().getFloat("officerMaxLevel"))

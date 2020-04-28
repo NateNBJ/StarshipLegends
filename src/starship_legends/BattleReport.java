@@ -75,17 +75,15 @@ public class BattleReport extends BaseIntelPlugin {
         Color tc = getBulletColorForMode(mode);
         float initPad = (mode == ListInfoMode.IN_DESC) ? opad : pad;
 
-        info.addPara("Battle report: " + (wasVictory ? "Victory" : "Defeat"), 0f,tc);
+        if(enemyFaction != null) {
+            info.addPara("Battle against %s", 0f, tc, enemyFaction.getColor(), Misc.ucFirst(enemyFaction.getDisplayName()));
+        } else info.addPara("Battle report", 0f,tc);
 
         bullet(info);
         //boolean isUpdate = getListInfoParam() != null; // true if notification?
 
-        if(enemyFaction != null) {
-            info.addPara("Opposition: %s", initPad, tc, enemyFaction.getColor(), Misc.ucFirst(enemyFaction.getDisplayName()));
-        }
-
         float days = Global.getSector().getClock().getElapsedDaysSince(timestamp);
-        info.addPara("Occurred " + (days < 1 ? "%s" : "%s days ago") , pad, tc, Misc.getHighlightColor(),
+        info.addPara("Occurred " + (days < 1 ? "%s" : "%s days ago") , initPad, tc, Misc.getHighlightColor(),
                 days < 1 ? "today" : (int)days + "");
 
         int changeCount = 0;
@@ -126,7 +124,7 @@ public class BattleReport extends BaseIntelPlugin {
             TooltipMakerAPI outer = panel.createUIElement(width, height, true);
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);
             TooltipMakerAPI e = inner.createUIElement(width, totalHeight + noteCount * NOTE_HEIGHT, false);
-            String resultMaybe = (wasVictory != null) ? (wasVictory ?  "- Victory!" : "- Defeat!") : "";
+            String resultMaybe = "";//(wasVictory != null) ? (wasVictory ?  "- Victory!" : "- Defeat!") : "";
 
             outer.addCustom(inner, 0);
             e.addSectionHeading(" Battle Report " + resultMaybe, Alignment.LMID, 10);

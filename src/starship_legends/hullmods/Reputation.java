@@ -76,6 +76,7 @@ public class Reputation extends BaseHullMod {
         try {
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
+            float effectMult = id.equals(ENEMY_HULLMOD_ID) ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1.0f;
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
                 loyaltyEffectAdjustment = rep.getLoyalty(captain).getTraitAdjustment();
@@ -85,7 +86,8 @@ public class Reputation extends BaseHullMod {
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
-                float e = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size);
+                float e = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size)
+                        * effectMult;
 
                 if(isFighter) {
                     switch (trait.getTypeId()) {
@@ -517,7 +519,7 @@ public class Reputation extends BaseHullMod {
                     previousTier = currentTier;
                 }
 
-                trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false);
+                trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false, false);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }

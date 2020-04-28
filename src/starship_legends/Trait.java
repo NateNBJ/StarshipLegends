@@ -19,10 +19,10 @@ public class Trait implements Comparable<Trait> {
     public enum Tier {
         Notable, Wellknown, Famous, Legendary, UNKNOWN;
 
-        long xpToGuaranteeNewTrait = 1;
+        float traitChancePerXp = 1;
         float effectMultiplier = 0;
 
-        public float getXpToGuaranteeNewTrait() { return xpToGuaranteeNewTrait; }
+        public float getTraitChancePerXp() { return traitChancePerXp; }
         public float getEffectMultiplier() {
             return effectMultiplier;
         }
@@ -87,7 +87,7 @@ public class Trait implements Comparable<Trait> {
 
         public void init(JSONObject cfg) throws JSONException {
             JSONObject o = cfg.getJSONObject(name().toLowerCase());
-            xpToGuaranteeNewTrait = Math.max(1, o.getLong("xpToGuaranteeNewTrait"));
+            traitChancePerXp = (float) o.getDouble("traitChancePerXp");
             effectMultiplier = (float) o.getDouble("effectMult");
         }
     }
@@ -139,8 +139,9 @@ public class Trait implements Comparable<Trait> {
         }
     }
 
-    public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet) {
-        float effect = getEffect(tier, loyaltyEffectAdjustment, hullSize);
+    public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
+        float effect = getEffect(tier, loyaltyEffectAdjustment, hullSize)
+                * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1);
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
         tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
     }

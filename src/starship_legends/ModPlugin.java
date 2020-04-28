@@ -64,7 +64,8 @@ public class ModPlugin extends BaseModPlugin {
 
     public static float
             GLOBAL_EFFECT_MULT = 1,
-            MAX_XP_FOR_RESERVED_SHIPS = 80000,
+            FLEET_TRAIT_EFFECT_MULT = 2,
+            //MAX_XP_FOR_RESERVED_SHIPS = 80000,
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
             BONUS_CHANCE_FOR_CIVILIAN_SHIPS = 0.5f,
 
@@ -80,9 +81,16 @@ public class ModPlugin extends BaseModPlugin {
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
-            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = 1.0f,
+            TRAIT_CHANCE_MULT_FLAT = 0.1f,
+            TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = 0.005f,
+            TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = 0.01f,
+            TRAIT_CHANCE_MULT_PER_FLEET_POINT = 0.0075f,
+            TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = 0.01f,
+            TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = 0.005f,
+
+            //TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = 1.0f,
             TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
-            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.25f,
+            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.0f,
 
             TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = 0,
             TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = 0,
@@ -393,12 +401,21 @@ public class ModPlugin extends BaseModPlugin {
             MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = cfg.getBoolean("multiplyRatingLossesByPercentageOfLostHull");
 
             GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
+            FLEET_TRAIT_EFFECT_MULT = (float) cfg.getDouble("fleetTraitEffectMult");
             TRAITS_PER_TIER = cfg.getInt("traitsPerTier");
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = cfg.getInt("daysMothballedPerTraitToResetReputation");
 
+            TRAIT_CHANCE_MULT_FLAT = (float) cfg.getDouble("traitChanceMultFlat");
+            TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("traitChanceMultPerPlayerCaptainLevel");
+            TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("traitChanceMultPerNonPlayerCaptainLevel");
+            TRAIT_CHANCE_MULT_PER_FLEET_POINT = (float) cfg.getDouble("traitChanceMultPerFleetPoint");
+            TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageTakenPercent");
+            TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageDealtPercent");
+
+//            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = (float) cfg.getDouble("traitChanceMultForDeployedShips");
+//            MAX_XP_FOR_RESERVED_SHIPS = (float) cfg.getDouble("maxXpForReservedShips");
             TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCombatShips");
             TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCivilianShips");
-            MAX_XP_FOR_RESERVED_SHIPS = (float) cfg.getDouble("maxXpForReservedShips");
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("traitChanceBonusPerPlayerLevel");
 
             BASE_RATING = (float) cfg.getDouble("baseRating");
@@ -433,7 +450,6 @@ public class ModPlugin extends BaseModPlugin {
             FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousFlagshipBarEventChance");
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
 
-            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = (float) cfg.getDouble("traitChanceMultForDeployedShips");
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
 
             ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;

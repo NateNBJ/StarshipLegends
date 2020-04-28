@@ -35,6 +35,8 @@ import starship_legends.*;
 
 import java.util.*;
 
+import static starship_legends.events.FamousDerelictIntel.LocationGranularity.CONSTELATION;
+
 public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	public static final String KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY = "$sun_sl_fsme_acceptedAtThisMarket";
 	public static float MAX_RATING = 1.1f;
@@ -47,6 +49,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		INQUIRE,
 		BOGUS_STORY,
 		ACCEPT,
+		DOUBLE_DOWN,
 		LEAVE,
 	}
 
@@ -104,7 +107,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	FamousDerelictIntel.TimeScale timeScale = null;
 	FamousDerelictIntel.LocationGranularity granularity = null;
 	float cost = 0;
-	boolean rivalSalvageFleet = false;
+	boolean rivalSalvageFleet = false, rivalOriginIsKnown = false;
 	float ambushFleetFP = 0;
 
 	protected void reset() {
@@ -130,6 +133,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected boolean isValidDerelictIntel() {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null
+				&& (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
 				&& ship.getVariant().getModuleSlots().isEmpty();
 		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
 
@@ -347,7 +351,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
                 traitCount = timeScale.chooseTraitCount(random);
                 granularity = timeScale.chooseLocationGranularity(random);
                 allowCrew = random.nextFloat() <= timeScale.survivorChance;
-                rivalSalvageFleet = random.nextFloat() <= timeScale.salvagerChance;
+                rivalSalvageFleet = random.nextFloat() <= timeScale.salvagerChance && granularity != CONSTELATION;
 				cost = random.nextInt(rivalSalvageFleet ? 4 : 6) * ship.getHullSpec().getBaseValue() * 0.03f;
 				ambushFleetFP = ModPlugin.FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET
 						&& random.nextFloat() <= timeScale.baseAmbushChance * (ship.getHullSpec().getFleetPoints() / 15f)
@@ -397,11 +401,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 									&& bounty.getTimeRemainingFraction() > 0.5f
 									&& !isFleetClaimed(flt)) {
 
-								// TODO
+								// TODO - Once vayra gives access to getBountyFaction, Fix famous flagship descriptions always show faction as pirates for flagships of fleets spawned by Vayra's sector bounty mission
 //								if(vayraBounties && bounty instanceof VayraPersonBountyIntel) {
 //									bountyFactions.put(flt.getId(), ((VayraPersonBountyIntel)bounty).getBountyFaction());
 //								} else bountyFactions.put(flt.getId(), Global.getSector().getFaction(Factions.PIRATES));
-
 
 								eligibleFleets.add(flt);
 							}
@@ -693,12 +696,12 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				case INQUIRE: {
 					dialog.getVisualPanel().showPersonInfo(getPerson(), true);
 
-					String accept,
+					String accept, payDouble = null,
 							reject = "Bid the storyteller farewell and leave in search of more promising prospects",
 							desc = "After a few minutes you get an opportunity to introduce yourself in private and ask about the "
 									+ ship.getShipName() + ".";
 
-					if (timeScale.ordinal() > 1 && granularity == FamousDerelictIntel.LocationGranularity.CONSTELATION) {
+					if (timeScale.ordinal() > 1 && granularity == CONSTELATION) {
 						desc += " \"Oh, that's just an old " + (timeScale.ordinal() == 3 ? "legend" : "story") +
 								", I'm afraid\" the storyteller explains wistfully. " +
 								"\"No one has seen the " + ship.getShipName() + " in " + timeScale.getName().toLowerCase() +
@@ -707,7 +710,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								"don't like your odds of finding it.";
 						accept = "Try to find the long-lost derelict in spite of " + getHisOrHer() + " warning";
 						reject = "Heed " + getHisOrHer() + " advice and forget about this fool's errand";
-					} else if (granularity == FamousDerelictIntel.LocationGranularity.CONSTELATION) {
+					} else if (granularity == CONSTELATION) {
 						desc += " The storyteller rambles on for a bit, speculating about where the lost derelict might be, but " +
 								"it quickly becomes apparent that " + getHeOrShe() + " doesn't know anything useful.";
 						accept = "Record what you've learned anyway, in the hope of someday finding the lost ship";
@@ -742,9 +745,12 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							if (rivalSalvageFleet) {
 								desc += "The storyteller becomes evasive when you ask how many times " + getHeOrShe()
 										+ "'s sold this information.";
+
+								payDouble = "Offer " + Misc.getDGSCredits(cost * 2) + " for the location of both the " +
+										"derelict and any fleet planning to recover it.";
 							} else {
 								desc += "The storyteller assures you that " + getHeOrShe() + " hasn't divulged the derelict's " +
-										" location to anyone else, and agrees not to if you strike a deal.";
+										"location to anyone else, and agrees not to if you strike a deal.";
 							}
 
 							desc += " After some haggling, the fee ends up being %s.";
@@ -757,6 +763,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 
 					options.addOption(accept, OptionId.ACCEPT);
+					if(payDouble != null) options.addOption(payDouble, OptionId.DOUBLE_DOWN);
 					options.addOption(reject, OptionId.LEAVE);
 					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 
@@ -764,14 +771,20 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						options.setEnabled(OptionId.ACCEPT, false);
 						options.setTooltip(OptionId.ACCEPT, "You don't have enough credits.");
 					}
+
+					if (payDouble != null && cost > 0 && cost * 2 > purse.get()) {
+						options.setEnabled(OptionId.DOUBLE_DOWN, false);
+						options.setTooltip(OptionId.DOUBLE_DOWN, "You don't have enough credits.");
+					}
 					break;
 				}
-				case BOGUS_STORY:
+				case BOGUS_STORY: {
 					text.addPara("For a while you listen to the story, but it quickly becomes obvious that it's nothing " +
-									"but a fanciful fabrication.");
+							"but a fanciful fabrication.");
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
 					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 					break;
+				}
 				case ACCEPT:
 					if(cost > 0) {
 						purse.subtract(cost);
@@ -779,16 +792,25 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					}
 
 					createIntel();
-					noContinue = true;
-					done = true;
+					done = noContinue = true;
+					break;
+				case DOUBLE_DOWN:
+					if(cost > 0) {
+						purse.subtract(cost * 2);
+						AddRemoveCommodity.addCreditsLossText((int) cost * 2, text);
+					}
+
+					rivalOriginIsKnown = true;
+
+					createIntel();
+					done = noContinue = true;
 					break;
 				case LEAVE:
 					if(newFleetWasCreated && fleet != null && fleet.getContainingLocation() != null) {
 						fleet.getContainingLocation().removeEntity(fleet);
 					}
 
-					noContinue = true;
-					done = true;
+					done = noContinue = true;
 					break;
 			}
 		} catch (Exception e) {

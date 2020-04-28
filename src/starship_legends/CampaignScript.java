@@ -15,7 +15,6 @@ import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.events.FamousShipBarEvent;
 import starship_legends.hullmods.Reputation;
 
-import java.io.Console;
 import java.util.*;
 import java.util.List;
 
@@ -96,12 +95,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
         return xpEarned;
     }
     public static void growRepForPeacefulXp(long xp) {
+        float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
+                * Global.getSector().getPlayerStats().getLevel();
+
         for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
             RepChange rc = new RepChange(ship);
-            float xpToGuarantee = RepRecord.getXpToGuaranteeNewTrait(ship);
-            float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
-                    * Global.getSector().getPlayerStats().getLevel();
-            float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
+            float chancePerXp = RepRecord.getTraitChancePerXp(ship);
+            float traitChance = xp * chancePerXp * playerLevelBonus;
 
             traitChance *= ship.getHullSpec().isCivilianNonCarrier()
                     ? ModPlugin.TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS
@@ -205,17 +205,26 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
                 RepChange rc = new RepChange(ship, br, deployedShips.contains(ship), disabledShips.contains(ship));
 
-                float xpToGuarantee = RepRecord.getXpToGuaranteeNewTrait(ship);
+                float chancePerXp = RepRecord.getTraitChancePerXp(ship);
                 float playerLevelBonus = 1 + ModPlugin.TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL
                         * Global.getSector().getPlayerStats().getLevel();
-                float xp = xpEarned * (ship.getHullSpec().getFleetPoints() / 30f + br.fractionDamageTaken + br.damageDealt);
-                xp = rc.deployed ? xp : Math.min(xp, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
-                float traitChance = (xp / xpToGuarantee) * playerLevelBonus;
+                //xp = rc.deployed ? xp : Math.min(xp, ModPlugin.MAX_XP_FOR_RESERVED_SHIPS);
+                float traitChance = xpEarned * chancePerXp * playerLevelBonus;
                 int adjustmentSign = 0;
                 float bonusChance;
 
-                if(rc.deployed) {
-                    traitChance *= ModPlugin.TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS;
+                if(rc.deployed && br.supportContribution > 0) {
+                    float traitChanceMultPerCaptainLevel = br.originalCaptain.isPlayer()
+                            ? ModPlugin.TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL
+                            : ModPlugin.TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
+
+                    traitChance *= ModPlugin.TRAIT_CHANCE_MULT_FLAT
+                            + ModPlugin.TRAIT_CHANCE_MULT_PER_FLEET_POINT * ship.getHullSpec().getFleetPoints()
+                            + ModPlugin.TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT * br.fractionDamageTaken * 100f
+                            + ModPlugin.TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT * br.damageDealt * 100f
+                            + traitChanceMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
+
+                    //traitChance *= ModPlugin.TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS;
                 } else {
                     traitChance *= ship.getHullSpec().isCivilianNonCarrier()
                             ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
@@ -224,7 +233,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if(ship.getHullSpec().isCivilianNonCarrier()) {
                     rc.newRating = bonusChance = br.rating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
-                } else if(rc.deployed) {
+                } else if(rc.deployed && br.supportContribution > 0) {
                     if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
                         rc.newRating = br.rating;
                         bonusChance = br.rating;

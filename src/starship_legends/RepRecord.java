@@ -5,7 +5,6 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
-import com.fs.starfarer.api.combat.WeaponAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
@@ -102,15 +101,15 @@ public class RepRecord {
         adjustmentRating = Math.max(-1, Math.min(2, adjustmentRating));
         return Math.max(-0.004f, initialRating * (1f-adjustmentWeight) + adjustmentRating * adjustmentWeight);
     }
-    public static float getXpToGuaranteeNewTrait(FleetMemberAPI ship) {
-        if(!RepRecord.existsFor(ship)) return Trait.Tier.Notable.getXpToGuaranteeNewTrait();
+    public static float getTraitChancePerXp(FleetMemberAPI ship) {
+        if(!RepRecord.existsFor(ship)) return Trait.Tier.Notable.getTraitChancePerXp();
 
         RepRecord rr = RepRecord.get(ship);
         int increase = 1;
 
         for (RepChange c : CampaignScript.pendingRepChanges.val) if(c.ship == ship && c.trait != null) increase++;
 
-        return getTierFromTraitCount(rr.traits.size() + increase).getXpToGuaranteeNewTrait();
+        return getTierFromTraitCount(rr.traits.size() + increase).getTraitChancePerXp();
     }
     public static boolean isTraitRelevantForShip(FleetMemberAPI ship, Trait trait, boolean allowBadDefenseTrait,
                                                  boolean allowBadOffenseTrait, boolean allowCrewTrait) {

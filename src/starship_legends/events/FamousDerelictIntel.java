@@ -89,7 +89,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 	public static final String MEMORY_KEY = "$sun_sl_famousDerelictKey";
 
 	boolean derelictRecoveredByPlayer = false, derelictRecoveredByRival = false, survivorsWereRescued = false,
-			fleetsDespawning = false;
+			fleetsDespawning = false, rivalOriginIsKnown = false;
 
 	protected FleetMemberAPI ship;
 	protected final SectorEntityToken derelict;
@@ -312,6 +312,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		market = event.getMarket();
 		timeScale = event.timeScale;
 		ambushFleet = event.ambushFleetFP > 0 ? spawnAmbushFleet(event) : null;
+		rivalOriginIsKnown = event.rivalOriginIsKnown;
 
 		if(event.rivalSalvageFleet) {
 			WeightedRandomPicker<SectorEntityToken> eligibleMarkets = new WeightedRandomPicker<>();
@@ -351,7 +352,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 	public void updateFleetActions() {
 		if(fleetsDespawning) return;
 
-		if(MAX_DURATION < Global.getSector().getClock().getElapsedDaysSince(timestamp)) {
+		if(MAX_DURATION * 1.25f < Global.getSector().getClock().getElapsedDaysSince(timestamp)) {
 			sendRivalFleetHome();
 			despawnAmbushFleet();
 			fleetsDespawning = true;
@@ -441,18 +442,34 @@ public class FamousDerelictIntel extends FleetLogIntel {
 
 			if(rivalFleet != null) {
 				int daysLeft = (int)getDaysRemaining();
-				String msg = "It is likely that others are searching for the " + ship.getShipName() + " as well";
 
-				msg += daysLeft > 0
-						? ", but you should have about %s before it is recovered by someone else."
-						: ". It was probably %s by now. If so, it might still be possible to find the recovery fleet"
-								+ " on its way back to the core worlds.";
+				if(rivalOriginIsKnown) {
+					String msg = "A " + rivalFleet.getName().toLowerCase() + " fleet originating from %s ";
 
-				String days = daysLeft > 1 ? daysLeft + " days" : "a day";
+					msg += daysLeft > 0
+							? "is also planning to recover the " + ship.getShipName() + ", but it should take them at least another %s to do so."
+							: "has likely %s the " + ship.getShipName() + ", but it may still be possible to intercept" +
+								" the fleet on its way back to " + rivalOrigin.getName() + ".";
 
-				info.addPara(msg, 10,
-						Misc.getTextColor(), Misc.getHighlightColor(), daysLeft > 0
-								? days : "already recovered by someone else");
+					String origin = rivalOrigin.getFullName() + " in the " + rivalOrigin.getStarSystem().getName(),
+							days = daysLeft > 1 ? daysLeft + " days" : "a day";
+
+					info.addPara(msg, 10,Misc.getTextColor(), Misc.getHighlightColor(), origin,
+							daysLeft > 0 ? days : "already recovered");
+
+				} else {
+					String msg = "It is likely that others are searching for the " + ship.getShipName() + " as well";
+
+					msg += daysLeft > 0
+							? ", but you should have about %s before it is recovered by someone else."
+							: ". It was probably %s by now. If so, it might still be possible to find the recovery fleet"
+							+ " on its way back to the core worlds.";
+
+					String days = daysLeft > 1 ? daysLeft + " days" : "a day";
+
+					info.addPara(msg, 10, Misc.getTextColor(), Misc.getHighlightColor(),
+							daysLeft > 0? days : "already recovered by someone else");
+				}
 			}
 
 			if(Global.getSettings().isDevMode()) {
