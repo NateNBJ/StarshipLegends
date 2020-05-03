@@ -7,6 +7,7 @@ import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
+import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
@@ -32,7 +33,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public CampaignScript() { super(true); }
 
-    static boolean isResetNeeded = false;
+    static boolean isResetNeeded = false, damageOnlyDealtViaNukeCommand = true;
     static float playerFP = 0, enemyFP = 0, fpWorthOfDamageDealtDuringEngagement = 0;
     static long previousXP = Long.MAX_VALUE;
     static Random rand = new Random();
@@ -122,6 +123,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             playerFP = 0;
             enemyFP = 0;
             fpWorthOfDamageDealtDuringEngagement = 0;
+            damageOnlyDealtViaNukeCommand = true;
             playerDeployedFP.clear();
             enemyDeployedFP.clear();
             battleRecords.clear();
@@ -212,8 +214,9 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 float traitChance = xpEarned * chancePerXp * playerLevelBonus;
                 int adjustmentSign = 0;
                 float bonusChance;
+                boolean participatedInBattle = rc.deployed && (br.supportContribution > 0 || damageOnlyDealtViaNukeCommand);
 
-                if(rc.deployed && br.supportContribution > 0) {
+                if(participatedInBattle) {
                     float traitChanceMultPerCaptainLevel = br.originalCaptain.isPlayer()
                             ? ModPlugin.TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL
                             : ModPlugin.TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
@@ -233,7 +236,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if(ship.getHullSpec().isCivilianNonCarrier()) {
                     rc.newRating = bonusChance = br.rating = ModPlugin.BONUS_CHANCE_FOR_CIVILIAN_SHIPS;
-                } else if(rc.deployed && br.supportContribution > 0) {
+                } else if(participatedInBattle) {
                     if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE) {
                         rc.newRating = br.rating;
                         bonusChance = br.rating;
@@ -285,32 +288,35 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     msg += "FAILED";
 
                     float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULT;
+                    boolean traitsWereShuffled = false;
 
-                    if(rc.deployed && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
+                    if(participatedInBattle && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f); // The goodness (not direction) of the shuffle
-
 
                         if(adjustmentSign == 0 || sign == adjustmentSign) {
                             msg += NEW_LINE + "Chance to Shuffle a Trait " + (sign < 0 ? "Worse" : "Better") + ": "
                                     + (int) (shuffleChance * 100) + "% - ";
 
-                            Trait[] shuffleTraits = rep.chooseTraitsToShuffle(sign, rc.newRating);
+                            Trait[] shuffleTraits = rep.chooseTraitsToShuffle(ship, sign, rc.newRating);
 
                             if (rep.getTraits().size() <= 2) {
                                 msg += "TOO FEW TRAITS";
                             } else if (shuffleTraits != null && rand.nextFloat() <= shuffleChance) {
                                 rc.setTraitChange(shuffleTraits, sign);
+                                traitsWereShuffled = true;
                                 msg += "SUCCEEDED";
                             } else {
                                 msg += "FAILED";
                             }
                         }
-                    } else {
+                    }
+
+                    if(!traitsWereShuffled) {
                         for(int i = rep.getTraits().size() - 1; i >= 0; --i) {
                             Trait trait = rep.getTraits().get(i);
 
                             if(trait.getType().getTags().contains(TraitType.Tags.DMOD)
-                                    && !RepRecord.isTraitRelevantForShip(ship, trait, true, true, true)) {
+                                    && !trait.isRelevantFor(ship)) {
 
                                 boolean isNewestTrait = i == rep.getTraits().size() - 1;
                                 Trait[] shuffleTraits = isNewestTrait
@@ -450,6 +456,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             EngagementResultForFleetAPI ef = !result.didPlayerWin()
                     ? result.getWinnerResult()
                     : result.getLoserResult();
+
+            if(pf.getGoal() == FleetGoal.ESCAPE || fpWorthOfDamageDealtDuringEngagement > 0) {
+                damageOnlyDealtViaNukeCommand = false;
+            }
 
             disabledShips.addAll(pf.getDisabled());
             disabledShips.addAll(pf.getDestroyed());

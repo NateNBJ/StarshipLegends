@@ -36,7 +36,7 @@ public class AdjustTraits implements BaseCommand {
                     RepRecord rep = RepRecord.get(ship);
                     int sign = shuffleSign == 0 ? rep.getTraitAdjustSign() : shuffleSign;
                     float prevRatingDiscrepancy = rep.getRatingDiscrepancy();
-                    Trait[] traits = rep.chooseTraitsToShuffle(sign);
+                    Trait[] traits = rep.chooseTraitsToShuffle(ship, sign);
 
                     if(traits == null) {
                         Console.showMessage("Could not adjust traits of the " + ship.getShipName());

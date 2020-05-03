@@ -65,7 +65,11 @@ public class RepRecord {
         Trait.Tier tier = RepRecord.get(ship).getTeir();
         ShipVariantAPI v;
 
-        if(tier == Trait.Tier.UNKNOWN) return;
+        if(tier == Trait.Tier.UNKNOWN) {
+            Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
+            Util.removeRepHullmodFromVariant(ship.getVariant());
+            return;
+        }
 
         if(ship.getVariant().isStockVariant()) {
             v = ship.getVariant().clone();
@@ -423,13 +427,13 @@ public class RepRecord {
     public int getTraitAdjustSign() {
         return (int)Math.signum(getRating() - getFractionOfBonusEffectFromTraits());
     }
-    public Trait[] chooseTraitsToShuffle() {
-        return chooseTraitsToShuffle(getTraitAdjustSign() , getRating());
+    public Trait[] chooseTraitsToShuffle(FleetMemberAPI ship) {
+        return chooseTraitsToShuffle(ship, getTraitAdjustSign() , getRating());
     }
-    public Trait[] chooseTraitsToShuffle(int sign) {
-        return chooseTraitsToShuffle(sign, getRating());
+    public Trait[] chooseTraitsToShuffle(FleetMemberAPI ship, int sign) {
+        return chooseTraitsToShuffle(ship, sign, getRating());
     }
-    public Trait[] chooseTraitsToShuffle(int sign, float rating) {
+    public Trait[] chooseTraitsToShuffle(FleetMemberAPI ship, int sign, float rating) {
         if(getTraits().size() <= 2) return null;
 
         float difNow = Math.abs(rating - getFractionOfBonusEffectFromTraits());
@@ -442,15 +446,12 @@ public class RepRecord {
             for(int i = getTraits().size() - 1; i >= 1; --i) {
                 Trait tUp = getTraits().get(i), tDown = getTraits().get(i - 1);
 
-                if(tUp.getEffectSign() == sign && tDown.getEffectSign() == -sign) return new Trait[] { tUp, tDown };
+                if(tUp.getEffectSign() == sign && tDown.getEffectSign() == -sign && tUp.isRelevantFor(ship)) {
+                    return new Trait[] { tUp, tDown };
+                }
 
-
-//                int j = t.getEffectSign() > 0 ? i - sign : i + sign;
-//                if(j >= 0 && j < getTraits().size() - 1
-//                        && getTraits().get(j).getEffectSign() == -t.getEffectSign()) {
-//
-//                    return t;
-//                }
+                // TODO - remove && sign == -1 to allow good traits to be removed more often?
+                if(newestTrait.getEffectSign() == -sign && sign == -1) return new Trait[] { newestTrait };
             }
         }
 

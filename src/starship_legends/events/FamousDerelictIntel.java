@@ -57,8 +57,10 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		}
 		public float getMinDistance() { return minDistance; }
 		public String getSurvivalDescription() {
-			return odds + ", a small fraction of the original crew has managed to survive after " + name().toLowerCase()
-					+ " within the cold husk of the ship.";
+			String inCryo = this == TimeScale.Months ? "" : " in cryosleep";
+
+			return odds + ", a small fraction of the original crew has managed to survive" + inCryo + " after "
+					+ name().toLowerCase() + " within the cold husk of the ship.";
 		}
 		public int chooseTraitCount(Random random) {
 			return (int)((minTraits + random.nextInt(maxTraits - minTraits))

@@ -46,6 +46,8 @@ public class RemoveTraits implements BaseCommand {
                             Console.showMessage(String.format(message, t.getName(true).toUpperCase()));
                         }
                     }
+
+                    RepRecord.updateRepHullMod(ship);
                 }
             }
 

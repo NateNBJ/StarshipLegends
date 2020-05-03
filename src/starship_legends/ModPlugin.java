@@ -236,7 +236,7 @@ public class ModPlugin extends BaseModPlugin {
                         List<Trait> traitsToRemove = new LinkedList<>();
 
                         for(Trait t : rep.getTraits()) {
-                            if(!RepRecord.isTraitRelevantForShip(ship, t, true, true, true)) {
+                            if(!t.isRelevantFor(ship)) {
                                 traitsToRemove.add(t);
                             }
                         }

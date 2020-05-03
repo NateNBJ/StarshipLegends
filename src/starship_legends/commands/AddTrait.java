@@ -52,7 +52,7 @@ public class AddTrait implements BaseCommand {
                     traitsCopy.remove(i);
 
                     if(!rep.hasTraitType(newTrait.getType())
-                            && (!requireRelevance || RepRecord.isTraitRelevantForShip(ship, newTrait, true, true, true))) {
+                            && (!requireRelevance || newTrait.isRelevantFor(ship))) {
 
                         rep.getTraits().add(newTrait);
                         RepRecord.updateRepHullMod(ship);

@@ -147,7 +147,7 @@ public class FactionConfig {
         } else return ModPlugin.TRAITS_FOR_FLEETS_WITH_NO_COMMANDER;
     }
     void chooseSettingsBasedOnFactionProperties() {
-        useCrewlessTraitNames = true;
+        //useCrewlessTraitNames = true;
 
         if(!getFaction().isShowInIntelTab()) {
             descriptionOverride = "The ships in this fleet have the following traits:";

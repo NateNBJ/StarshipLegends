@@ -1,6 +1,7 @@
 package starship_legends;
 
 import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
@@ -143,6 +144,10 @@ public class Trait implements Comparable<Trait> {
                 * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1);
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
         tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
+    }
+
+    public boolean isRelevantFor(FleetMemberAPI ship) {
+        return RepRecord.isTraitRelevantForShip(ship, this, true, true, true);
     }
 
     public String getTypeId() {
