@@ -399,6 +399,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						for (CampaignFleetAPI flt : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
 							if(flt.getFaction().getId().equals(Factions.NEUTRAL)
 									&& bounty.getTimeRemainingFraction() > 0.5f
+									&& fleetHasValidAssignment(flt)
+									&& !flt.isDespawning()
 									&& !isFleetClaimed(flt)) {
 
 								// TODO - Once vayra gives access to getBountyFaction, Fix famous flagship descriptions always show faction as pirates for flagships of fleets spawned by Vayra's sector bounty mission
@@ -456,7 +458,12 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						FleetFactory.PatrolType type = FleetFactory.PatrolType.values()[random.nextInt(FleetFactory.PatrolType.values().length)];
 						Vector2f at = source.getPrimaryEntity().getLocation();
 
-						fleet = MilitaryBase.createPatrol(type, source.getFactionId(), null, source, source.getLocationInHyperspace(), this.random);
+						try {
+							fleet = MilitaryBase.createPatrol(type, source.getFactionId(), null, source, source.getLocationInHyperspace(), this.random);
+						} catch (Exception e) {
+							Global.getLogger(ModPlugin.class).warn("Failed to generate remote fleet: " + source.getFactionId());
+							ModPlugin.reportCrash(e, false);
+						}
 
 						if (fleet == null || at == null) {
 							String nl = System.lineSeparator() + "    ";

@@ -121,8 +121,12 @@ public class FactionConfig {
                 String key = keys.next();
                 TraitType type = TraitType.get(key);
 
-                if(type != null && type.getTrait(!isGood) != null && entries.getDouble(key) > 0) {
-                    picker.put(type.getTrait(!isGood), (float)entries.getDouble(key));
+                if(type != null && type.getTrait(!isGood) != null) {
+                    float weight = (float)entries.getDouble(key);
+                    Trait trait = type.getTrait(!isGood);
+
+                    if(weight > 0) picker.put(trait, weight);
+                    else if(picker.containsKey(trait)) picker.remove(trait);
                 }
             }
         }
@@ -159,7 +163,13 @@ public class FactionConfig {
         }
 
         for(String specID : getFaction().getKnownShips()) {
-            ShipHullSpecAPI spec = Global.getSettings().getHullSpec(specID);
+            ShipHullSpecAPI spec = null;
+
+            try {
+                spec = Global.getSettings().getHullSpec(specID);
+            } catch (Exception e) {
+                Global.getLogger(FactionConfig.class).warn("Hull ID " + specID + " not found.");
+            }
 
             if(spec == null || spec.isCivilianNonCarrier() || spec.isDHull()
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
@@ -207,7 +217,13 @@ public class FactionConfig {
         else return INSTANCE_REGISTRY.get(Factions.PLAYER);
     }
     public static void addGlobalDerelict(String hullID, float probabilityWeight) {
-        ShipHullSpecAPI spec = Global.getSettings().getHullSpec(hullID);
+        ShipHullSpecAPI spec = null;
+
+        try {
+            spec = Global.getSettings().getHullSpec(hullID);
+        } catch (Exception e) {
+            Global.getLogger(FactionConfig.class).warn("Hull ID " + hullID + " not found.");
+        }
 
         if(spec == null) return;
 
@@ -313,7 +329,13 @@ public class FactionConfig {
     }
 
     public void addExclusiveDerelict(String hullID, float probabilityWeight) {
-        ShipHullSpecAPI spec = Global.getSettings().getHullSpec(hullID);
+        ShipHullSpecAPI spec = null;
+
+        try {
+            spec = Global.getSettings().getHullSpec(hullID);
+        } catch (Exception e) {
+            Global.getLogger(FactionConfig.class).warn("Hull ID " + hullID + " not found.");
+        }
 
         if(spec == null) return;
 
@@ -399,7 +421,7 @@ public class FactionConfig {
             desc = "The ships in " + commander.getNameString().trim() + "'s fleet are known for having the following traits:";
         }
 
-        if(commander != null) {
+        if(commander != null && !commander.isDefault() && commander.getPortraitSprite() != null) {
             TooltipMakerAPI tt = panel.beginTooltip();
             tt.beginImageWithText(commander.getPortraitSprite(), 48).addPara(desc, 3);
             tt.addImageWithText(3);

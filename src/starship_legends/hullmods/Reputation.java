@@ -399,6 +399,10 @@ public class Reputation extends BaseHullMod {
 
                 msg += "\n Please notify the mod author with this information.";
 
+                if(Global.getSettings().getModManager().isModEnabled("lw_console")) {
+                    msg += "\n\n Note that changes made using console commands from the refit screen will not be reflected immediately.";
+                }
+
                 tooltip.addPara(msg, 10, Misc.getNegativeHighlightColor());
 
                 return;

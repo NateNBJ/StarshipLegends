@@ -186,7 +186,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		);
 		params.random = random;
 
-		final CampaignFleetAPI fleet = FleetFactoryV3.createFleet(params);
+		final CampaignFleetAPI fleet = ModPlugin.createFleetSafely(params);
 
 		if (fleet == null || fleet.isEmpty()) return null;
 
@@ -244,7 +244,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 			params.withOfficers = true;
 			params.random = random;
 
-			fleet = FleetFactoryV3.createFleet(params);
+			fleet = ModPlugin.createFleetSafely(params);
 		}
 
 		derelict.getContainingLocation().addEntity(fleet);
@@ -268,7 +268,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 				+ ship.getShipName() + ". Your salvage crews determine that the ship could be restored to basic "
 				+ "functionality.");
 
-		if(rep.hasTraitWithTag(TraitType.Tags.CREW)) {
+		if(rep.hasTraitWithTag(TraitType.Tags.CREW) && ship.getMinCrew() > 1) {
 			if(survivorsWereRescued) {
 				text.addPara("The survivors of the " + ship.getShipName() + " volunteer to assist in the recovery "
 						+ "effort. They seem to be eager to reclaim it.");

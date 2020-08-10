@@ -29,7 +29,7 @@ public class AddTrait implements BaseCommand {
             if(requireRelevance) args = args.replace("relevant", "");
 
             String aa[] = args.split("to ");
-            List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "");
+            List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", relevant");
             List<FleetMemberAPI> ships = Util.getShipsMatchingDescription(aa.length > 1 ? aa[1] : "");
             Random rand = new Random();
 

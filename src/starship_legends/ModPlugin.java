@@ -4,12 +4,11 @@ import com.fs.starfarer.api.BaseModPlugin;
 import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.ModSpecAPI;
-import com.fs.starfarer.api.campaign.CampaignUIAPI;
-import com.fs.starfarer.api.campaign.FactionAPI;
-import com.fs.starfarer.api.campaign.SectorEntityToken;
-import com.fs.starfarer.api.campaign.StarSystemAPI;
+import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.fleets.FleetFactoryV3;
+import com.fs.starfarer.api.impl.campaign.fleets.FleetParamsV3;
 import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
 import com.thoughtworks.xstream.XStream;
 import org.json.JSONArray;
@@ -460,7 +459,21 @@ public class ModPlugin extends BaseModPlugin {
         }
     }
 
+    public static CampaignFleetAPI createFleetSafely(FleetParamsV3 params) {
+        try {
+            return FleetFactoryV3.createFleet(params);
+        } catch (Exception e) {
+            Global.getLogger(ModPlugin.class).warn("Failed to generate fleet: " + params.toString());
+            reportCrash(e, false);
+        }
+
+        return null;
+    }
+
     public static boolean reportCrash(Exception exception) {
+        return reportCrash(exception, true);
+    }
+    public static boolean reportCrash(Exception exception, boolean displayToUser) {
         try {
             String stackTrace = "", message = "Starship Legends encountered an error!\nPlease let the mod author know.";
 
@@ -471,7 +484,9 @@ public class ModPlugin extends BaseModPlugin {
 
             Global.getLogger(ModPlugin.class).error(exception.getMessage() + System.lineSeparator() + stackTrace);
 
-            if (Global.getCombatEngine() != null && Global.getCurrentState() == GameState.COMBAT) {
+            if(!displayToUser) {
+                return true;
+            } else if (Global.getCombatEngine() != null && Global.getCurrentState() == GameState.COMBAT) {
                 Global.getCombatEngine().getCombatUI().addMessage(1, Color.ORANGE, exception.getMessage());
                 Global.getCombatEngine().getCombatUI().addMessage(2, Color.RED, message);
             } else if (Global.getSector() != null && Global.getCurrentState() == GameState.CAMPAIGN) {

@@ -8,9 +8,18 @@ import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
 import starship_legends.*;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class RemoveTraits implements BaseCommand {
+    private void removeTrait(FleetMemberAPI ship, RepRecord rep, Trait trait) {
+        rep.getTraits().remove(trait);
+        String message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
+                + trait.getDescPrefix(ship.getMinCrew() > 0 || ship.isMothballed()) + " %s.";
+
+        Console.showMessage(String.format(message, trait.getName(true).toUpperCase()));
+    }
+
     @Override
     public CommandResult runCommand(String args, CommandContext context) {
         try {
@@ -21,17 +30,17 @@ public class RemoveTraits implements BaseCommand {
 
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
+            boolean removeIrrelevant = args.toLowerCase().contains("irrelevant");
 
-
-            boolean requireRelevance = args.toLowerCase().contains("relevant");
-
-            if(requireRelevance) args = args.replace("relevant", "");
+            if(removeIrrelevant) args = args.replace("irrelevant", "");
 
             String aa[] = args.split("from ");
-            List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "");
+            List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", irrelevant");
             List<FleetMemberAPI> ships = Util.getShipsMatchingDescription(aa.length > 1 ? aa[1] : "");
 
-            if(traits == null || traits.isEmpty() || ships == null ||  ships.isEmpty()) return CommandResult.BAD_SYNTAX;
+            if(removeIrrelevant && aa[0].toLowerCase().trim().isEmpty()) traits.clear();
+
+            if((!removeIrrelevant && (traits == null || traits.isEmpty())) || ships == null ||  ships.isEmpty()) return CommandResult.BAD_SYNTAX;
 
             for(FleetMemberAPI ship : ships) {
                 if(RepRecord.existsFor(ship)) {
@@ -39,11 +48,15 @@ public class RemoveTraits implements BaseCommand {
 
                     for (Trait t : traits) {
                         if (rep.hasTrait(t)) {
-                            rep.getTraits().remove(t);
-                            String message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
-                                    + t.getDescPrefix(ship.getMinCrew() > 0 || ship.isMothballed()) + " %s.";
+                            removeTrait(ship, rep, t);
+                        }
+                    }
 
-                            Console.showMessage(String.format(message, t.getName(true).toUpperCase()));
+                    if(removeIrrelevant) {
+                        for (Trait t : new LinkedList<>(rep.getTraits())) {
+                            if (!t.isRelevantFor(ship)) {
+                                removeTrait(ship, rep, t);
+                            }
                         }
                     }
 

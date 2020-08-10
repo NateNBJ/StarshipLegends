@@ -9,6 +9,7 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
 import starship_legends.events.FamousDerelictIntel;
@@ -468,9 +469,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             deployedShips.addAll(pf.getRetreated());
             deployedShips.addAll(disabledShips);
 
-            destroyedEnemies.addAll(ef.getDestroyed());
-            destroyedEnemies.addAll(ef.getDisabled());
-            routedEnemies.addAll(ef.getRetreated());
+            for(FleetMemberAPI ship : ef.getDestroyed()) {
+                destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+            }
+            for(FleetMemberAPI ship : ef.getDisabled()) {
+                destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+            }
+            for(FleetMemberAPI ship : ef.getRetreated()) {
+                routedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+            }
 
             previousXP = Global.getSector().getPlayerStats().getXP();
 
@@ -573,7 +580,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 previousXP = xp;
             } else if(previousXP < xp) {
                 // Don't change the order of these two lines
-                long dXp = Math.min(10000, getReAdjustedXp());
+                long dXp = Math.min(10000, Global.getSector().getPlayerStats().getXP() - previousXP);
                 growRepForPeacefulXp(dXp);
                 previousXP = xp;
             }

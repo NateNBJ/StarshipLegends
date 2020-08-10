@@ -1,6 +1,8 @@
 package starship_legends;
 
+import com.fs.starfarer.api.GameState;
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.CoreUITabId;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
@@ -178,10 +180,12 @@ public class RepRecord {
                     boolean hasTurretSlot = false;
 
                     for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
-                        if(slot.isTurret()) {
-                            hasTurretSlot = true;
-                            break;
+                        switch (slot.getWeaponType()) {
+                            case SYSTEM: case DECORATIVE: case STATION_MODULE: case LAUNCH_BAY: continue;
+                            default: hasTurretSlot = slot.isTurret(); break;
                         }
+
+                        if(hasTurretSlot) break;
                     }
 
                     if(!hasTurretSlot) return false;
