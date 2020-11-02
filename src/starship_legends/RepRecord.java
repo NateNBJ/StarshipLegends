@@ -89,6 +89,8 @@ public class RepRecord {
         for(int i = 0; i < slots.size(); ++i) {
             ShipVariantAPI module = v.getModuleVariant(slots.get(i));
 
+            if(module == null) continue;
+
             if(module.isStockVariant()) {
                 module = module.clone();
                 module.setSource(VariantSource.REFIT);
@@ -462,7 +464,7 @@ public class RepRecord {
         return null;
     }
     public boolean applyToShip(FleetMemberAPI ship) {
-        if(ship == null) return false;
+        if(ship == null || ship.getVariant() == null) return false;
 
         INSTANCE_REGISTRY.val.put(ship.getId(), this);
 

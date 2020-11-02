@@ -140,8 +140,8 @@ public class Trait implements Comparable<Trait> {
     }
 
     public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
-        float effect = getEffect(tier, loyaltyEffectAdjustment, hullSize)
-                * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1);
+        float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
+                * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
         tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
     }

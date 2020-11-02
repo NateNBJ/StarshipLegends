@@ -227,8 +227,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                             + ModPlugin.TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT * br.fractionDamageTaken * 100f
                             + ModPlugin.TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT * br.damageDealt * 100f
                             + traitChanceMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
-
-                    //traitChance *= ModPlugin.TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS;
                 } else {
                     traitChance *= ship.getHullSpec().isCivilianNonCarrier()
                             ? ModPlugin.TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS
@@ -285,13 +283,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                         rc.setTraitChange(RepRecord.chooseNewTrait(ship, rand, !traitIsBonus, rc.damageTakenFraction,
                                 rc.damageDealtPercent, rc.disabled));
                     }
-                } else {
+                } else if(participatedInBattle) {
                     msg += "FAILED";
 
                     float shuffleChance = Math.abs(bonusChance - 0.5f) * ModPlugin.TRAIT_POSITION_CHANGE_CHANCE_MULT;
                     boolean traitsWereShuffled = false;
 
-                    if(participatedInBattle && shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
+                    if(shuffleChance > 0.05f && !ModPlugin.IGNORE_ALL_MALUSES) {
                         int sign = (int)Math.signum(bonusChance - 0.5f); // The goodness (not direction) of the shuffle
 
                         if(adjustmentSign == 0 || sign == adjustmentSign) {
@@ -472,9 +470,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             for(FleetMemberAPI ship : ef.getDestroyed()) {
                 destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
             }
+
             for(FleetMemberAPI ship : ef.getDisabled()) {
                 destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
             }
+
+            routedEnemies.clear();
             for(FleetMemberAPI ship : ef.getRetreated()) {
                 routedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
             }

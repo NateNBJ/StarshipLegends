@@ -134,22 +134,30 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null
 				&& (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
+				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
 				&& ship.getVariant().getModuleSlots().isEmpty();
 		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
 
 		if(!isValid) {
-			String nl = System.lineSeparator() + "    ";
+			try {
+				String nl = System.lineSeparator() + "    ";
 
-			Global.getLogger(this.getClass()).error("Invalid derelict mission generated!"
-					+ nl + "rep: " + rep
-					+ nl + "ship: " + ship
-					+ nl + "derelict: " + derelict
-					+ nl + "orbitedBody: " + orbitedBody
-					+ nl + "wreckData: " + wreckData
-					+ nl + "timeScale: " + timeScale
-					+ nl + "granularity: " + granularity
-					+ nl + "constellation: " + (derelict == null ? null : derelict.getConstellation())
-			);
+				Global.getLogger(this.getClass()).error("Invalid derelict mission generated!"
+						+ nl + "rep: " + rep
+						+ nl + "ship: " + ship
+						+ nl + "derelict: " + derelict
+						+ nl + "orbitedBody: " + orbitedBody
+						+ nl + "wreckData: " + wreckData
+						+ nl + "timeScale: " + timeScale
+						+ nl + "granularity: " + granularity
+						+ nl + "constellation: " + (derelict == null ? null : derelict.getConstellation())
+						+ nl + "named constellation: " + (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
+						+ nl + "ship is boardable: " + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
+						+ nl + "ship has no modules: " + ship.getVariant().getModuleSlots().isEmpty()
+				);
+			} catch (Exception e) {
+				ModPlugin.reportCrash(e, false);
+			}
 		}
 
 		return isValid;
@@ -158,22 +166,30 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		if(!fleetHasValidAssignment(fleet) && flagshipType.equals("Remote")) setAssignmentForRemoteFleet();
 
 		boolean isValid = rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
-				&& commander != null && fleetHasValidAssignment(fleet) && ship.getVariant().getModuleSlots().isEmpty();
+				&& commander != null && fleetHasValidAssignment(fleet)
+				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
+				&& ship.getVariant().getModuleSlots().isEmpty();
 		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
 
 		if(!isValid) {
-			String nl = System.lineSeparator() + "    ";
-			
-			Global.getLogger(this.getClass()).error("Invalid flagship mission generated!"
-                    + nl + "type: " + flagshipType
-					+ nl + "rep: " + rep
-					+ nl + "ship: " + ship
-					+ nl + "faction: " + faction
-					+ nl + "fleet: " + fleet
-					+ nl + "commander: " + commander
-					+ nl + "fleetHasValidAssignment: " + (fleet == null ? false : fleetHasValidAssignment(fleet))
-					+ nl + "fleetNotDespawning: " + (fleet == null ? false : !fleet.isDespawning())
-			);
+			try {
+				String nl = System.lineSeparator() + "    ";
+
+				Global.getLogger(this.getClass()).error("Invalid flagship mission generated!"
+						+ nl + "type: " + flagshipType
+						+ nl + "rep: " + rep
+						+ nl + "ship: " + ship
+						+ nl + "faction: " + faction
+						+ nl + "fleet: " + fleet
+						+ nl + "commander: " + commander
+						+ nl + "fleetHasValidAssignment: " + (fleet == null ? false : fleetHasValidAssignment(fleet))
+						+ nl + "fleetNotDespawning: " + (fleet == null ? false : !fleet.isDespawning())
+						+ nl + "ship is boardable: " + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
+						+ nl + "ship has no modules: " + ship.getVariant().getModuleSlots().isEmpty()
+				);
+			} catch (Exception e) {
+				ModPlugin.reportCrash(e, false);
+			}
 		}
 
 
@@ -518,7 +534,12 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				}
 
 				if(fleet != null) {
-					fleet.inflateIfNeeded();
+					try {
+						fleet.inflateIfNeeded();
+					} catch (Exception e) {
+						Global.getLogger(this.getClass()).warn("Failed to inflate fleet");
+						ModPlugin.reportCrash(e, false);
+					}
 
 					commander = fleet.getCommander();
 					ship = fleet.getFlagship();

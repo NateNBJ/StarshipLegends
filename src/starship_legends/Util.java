@@ -229,6 +229,8 @@ public class Util {
         return strength;
     }
     public static void removeRepHullmodFromVariant(ShipVariantAPI v) {
+        if(v == null) return;
+
         v.removePermaMod("sun_sl_notable");
         v.removePermaMod("sun_sl_wellknown");
         v.removePermaMod("sun_sl_famous");

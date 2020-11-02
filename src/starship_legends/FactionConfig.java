@@ -121,7 +121,7 @@ public class FactionConfig {
                 String key = keys.next();
                 TraitType type = TraitType.get(key);
 
-                if(type != null && type.getTrait(!isGood) != null) {
+                if(type != null && type.isApplicableToFleets() && type.getTrait(!isGood) != null) {
                     float weight = (float)entries.getDouble(key);
                     Trait trait = type.getTrait(!isGood);
 
@@ -189,8 +189,8 @@ public class FactionConfig {
     private static RepRecord rep = null;
 
     public static void readDerelictChanceMultipliers(JSONArray list) throws JSONException {
-        int start = list.length() - 8;
-        // We're reading the last 8 entries, not the first, in-case someone has "overwritten" the list
+        int start = list.length() - 9;
+        // We're reading the last 9 entries, not the first, in-case someone has "overwritten" the list
 
         for(int i = start; i < list.length() - 1; i++) {
             float chance = (float) list.getDouble(i);

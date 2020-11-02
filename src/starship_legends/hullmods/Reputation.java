@@ -86,8 +86,8 @@ public class Reputation extends BaseHullMod {
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
-                float e = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size)
-                        * effectMult;
+                float e = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, effectMult
+                        * trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, size));
 
                 if(isFighter) {
                     switch (trait.getTypeId()) {

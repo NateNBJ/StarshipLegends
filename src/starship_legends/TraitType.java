@@ -50,6 +50,7 @@ public class TraitType {
     private Set<String> tags = new HashSet<>(), requiredBuiltIns = new HashSet<>(), incompatibleBuiltIns = new HashSet<>();
     private float baseBonus;
     private Trait bonus, malus;
+    private boolean applicableToFleets;
 
     public String getId() { return id; }
     public String getEffectDescription() { return desc; }
@@ -68,6 +69,7 @@ public class TraitType {
                 ? (!requiresCrew && !malusDescAI.isEmpty()) ? malusDescAI : malusDesc
                 : (!requiresCrew && !bonusDescAI.isEmpty()) ? bonusDescAI : bonusDesc;
     }
+    public boolean isApplicableToFleets() { return applicableToFleets; }
 
     public TraitType(JSONObject data) throws JSONException {
         id = data.getString("id");
@@ -81,6 +83,7 @@ public class TraitType {
         malusDescAI = data.getString("malus_desc_ai");
         desc = data.getString("desc");
         baseBonus = (float)data.getDouble("base_bonus");
+        applicableToFleets = data.getBoolean("applicable_to_fleets");
 
         String[] ja = data.getString("tags").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) tags.add(ja[i].toLowerCase());

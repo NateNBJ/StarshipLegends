@@ -55,6 +55,7 @@ public class ModPlugin extends BaseModPlugin {
             MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true;
 
     public static int
+            MINIMUM_EFFECT_REDUCTION_PERCENT = -95,
             TRAITS_PER_TIER = 2,
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30,
             TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = 0,
