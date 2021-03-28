@@ -19,7 +19,12 @@ public class SL_ShowMarketDefenses extends MarketCMD {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
         if(Global.getSettings().getModManager().isModEnabled("nexerelin")) {
-            if(!(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) return false;
+            try {
+                if(!(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) return false;
+            } catch (Exception e) {
+                ModPlugin.reportCrash(e, false);
+                if(!super.execute(ruleId, dialog, params, memoryMap)) return false;
+            }
         } else {
             if(!super.execute(ruleId, dialog, params, memoryMap)) return false;
         }

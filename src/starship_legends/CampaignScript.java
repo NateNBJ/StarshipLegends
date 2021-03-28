@@ -181,9 +181,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             if(ModPlugin.USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY
                     && Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-                playerFP = (float)ruthless_sector.ModPlugin.getPlayerFleetStrengthInLastBattle();
-                enemyFP = (float)ruthless_sector.ModPlugin.getEnemyFleetStrengthInLastBattle();
-                difficulty = (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle();
+
+                try {
+                    playerFP = (float)ruthless_sector.ModPlugin.getPlayerFleetStrengthInLastBattle();
+                    enemyFP = (float)ruthless_sector.ModPlugin.getEnemyFleetStrengthInLastBattle();
+                    difficulty = (float)ruthless_sector.ModPlugin.getDifficultyMultiplierForLastBattle();
+                } catch (Exception e) {
+                    ModPlugin.reportCrash(e, false);
+                }
             } else {
                 for(Float f : playerDeployedFP.values()) playerFP += f;
                 for(Float f : enemyDeployedFP.values()) enemyFP += f;

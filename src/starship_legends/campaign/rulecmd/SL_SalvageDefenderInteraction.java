@@ -17,16 +17,19 @@ import java.util.Map;
 public class SL_SalvageDefenderInteraction extends BaseCommandPlugin {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
-        //dialog.getTextPanel().addPara("triggered");
-
         try {
-            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")
-                    ? new RS_SalvageDefenderInteraction().execute(ruleId, dialog, params, memoryMap)
-                    : new SalvageDefenderInteraction().execute(ruleId, dialog, params, memoryMap)) {
+            BaseCommandPlugin si = new SalvageDefenderInteraction();
 
+            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+                try {
+                    si = new RS_SalvageDefenderInteraction();
+                } catch (Exception e) {
+                    ModPlugin.reportCrash(e, false);
+                }
+            }
+
+            if(si.execute(ruleId, dialog, params, memoryMap)) {
                 if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return true;
-
-                //dialog.getTextPanel().addPara("conditional");
 
                 final MemoryAPI memory = getEntityMemory(memoryMap);
                 final CampaignFleetAPI defenders = memory.getFleet("$defenderFleet");

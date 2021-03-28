@@ -406,7 +406,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
                     boolean vayraBounties = Global.getSettings().getModManager().isModEnabled("vayrasector");
 
 					List<IntelInfoPlugin> bounties = Global.getSector().getIntelManager().getIntel(PersonBountyIntel.class);
-					if(vayraBounties) bounties.addAll(Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class));
+					if(vayraBounties) {
+						try {
+							bounties.addAll(Global.getSector().getIntelManager().getIntel(VayraPersonBountyIntel.class));
+						} catch (Exception e) {
+							ModPlugin.reportCrash(e, false);
+						}
+					}
 
 					for (IntelInfoPlugin bounty : bounties) {
 						for (CampaignFleetAPI flt : bounty.getMapLocation(null).getContainingLocation().getFleets()) {
