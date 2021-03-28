@@ -1,6 +1,7 @@
 package starship_legends.hullmods;
 
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.FleetDataAPI;
 import com.fs.starfarer.api.characters.OfficerDataAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
@@ -29,18 +30,17 @@ public class Reputation extends BaseHullMod {
         FLAT_EFFECT_MULT.put(ShipAPI.HullSize.CAPITAL_SHIP, 6);
     }
 
-    static transient Saved<HashMap<String, FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashMap<String, FleetMemberAPI>());
-    static transient HashMap<String, FleetMemberAPI> membersOfNotableEnemyFleet = new HashMap();
+    static transient Saved<HashSet<FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashSet<FleetMemberAPI>());
 
     public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
-    public static final Color BORDER_COLOR = new Color(147, 102, 50, 255);
-    public static final Color NAME_COLOR = Misc.getHighlightColor();
+    public static final Color BORDER_COLOR = new Color(147, 102, 50, 0);
+    public static final Color NAME_COLOR = new Color(228, 213, 190, 255);
 
     public static void printRegistry() {
         String msg = "";
 
-        for(Map.Entry<String, FleetMemberAPI> entry : shipsOfNote.val.entrySet()) {
-            msg += System.lineSeparator() + entry.getKey() + " : " + entry.getValue().toString();
+        for(FleetMemberAPI ship : shipsOfNote.val) {
+            msg += System.lineSeparator() + ship.toString();
         }
 
         if(Global.getSettings().getModManager().isModEnabled("lw_console")) Console.showMessage(msg);
@@ -49,22 +49,14 @@ public class Reputation extends BaseHullMod {
     public static float getFlatEffectMult(ShipAPI.HullSize size) {
         return size == null ? 1 : FLAT_EFFECT_MULT.get(size);
     }
-    public static void setMembersOfNotableEnemyFleet(Collection<FleetMemberAPI> members) {
-        for(FleetMemberAPI ship : members) {
-            membersOfNotableEnemyFleet.put(ship.getVariant().getHullVariantId(), ship);
-        }
-    }
-    public static void clearMembersOfNotableEnemyFleet() {
-        membersOfNotableEnemyFleet.clear();
-    }
     public static void addShipOfNote(FleetMemberAPI ship) {
-        shipsOfNote.val.put(ship.getVariant().getHullVariantId(), ship);
+        shipsOfNote.val.add(ship);
     }
-    public static void removeShipOfNote(String shipID) {
-        shipsOfNote.val.remove(shipID);
+    public static void removeShipOfNote(FleetMemberAPI ship) {
+        shipsOfNote.val.remove(ship);
     }
     public static Collection<FleetMemberAPI> getShipsOfNote() {
-        return shipsOfNote.val.values();
+        return shipsOfNote.val;
     }
 
     public static void applyEffects(FleetMemberAPI ship) {
@@ -306,40 +298,6 @@ public class Reputation extends BaseHullMod {
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
-//    FleetMemberAPI findShip(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats) {
-//        String key = stats.getVariant().getHullVariantId();
-//        List<FleetMemberAPI> members;
-//
-//        if(shipsOfNote.val.containsKey(key)) return shipsOfNote.val.get(key);
-//        else if(membersOfNotableEnemyFleet.containsKey(key)) return membersOfNotableEnemyFleet.get(key);
-//
-//        try {
-//            members = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
-//        } catch (NullPointerException e) { return null; }
-//
-//        if(stats.getEntity() != null) {
-//            if (stats.getEntity() instanceof FleetMemberAPI) {
-//                return (FleetMemberAPI)stats.getEntity();
-//            } else if (stats.getEntity() instanceof ShipAPI) {
-//                for (FleetMemberAPI s : members) {
-//                    if (s == stats.getEntity()) {
-//                        return s;
-//                    }
-//                }
-//            }
-//        }
-//
-//        for (FleetMemberAPI s : members) {
-//            if (key.equals(s.getVariant().getHullVariantId())) {
-//            //if(stats == s.getStats()) {
-//                shipsOfNote.val.put(key, s);
-//                return s;
-//            }
-//        }
-//
-//        return null;
-//    }
-
     @Override
     public void applyEffectsBeforeShipCreation(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats, String id) {
         try {
@@ -392,12 +350,11 @@ public class Reputation extends BaseHullMod {
 
             if(fm == null || !RepRecord.existsFor(fm)) {
                 String msg = fm == null
-                        ? "ERROR: Could not find any ship with a matching key: "
-                            + ship.getMutableStats().getVariant().getHullVariantId()
+                        ? "ERROR: Could not find ship: "
+                            + ship.toString()
                         : "ERROR: No reputation record was found for this ship." +
                             "\n Hull ID: " + fm.getHullSpec().getHullId() +
-                            "\n Hull Variant ID: " + fm.getVariant().getHullVariantId() +
-                            "\n Is registered: " + shipsOfNote.val.containsKey(fm.getVariant().getHullVariantId()) +
+                            "\n Is registered: " + shipsOfNote.val.contains(fm) +
                             "\n Ship ID: " + fm.getId();
 
                 msg += "\n Please notify the mod author with this information.";

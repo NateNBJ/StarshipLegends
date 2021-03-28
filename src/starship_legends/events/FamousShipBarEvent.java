@@ -135,9 +135,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null
 				&& (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
-				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
-				&& ship.getVariant().getModuleSlots().isEmpty();
-		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
+				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE);
 
 		if(!isValid) {
 			try {
@@ -168,9 +166,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 		boolean isValid = rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
 				&& commander != null && fleetHasValidAssignment(fleet)
-				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
-				&& ship.getVariant().getModuleSlots().isEmpty();
-		// TODO - Re-enable ships with modules once the setVariantHullID hack is no longer necessary
+				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE);
 
 		if(!isValid) {
 			try {

@@ -27,8 +27,6 @@ public class ModPlugin extends BaseModPlugin {
     public static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
     public static final String HULL_REGEN_SHIPS_PATH = "data/config/starship_legends/hull_regen_ships.csv";
     public static final String SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
-    //public static final String RUTHLESS_SETTINGS_PATH = "RUTHLESS_STARSHIP_LEGENDS_OPTIONS.ini";
-    public static final String VARIANT_PREFIX = "sun_sl_";
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 3;
     public static final int DEFAULT_TRAIT_LIMIT = 8;
@@ -65,7 +63,6 @@ public class ModPlugin extends BaseModPlugin {
     public static float
             GLOBAL_EFFECT_MULT = 1,
             FLEET_TRAIT_EFFECT_MULT = 2,
-            //MAX_XP_FOR_RESERVED_SHIPS = 80000,
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
             BONUS_CHANCE_FOR_CIVILIAN_SHIPS = 0.5f,
 

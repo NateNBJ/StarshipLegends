@@ -137,7 +137,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             CombatPlugin.CURSED.clear();
             CombatPlugin.PHASEMAD.clear();
             previousXP = Global.getSector().getPlayerStats().getXP();
-            Reputation.clearMembersOfNotableEnemyFleet();
 
             if(originalShipList != null) {
                 Set<FleetMemberAPI> survivingShips = new HashSet(Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy());
@@ -428,8 +427,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             if(fc != null) {
                 fc.showFleetReputation(dialog, commander);
-
-                Reputation.setMembersOfNotableEnemyFleet(combined.getFleetData().getMembersListCopy());
 
                 for(FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
                     ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);

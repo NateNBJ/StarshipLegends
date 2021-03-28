@@ -41,7 +41,7 @@ public class RepRecord {
     public static RepRecord get(FleetMemberAPI ship) { return get(ship.getId()); }
     public static void deleteFor(FleetMemberAPI ship) {
         INSTANCE_REGISTRY.val.remove(ship.getId());
-        Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
+        Reputation.removeShipOfNote(ship);
         Util.removeRepHullmodFromVariant(ship.getVariant());
     }
     public static void transfer(FleetMemberAPI from, FleetMemberAPI to) {
@@ -68,7 +68,7 @@ public class RepRecord {
         ShipVariantAPI v;
 
         if(tier == Trait.Tier.UNKNOWN) {
-            Reputation.removeShipOfNote(ship.getVariant().getHullVariantId());
+            Reputation.removeShipOfNote(ship);
             Util.removeRepHullmodFromVariant(ship.getVariant());
             return;
         }
@@ -78,8 +78,6 @@ public class RepRecord {
             v.setSource(VariantSource.REFIT);
             ship.setVariant(v, false, false);
         } else v = ship.getVariant();
-
-        v.setHullVariantId(ModPlugin.VARIANT_PREFIX + ship.getId());
 
         Util.removeRepHullmodFromVariant(v);
         v.addPermaMod(tier.getHullModID());
@@ -97,7 +95,6 @@ public class RepRecord {
                 v.setModuleVariant(slots.get(i), module);
             }
 
-            module.setHullVariantId(v.getHullVariantId());
             module.addPermaMod(tier.getHullModID());
         }
 
