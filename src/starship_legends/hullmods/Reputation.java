@@ -7,6 +7,7 @@ import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.impl.hullmods.CompromisedStructure;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import org.lazywizard.console.Console;
@@ -32,6 +33,8 @@ public class Reputation extends BaseHullMod {
     static transient HashMap<String, FleetMemberAPI> membersOfNotableEnemyFleet = new HashMap();
 
     public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
+    public static final Color BORDER_COLOR = new Color(147, 102, 50, 255);
+    public static final Color NAME_COLOR = Misc.getHighlightColor();
 
     public static void printRegistry() {
         String msg = "";
@@ -303,39 +306,39 @@ public class Reputation extends BaseHullMod {
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
-    FleetMemberAPI findShip(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats) {
-        String key = stats.getVariant().getHullVariantId();
-        List<FleetMemberAPI> members;
-
-        if(shipsOfNote.val.containsKey(key)) return shipsOfNote.val.get(key);
-        else if(membersOfNotableEnemyFleet.containsKey(key)) return membersOfNotableEnemyFleet.get(key);
-
-        try {
-            members = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
-        } catch (NullPointerException e) { return null; }
-
-        if(stats.getEntity() != null) {
-            if (stats.getEntity() instanceof FleetMemberAPI) {
-                return (FleetMemberAPI)stats.getEntity();
-            } else if (stats.getEntity() instanceof ShipAPI) {
-                for (FleetMemberAPI s : members) {
-                    if (s == stats.getEntity()) {
-                        return s;
-                    }
-                }
-            }
-        }
-
-        for (FleetMemberAPI s : members) {
-            if (key.equals(s.getVariant().getHullVariantId())) {
-            //if(stats == s.getStats()) {
-                shipsOfNote.val.put(key, s);
-                return s;
-            }
-        }
-
-        return null;
-    }
+//    FleetMemberAPI findShip(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats) {
+//        String key = stats.getVariant().getHullVariantId();
+//        List<FleetMemberAPI> members;
+//
+//        if(shipsOfNote.val.containsKey(key)) return shipsOfNote.val.get(key);
+//        else if(membersOfNotableEnemyFleet.containsKey(key)) return membersOfNotableEnemyFleet.get(key);
+//
+//        try {
+//            members = Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy();
+//        } catch (NullPointerException e) { return null; }
+//
+//        if(stats.getEntity() != null) {
+//            if (stats.getEntity() instanceof FleetMemberAPI) {
+//                return (FleetMemberAPI)stats.getEntity();
+//            } else if (stats.getEntity() instanceof ShipAPI) {
+//                for (FleetMemberAPI s : members) {
+//                    if (s == stats.getEntity()) {
+//                        return s;
+//                    }
+//                }
+//            }
+//        }
+//
+//        for (FleetMemberAPI s : members) {
+//            if (key.equals(s.getVariant().getHullVariantId())) {
+//            //if(stats == s.getStats()) {
+//                shipsOfNote.val.put(key, s);
+//                return s;
+//            }
+//        }
+//
+//        return null;
+//    }
 
     @Override
     public void applyEffectsBeforeShipCreation(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats, String id) {
@@ -343,7 +346,7 @@ public class Reputation extends BaseHullMod {
             if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || shipsOfNote.val.isEmpty())
                 return;
 
-            FleetMemberAPI ship = findShip(hullSize, stats);
+            FleetMemberAPI ship = stats.getFleetMember();
 
             if(ship == null) return;
 
@@ -371,7 +374,7 @@ public class Reputation extends BaseHullMod {
     public String getDescriptionParam(int index, ShipAPI.HullSize hullSize, ShipAPI ship) {
         if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return "";
 
-        FleetMemberAPI fm = findShip(hullSize, ship.getMutableStats());
+        FleetMemberAPI fm = ship.getMutableStats().getFleetMember();
 
         if(fm == null) return "SHIP NOT FOUND";
 
@@ -385,7 +388,7 @@ public class Reputation extends BaseHullMod {
         try {
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
 
-            FleetMemberAPI fm = findShip(hullSize, ship.getMutableStats());
+            FleetMemberAPI fm = ship.getMutableStats().getFleetMember();
 
             if(fm == null || !RepRecord.existsFor(fm)) {
                 String msg = fm == null
@@ -526,5 +529,25 @@ public class Reputation extends BaseHullMod {
                 trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false, false);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
+    }
+
+    @Override
+    public Color getBorderColor() {
+        return BORDER_COLOR;
+    }
+
+    @Override
+    public Color getNameColor() {
+        return NAME_COLOR;
+    }
+
+    @Override
+    public int getDisplaySortOrder() {
+        return -6;
+    }
+
+    @Override
+    public int getDisplayCategoryIndex() {
+        return 0;
     }
 }

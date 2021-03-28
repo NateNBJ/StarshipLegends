@@ -5,6 +5,7 @@ import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.ai.FleetAssignmentDataAPI;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.characters.FullName;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
@@ -24,10 +25,10 @@ import com.fs.starfarer.api.impl.campaign.intel.bar.events.BaseBarEventWithPerso
 import com.fs.starfarer.api.impl.campaign.procgen.themes.BaseThemeGenerator;
 import com.fs.starfarer.api.impl.campaign.rulecmd.AddRemoveCommodity;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.special.ShipRecoverySpecial;
+import com.fs.starfarer.api.loading.HullModSpecAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.MutableValue;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
-import data.scripts.VayraModPlugin;
 import data.scripts.campaign.intel.VayraPersonBountyIntel;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.util.vector.Vector2f;
@@ -355,7 +356,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 				if(variantID == null) return;
 
-				DerelictShipEntityPlugin.DerelictShipData params = DerelictShipEntityPlugin.createVariant(variantID, this.random);
+				DerelictShipEntityPlugin.DerelictShipData params = DerelictShipEntityPlugin.createVariant(variantID, this.random, 0);
 
 				wreckData = params.ship;
 				ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
@@ -576,9 +577,9 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 
 	@Override
-	public void addPromptAndOption(InteractionDialogAPI dialog) {
+	public void addPromptAndOption(InteractionDialogAPI dialog, Map<String, MemoryAPI> memoryMap) {
 		try {
-			super.addPromptAndOption(dialog);
+			super.addPromptAndOption(dialog, memoryMap);
 
 			regen(dialog.getInteractionTarget().getMarket());
 
@@ -592,11 +593,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			ModPlugin.reportCrash(e);
 		}
 	}
-
 	@Override
-	public void init(InteractionDialogAPI dialog) {
+	public void init(InteractionDialogAPI dialog, Map<String, MemoryAPI> memoryMap) {
 		try {
-			super.init(dialog);
+			super.init(dialog, memoryMap);
 
 			done = false;
 
@@ -858,7 +858,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 	// Methods below yoinked from ShipRecoverySpecial
 
-	public void prepareMember(FleetMemberAPI member, ShipRecoverySpecial.PerShipData shipData) {
+	protected void prepareMember(FleetMemberAPI member, ShipRecoverySpecial.PerShipData shipData) {
+
 		int hits = getHitsForCondition(member, shipData.condition);
 		int dmods = getDmodsForCondition(shipData.condition);
 
@@ -893,9 +894,35 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			DModManager.addDMods(member, true, dmods, random);
 		}
 
+		if (shipData.sModProb > 0 && random.nextFloat() < shipData.sModProb) {
+			int num = 1;
+			float r = random.nextFloat();
+			if (r > 0.85f) {
+				num = 3;
+			} else if (num > 0.5f) {
+				num = 2;
+			}
+
+			WeightedRandomPicker<String> picker = new WeightedRandomPicker<String>(random);
+			for (String id : variant.getHullMods()) {
+				HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+				if (spec.isHidden()) continue;
+				if (spec.isHiddenEverywhere()) continue;
+				if (spec.hasTag(Tags.HULLMOD_DMOD)) continue;
+				if (variant.getPermaMods().contains(spec.getId())) continue;
+				picker.add(id, spec.getCapitalCost());
+			}
+			for (int i = 0; i < num && !picker.isEmpty(); i++) {
+				String id = picker.pickAndRemove();
+				variant.addPermaMod(id, true);
+				//variant.getPermaMods().add(id);
+			}
+		}
+
+
 		if (shipData.pruneWeapons) {
 			float retain = getFighterWeaponRetainProb(shipData.condition);
-			FleetEncounterContext.prepareShipForRecovery(member, false, false, retain, retain, random);
+			FleetEncounterContext.prepareShipForRecovery(member, false, false, false, retain, retain, random);
 			member.getVariant().autoGenerateWeaponGroups();
 		}
 	}

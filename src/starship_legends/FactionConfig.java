@@ -146,7 +146,7 @@ public class FactionConfig {
                     * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / (float)ModPlugin.DEFAULT_TRAIT_LIMIT));
         } else if(commander != null && !commander.isDefault()) {
             return (int)(ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER
-                    + (commander.getStats().getLevel() / Global.getSettings().getFloat("officerMaxLevel"))
+                    + (commander.getStats().getLevel() / Math.max(1, Global.getSettings().getFloat("officerMaxLevel")))
                     * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER - ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER));
         } else return ModPlugin.TRAITS_FOR_FLEETS_WITH_NO_COMMANDER;
     }

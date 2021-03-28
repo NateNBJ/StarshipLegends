@@ -4,11 +4,9 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.BattleAPI;
 import com.fs.starfarer.api.campaign.FactionAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.*;
 import com.fs.starfarer.api.util.Misc;
-import com.fs.starfarer.ui.impl.X;
 
 import java.awt.*;
 import java.util.*;

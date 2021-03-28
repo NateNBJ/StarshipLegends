@@ -79,7 +79,11 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                     String key = fm.getId();
 
-                    if (ship.isFighter() && ship.getWing() != null && ship.getWing().getSourceShip() != null && !wingSourceMap.containsKey(key)) {
+                    if (ship.isFighter()
+                            && ship.getWing() != null
+                            && ship.getWing().getSourceShip() != null
+                            && !wingSourceMap.containsKey(key)) {
+
                         ShipAPI source = ship.getWing().getSourceShip();
 
                         if(source.getParentStation() != null) source = source.getParentStation();
@@ -87,7 +91,10 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                         //Global.getLogger(this.getClass()).info("Wing found: " + ship.getHullSpec().getHullId() + " - " + key + " - " + source.getFleetMemberId());
 
                         wingSourceMap.put(key, source.getFleetMemberId());
-                    } else if(ship.getParentStation() != null && ship.getMaxFlux() > 0 && !sectionSourceMap.containsKey(key)) {
+                    } else if(ship.getParentStation() != null
+                            && ship.getMaxFlux() > 0
+                            && !sectionSourceMap.containsKey(key)
+                            && hpTotals.containsKey(ship.getParentStation().getFleetMemberId())) {
                         //Global.getLogger(this.getClass()).info("Section found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getParentStation().getFleetMemberId() + " hp: " + ship.getMaxHitpoints());
 
                         sectionSourceMap.put(key, ship.getParentStation().getFleetMemberId());
@@ -97,7 +104,11 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
                         stationDeployCosts.put(key, Util.getShipStrength(fm));
-                    } else if(!ship.isStation() && ship.getMaxFlux() > 0 && !ship.isFighter() && ship.getParentStation() == null && !hpTotals.containsKey(key)) {
+                    } else if(!ship.isStation()
+                            && ship.getMaxFlux() > 0
+                            && !ship.isFighter()
+                            && ship.getParentStation() == null
+                            && !hpTotals.containsKey(key)) {
                         //Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));

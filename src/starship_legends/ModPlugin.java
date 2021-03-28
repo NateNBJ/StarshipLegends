@@ -25,9 +25,9 @@ public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
     public static final String TRAIT_LIST_PATH = "sun_sl/data/traits.csv";
     public static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
-    public static final String HULL_REGEN_SHIPS_PATH = "sun_sl/data/hull_regen_ships.csv";
+    public static final String HULL_REGEN_SHIPS_PATH = "data/config/starship_legends/hull_regen_ships.csv";
     public static final String SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
-    public static final String RUTHLESS_SETTINGS_PATH = "RUTHLESS_STARSHIP_LEGENDS_OPTIONS.ini";
+    //public static final String RUTHLESS_SETTINGS_PATH = "RUTHLESS_STARSHIP_LEGENDS_OPTIONS.ini";
     public static final String VARIANT_PREFIX = "sun_sl_";
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 3;
@@ -166,11 +166,6 @@ public class ModPlugin extends BaseModPlugin {
         Global.getSector().removeTransientScript(script);
         Global.getSector().removeListener(script);
         Util.removeRepHullmodFromAutoFitGoalVariants();
-
-//        for(ShipVariantAPI v : Global.getSector().getAutofitVariants().getTargetVariants("sunder")) {
-//            v.removeMod();
-//            v.getPermaMods().clear();
-//        }
     }
 
     @Override
@@ -363,7 +358,8 @@ public class ModPlugin extends BaseModPlugin {
             jsonArray = Global.getSettings().loadCSV(LOYALTY_LEVEL_LIST_PATH);
             for (int i = 0; i < jsonArray.length(); i++) LoyaltyLevel.values()[i].init(jsonArray.getJSONObject(i));
 
-            jsonArray = Global.getSettings().loadCSV(HULL_REGEN_SHIPS_PATH);
+            //jsonArray = Global.getSettings().loadCSV(HULL_REGEN_SHIPS_PATH);
+            jsonArray = Global.getSettings().getMergedSpreadsheetDataForMod("hull_id", HULL_REGEN_SHIPS_PATH, ID);
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject data = jsonArray.getJSONObject(i);
                 HULL_REGEN_SHIPS.put(data.getString("hull_id"), (float)data.getDouble("damage_counted_per_damage_sustained"));
@@ -371,9 +367,10 @@ public class ModPlugin extends BaseModPlugin {
 
             JSONObject cfg;
 
-            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-                cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
-            } else cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
+//            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+//                cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
+//            } else
+            cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
             FactionConfig.readDerelictChanceMultipliers(cfg.getJSONArray("famousDerelictChanceMultipliersByShipStrength"));
 

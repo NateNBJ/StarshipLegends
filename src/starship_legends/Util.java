@@ -236,6 +236,7 @@ public class Util {
         v.removePermaMod("sun_sl_famous");
         v.removePermaMod("sun_sl_legendary");
 
+        // Line below may NPE
         List<String> slots = v.getModuleSlots();
 
         for(int i = 0; i < slots.size(); ++i) {
