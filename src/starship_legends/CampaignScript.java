@@ -297,6 +297,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                             Trait[] shuffleTraits = rep.chooseTraitsToShuffle(ship, sign, rc.newRating);
 
+                            // If the absolute change in rating is less than 1, prevent removal of traits
+                            if(shuffleTraits != null && shuffleTraits.length == 1 && adjustmentSign == 0) {
+                                shuffleTraits = null;
+                            }
+
                             if (rep.getTraits().size() <= 2) {
                                 msg += "TOO FEW TRAITS";
                             } else if (shuffleTraits != null && rand.nextFloat() <= shuffleChance) {

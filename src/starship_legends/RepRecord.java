@@ -443,7 +443,7 @@ public class RepRecord {
         float difWithoutNewestTrait = Math.abs(rating - getFractionOfBonusEffectFromTraits(true));
         Trait newestTrait = getTraits().get(getTraits().size() - 1);
 
-        if(newestTrait.getEffectSign() == -sign && Math.abs(difNow - difWithoutNewestTrait) > 0.1f) {
+        if(newestTrait.getEffectSign() == -sign && Math.abs(difNow - difWithoutNewestTrait) > 0.15f) {
             return new Trait[] { newestTrait };
         } else {
             for(int i = getTraits().size() - 1; i >= 1; --i) {
@@ -452,10 +452,9 @@ public class RepRecord {
                 if(tUp.getEffectSign() == sign && tDown.getEffectSign() == -sign && tUp.isRelevantFor(ship)) {
                     return new Trait[] { tUp, tDown };
                 }
-
-                // TODO - remove && sign == -1 to allow good traits to be removed more often?
-                if(newestTrait.getEffectSign() == -sign && sign == -1) return new Trait[] { newestTrait };
             }
+
+            if(newestTrait.getEffectSign() == -sign && sign == -1) return new Trait[] { newestTrait };
         }
 
         return null;
