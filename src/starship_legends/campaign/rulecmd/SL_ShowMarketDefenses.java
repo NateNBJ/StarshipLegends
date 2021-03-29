@@ -45,7 +45,10 @@ public class SL_ShowMarketDefenses extends MarketCMD {
 
             for(CampaignFleetAPI fleet : pulledIn) allEnemyShips.addAll(fleet.getFleetData().getMembersListCopy());
 
-            for(FleetMemberAPI ship : allEnemyShips) ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
+            for(FleetMemberAPI ship : allEnemyShips) {
+                ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
+                ship.updateStats();
+            }
 
             return true;
         } catch (Exception e) {

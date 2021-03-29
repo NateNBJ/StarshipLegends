@@ -272,7 +272,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 if (rand.nextFloat() <= traitChance) {
                     boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) <= bonusChance;
                     boolean ignoreDueToAdjustment = (traitIsBonus && adjustmentSign < 0)
-                            || (!traitIsBonus && adjustmentSign > 0);
+                            || (!traitIsBonus && adjustmentSign >= 0);
 
                     if(ignoreDueToAdjustment && rep.getTraits().size() <= 2) {
                         if(ignoreDueToAdjustment) traitIsBonus = !traitIsBonus;

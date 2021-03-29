@@ -212,6 +212,8 @@ public class FamousDerelictIntel extends FleetLogIntel {
 								sendRivalFleetHome();
 								Misc.makeImportant(rivalFleet, "sun_sl_famous_derelict");
 								ship.getRepairTracker().setMothballed(true);
+								RepRecord.updateRepHullMod(ship);
+								//ship.getVariant().addTag(Tags.SHIP_RECOVERABLE);
 								rivalFleet.getFleetData().addFleetMember(ship);
 								derelictRecoveredByRival = true;
 
@@ -287,6 +289,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		}
 	}
 
+	public FleetMemberAPI getShip() { return ship; }
 	public void notifyThatPlayerRecoveredDerelict() {
 		derelictRecoveredByPlayer = true;
 		sendRivalFleetHome();
@@ -354,24 +357,10 @@ public class FamousDerelictIntel extends FleetLogIntel {
 	public void updateFleetActions() {
 		if(fleetsDespawning) return;
 
-		if(MAX_DURATION * 1.25f < Global.getSector().getClock().getElapsedDaysSince(timestamp)) {
+		if(MAX_DURATION * 2.5f < Global.getSector().getClock().getElapsedDaysSince(timestamp)) {
 			sendRivalFleetHome();
 			despawnAmbushFleet();
 			fleetsDespawning = true;
-		} else if(ambushFleet != null) {
-//			FleetAssignment fa = ambushFleet.getCurrentAssignment().getAssignment();
-
-//			if(fa == FleetAssignment.ORBIT_AGGRESSIVE && !ambushFleet.isInCurrentLocation()) {
-//				ambushFleet.setDoNotAdvanceAI(true);
-//				ambushFleet.setTransponderOn(false);
-//				//ambushFleet.getAbility(Abilities.GO_DARK).activate();
-//			} else if(ambushFleet.isVisibleToPlayerFleet()
-//					&& ambushFleet.getVisibilityLevelOfPlayerFleet() == SectorEntityToken.VisibilityLevel.COMPOSITION_DETAILS) {
-//				ambushFleet.setDoNotAdvanceAI(false);
-//				ambushFleet.setTransponderOn(true);
-//				//ambushFleet.getAbility(Abilities.GO_DARK).deactivate();
-//			}
-
 		}
 	}
 

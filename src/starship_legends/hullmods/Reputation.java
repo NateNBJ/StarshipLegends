@@ -34,7 +34,7 @@ public class Reputation extends BaseHullMod {
 
     public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
     public static final Color BORDER_COLOR = new Color(147, 102, 50, 0);
-    public static final Color NAME_COLOR = new Color(228, 213, 190, 255);
+    public static final Color NAME_COLOR = new Color(224, 184, 139, 255);
 
     public static void printRegistry() {
         String msg = "";
@@ -303,6 +303,8 @@ public class Reputation extends BaseHullMod {
         try {
             if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || shipsOfNote.val.isEmpty())
                 return;
+
+            //stats.getDynamic().getMod(Stats.SHIP_RECOVERY_MOD).modifyFlat(id, 1000);
 
             FleetMemberAPI ship = stats.getFleetMember();
 
