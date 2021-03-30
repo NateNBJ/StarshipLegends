@@ -304,7 +304,6 @@ public class Reputation extends BaseHullMod {
             if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || shipsOfNote.val.isEmpty())
                 return;
 
-            //stats.getDynamic().getMod(Stats.SHIP_RECOVERY_MOD).modifyFlat(id, 1000);
 
             FleetMemberAPI ship = stats.getFleetMember();
 
