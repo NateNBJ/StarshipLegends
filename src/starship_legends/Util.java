@@ -188,7 +188,7 @@ public class Util {
         if(ship.getHullSpec().isCivilianNonCarrier() || ship.isCivilian() || ship.isMothballed()) {
             return ship.getDeploymentCostSupplies();
         }
-
+        
         if(ModPlugin.USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH
                 && Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
 

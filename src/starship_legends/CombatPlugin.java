@@ -3,6 +3,8 @@ package starship_legends;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CombatDamageData;
 import com.fs.starfarer.api.combat.*;
+import com.fs.starfarer.api.combat.listeners.ApplyDamageResultAPI;
+import com.fs.starfarer.api.combat.listeners.DamageListener;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.mission.FleetSide;
@@ -92,7 +94,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                         wingSourceMap.put(key, source.getFleetMemberId());
                     } else if(ship.getParentStation() != null
-                            && ship.getMaxFlux() > 0
+                            //&& ship.getMaxFlux() > 0
                             && !sectionSourceMap.containsKey(key)
                             && hpTotals.containsKey(ship.getParentStation().getFleetMemberId())) {
                         //Global.getLogger(this.getClass()).info("Section found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getParentStation().getFleetMemberId() + " hp: " + ship.getMaxHitpoints());
@@ -104,9 +106,9 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
                         stationDeployCosts.put(key, Util.getShipStrength(fm));
-                    } else if(!ship.isStation()
-                            && ship.getMaxFlux() > 0
-                            && !ship.isFighter()
+                    } else if(//!ship.isStation()
+                            //&& ship.getMaxFlux() > 0
+                            !ship.isFighter()
                             && ship.getParentStation() == null
                             && !hpTotals.containsKey(key)) {
                         //Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
@@ -168,7 +170,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                     ? hpTotals.get(targetID)
                     : target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
 
-            if(target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1 || target.isStation()) continue;
+            if(target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1) continue;
 
             //msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
 
