@@ -311,11 +311,19 @@ public class Reputation extends BaseHullMod {
 
             // ship.getOwner() will sometimes return 0 here for ships not owned by the player (e.g. for some tooltips)
 
-            if(id.equals(ENEMY_HULLMOD_ID) && FactionConfig.getEnemyFleetRep() != null) {
-                applyEffects(FactionConfig.getEnemyFleetRep(), ship, hullSize, ship.getFleetCommanderForStats(),
-                        stats, false, id);
-            } else if(ship.getOwner() == 0) {
+            if(id.equals(ENEMY_HULLMOD_ID)) {
+                if(FactionConfig.getEnemyFleetRep() != null) {
+                    applyEffects(FactionConfig.getEnemyFleetRep(), ship, hullSize, ship.getFleetCommanderForStats(),
+                            stats, false, id);
+                }
+            } else {
                 applyEffects(ship, hullSize, ship.getCaptain(), stats, false, id);
+
+                if(ship.getOwner() != 0) {
+                    // Try to prevent famous enemy ships from being randomly selected as recoverable, since they are
+                    //  manually forced to be recoverable anyway
+                    stats.getDynamic().getMod(Stats.INDIVIDUAL_SHIP_RECOVERY_MOD).modifyFlat(id, Float.MIN_VALUE * 0.8f);
+                }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
@@ -382,6 +390,8 @@ public class Reputation extends BaseHullMod {
                 if(Global.getSettings().isDevMode()) {
                     tooltip.addPara("(Dev) Actual bonus fraction of traits: %s.", 10, Misc.getGrayColor(),
                             Misc.getHighlightColor(), (int) (rep.getFractionOfBonusEffectFromTraits() * 100f) + "%");
+                    tooltip.addPara("(Dev) Strength estimation: %s.", 10, Misc.getGrayColor(),
+                            Misc.getHighlightColor(), (int) Util.getShipStrength(fm) + "");
                 }
             }
 

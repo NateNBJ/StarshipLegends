@@ -131,6 +131,7 @@
 			# The number of traits each fleet in the faction will have, unless the player
 			#	modifies the max traits possible, in which case it will be scaled proportionally
 			#	The default max number of traits is 8
+			#	Set this to 0 to prevent fleets from having any traits
 			"defaultNumberOfTraits":6,
 			
 			"goodTraits":[

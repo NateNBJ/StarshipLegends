@@ -141,12 +141,13 @@ public class FactionConfig {
     int getNumberOfTraits(PersonAPI commander) {
         ForcedRepPreset preset = getPreset(commander);
 
-        if(preset != null && preset.defaultNumberOfForcedTraits > 0) {
+
+        if(preset != null && preset.defaultNumberOfForcedTraits >= 0) {
             return (int)(preset.defaultNumberOfForcedTraits
                     * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / (float)ModPlugin.DEFAULT_TRAIT_LIMIT));
         } else if(commander != null && !commander.isDefault()) {
             return (int)(ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER
-                    + (commander.getStats().getLevel() / Math.max(1, Global.getSettings().getFloat("officerMaxLevel")))
+                    + (commander.getStats().getLevel() / Math.max(1, Global.getSettings().getFloat("officerMaxLevel")-1))
                     * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER - ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER));
         } else return ModPlugin.TRAITS_FOR_FLEETS_WITH_NO_COMMANDER;
     }
@@ -355,6 +356,8 @@ public class FactionConfig {
     }
     public RepRecord buildReputation(PersonAPI commander, int traitCount, float ratingGoal, FleetMemberAPI ship,
                                      boolean allowCrewTraits, int loyalty) {
+
+        if(traitCount <= 0) return null;
 
         Random rand = new Random(commander != null && !commander.isDefault()
                 ? commander.getNameString().hashCode()

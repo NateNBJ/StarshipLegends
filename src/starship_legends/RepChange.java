@@ -154,7 +154,7 @@ public class RepChange {
 
         if(trait != null) {
             if (shuffleSign == 0) {
-                message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " has gained a reputation for "
+                message = "The " + ship.getShipName() + " has gained a reputation for "
                         + trait.getDescPrefix(requiresCrew) + " %s  %s";
                 String desc = (trait.effectSign * trait.getType().getBaseBonus() > 0 ? "(increased " : "(reduced ")
                         + trait.getType().getEffectDescription() + ")";
@@ -163,7 +163,7 @@ public class RepChange {
                         .setHighlightColors(trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
                                 Misc.getGrayColor());
             } else if(!rep.hasTrait(trait)) {
-                message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
+                message = "The " + ship.getShipName() + " is no longer known for "
                         + trait.getDescPrefix(requiresCrew) + " %s.";
 
                 tooltip.addPara(message, 3, Misc.getTextColor(),
@@ -173,14 +173,14 @@ public class RepChange {
                 int shuffleDirection = trait.effectSign > 0 ? -shuffleSign : shuffleSign;
 
                 if(traitDown == null) {
-                    message = BaseIntelPlugin.BULLET + "The reputation of the " + ship.getShipName()
+                    message = "The reputation of the " + ship.getShipName()
                             + " for " + trait.getDescPrefix(requiresCrew) + " %s has become %s prominent.";
 
                     tooltip.addPara(message, 3, Misc.getTextColor(),
                             shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
                             trait.getLowerCaseName(requiresCrew), (shuffleDirection < 0 ? "more" : "less"));
                 } else {
-                    message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is now known better for "
+                    message = "The " + ship.getShipName() + " is now known better for "
                             + trait.getDescPrefix(true) + " %s than " + traitDown.getDescPrefix(true) + " %s";
 
                     Color hl = traitDown != null && trait.getEffectSign() == traitDown.getEffectSign()

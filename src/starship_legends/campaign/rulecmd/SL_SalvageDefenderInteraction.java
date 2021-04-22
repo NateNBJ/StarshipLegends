@@ -20,7 +20,7 @@ public class SL_SalvageDefenderInteraction extends BaseCommandPlugin {
         try {
             BaseCommandPlugin si = new SalvageDefenderInteraction();
 
-            // TODO figure out what's going wrong with the RS_SalvageDefenderInteraction import...
+            // TODO import RS_SalvageDefenderInteraction once new RS jar is compiled
 //            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
 //                try {
 //                    si = new RS_SalvageDefenderInteraction();

@@ -5,6 +5,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.campaign.listeners.ListenerUtil;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetGoal;
@@ -12,6 +13,9 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
+import com.fs.starfarer.api.impl.campaign.ids.Factions;
+import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.util.Misc;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.events.FamousShipBarEvent;
@@ -42,11 +46,13 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             disabledShips = new HashSet<>(),
             destroyedEnemies = new HashSet<>(),
             routedEnemies = new HashSet<>();
+    static FleetEncounterContext context = null;
 
     static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
     static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
     static Map<String, BattleRecord> battleRecords = new HashMap<>();
     static List<FleetMemberAPI> originalShipList;
+    static FleetMemberAPI famousRecoverableShip = null;
 
     static Saved<LinkedList<RepChange>> pendingRepChanges = new Saved<>("pendingRepChanges", new LinkedList<RepChange>());
     static Saved<Float> timeUntilNextChange = new Saved<>("timeUntilNextChange", 0f);
@@ -121,6 +127,60 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     static void reset() {
         try {
+            boolean forceRecoveryOfFamousShip = false;
+
+            if(context != null && famousRecoverableShip != null && context.didPlayerWinEncounterOutright()) {
+                for(FleetMemberAPI m : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                    if(m.equals(famousRecoverableShip)) break;
+                }
+
+                forceRecoveryOfFamousShip = true;
+            }
+
+            if(forceRecoveryOfFamousShip) {
+                // Then no recovery option will be displayed at all...
+
+                CampaignFleetAPI playerFleet = Global.getSector().getPlayerFleet();
+
+                famousRecoverableShip.getRepairTracker().setMothballed(true);
+                Global.getSector().getCampaignUI().addMessage("The " + famousRecoverableShip.getShipName()
+                        + " has been recovered and added to your fleet.");
+
+                // Below ripped from FleetInteractionDialogPluginImpl RECOVERY_SELECT
+                if (famousRecoverableShip.getStatus().getNumStatuses() <= 1) {
+                    famousRecoverableShip.getStatus().repairDisabledABit();
+                }
+
+                float minHull = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_HULL_MIN, 0f);
+                float maxHull = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_HULL_MAX, 0f);
+                float minCR = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_CR_MIN, 0f);
+                float maxCR = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_CR_MAX, 0f);
+
+                float hull = (float) Math.random() * (maxHull - minHull) + minHull;
+                if (hull < 0.01f) hull = 0.01f;
+                famousRecoverableShip.getStatus().setHullFraction(hull);
+
+                float cr = (float) Math.random() * (maxCR - minCR) + minCR;
+                famousRecoverableShip.getRepairTracker().setCR(cr);
+
+                playerFleet.getFleetData().addFleetMember(famousRecoverableShip);
+                if (context != null) {
+                    context.getBattle().getCombinedFor(playerFleet).getFleetData().addFleetMember(famousRecoverableShip);
+                    context.getBattle().getMemberSourceMap().put(famousRecoverableShip, playerFleet);
+                }
+
+                famousRecoverableShip.setFleetCommanderForStats(null, null);
+                famousRecoverableShip.setOwner(0);
+
+                if (!Misc.isUnremovable(famousRecoverableShip.getCaptain())) {
+                    famousRecoverableShip.setCaptain(Global.getFactory().createPerson());
+                    famousRecoverableShip.getCaptain().setFaction(Factions.PLAYER);
+                }
+                Global.getLogger(CampaignScript.class).info("Famous ship force recovered");
+            }
+
+            context = null;
+            famousRecoverableShip = null;
             playerFP = 0;
             enemyFP = 0;
             fpWorthOfDamageDealtDuringEngagement = 0;
@@ -271,19 +331,20 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if (rand.nextFloat() <= traitChance) {
                     boolean traitIsBonus = (ModPlugin.BONUS_CHANCE_RANDOMNESS * (rand.nextFloat() - 0.5f) + 0.5f) <= bonusChance;
-                    boolean ignoreDueToAdjustment = (traitIsBonus && adjustmentSign < 0)
+                    boolean traitAdjustmentSignMismatch = (traitIsBonus && adjustmentSign < 0)
                             || (!traitIsBonus && adjustmentSign >= 0);
+                    double chanceToFlipTraitSignDueToMismatch =
+                            Math.pow(1.5 - rep.getTraits().size() / (double)Trait.getTraitLimit() * 1.5, 3);
 
-                    if(ignoreDueToAdjustment && rep.getTraits().size() <= 2) {
-                        if(ignoreDueToAdjustment) traitIsBonus = !traitIsBonus;
-
-                        ignoreDueToAdjustment = false;
+                    if(traitAdjustmentSignMismatch && rand.nextDouble() < chanceToFlipTraitSignDueToMismatch) {
+                        traitIsBonus = !traitIsBonus;
+                        traitAdjustmentSignMismatch = false;
                     }
 
                     msg += "SUCCEEDED"
                             + NEW_LINE + "Bonus Chance: " + (int)(bonusChance * 100) + "% - " + (traitIsBonus ? "SUCCEEDED" : "FAILED");
 
-                    if((traitIsBonus || !ModPlugin.IGNORE_ALL_MALUSES) && !ignoreDueToAdjustment) {
+                    if((traitIsBonus || !ModPlugin.IGNORE_ALL_MALUSES) && !traitAdjustmentSignMismatch) {
                         rc.setTraitChange(RepRecord.chooseNewTrait(ship, rand, !traitIsBonus, rc.damageTakenFraction,
                                 rc.damageDealtPercent, rc.disabled));
                     }
@@ -427,7 +488,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             FleetInteractionDialogPluginImpl plugin = (FleetInteractionDialogPluginImpl) dialog.getPlugin();
 
             if (!(plugin.getContext() instanceof FleetEncounterContext)) return;
-            FleetEncounterContext context = (FleetEncounterContext) plugin.getContext();
+            context = (FleetEncounterContext) plugin.getContext();
             CampaignFleetAPI combined = context.getBattle() == null ? null : context.getBattle().getNonPlayerCombined();
 
             if (combined == null) return;
@@ -476,10 +537,18 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             for(FleetMemberAPI ship : ef.getDestroyed()) {
                 destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+
+                if(RepRecord.existsFor(ship)) famousRecoverableShip = ship;
             }
 
             for(FleetMemberAPI ship : ef.getDisabled()) {
                 destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+
+                if(RepRecord.existsFor(ship)) famousRecoverableShip = ship;
+            }
+
+            if(famousRecoverableShip != null) {
+                Misc.makeUnimportant(ef.getFleet(), "sun_sl_famous_derelict");
             }
 
             routedEnemies.clear();
@@ -567,12 +636,30 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     public boolean isDone() { return false; }
 
     @Override
-    public boolean runWhilePaused() { return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || !ModPlugin.settingsAreRead; }
+    public boolean runWhilePaused() {
+        return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES
+                || !ModPlugin.settingsAreRead
+                || famousRecoverableShip != null;
+    }
 
     @Override
     public void advance(float amount) {
         try {
             if (!ModPlugin.readSettingsIfNecessary()) return;
+
+            if(context != null && famousRecoverableShip != null && context.didPlayerWinEncounterOutright()) {
+                Set<FleetMemberAPI> recoverable = new HashSet<>();
+                // Below seems to give unreliable results, changing the outcome of previous decisions, resulting in jank
+                BattleAPI b = context.getBattle();
+                recoverable.addAll(context.getRecoverableShips(b, b.getPlayerCombined(), b.getNonPlayerCombined()));
+                recoverable.addAll(context.getStoryRecoverableShips());
+
+                if(!recoverable.contains(famousRecoverableShip)) {
+                    context.getStoryRecoverableShips().add(famousRecoverableShip);
+                }
+
+                return; // To prevent early reset, which would prematurely force famousRecoverableShip to be added to player fleet
+            }
 
             if(isResetNeeded) reset();
 
@@ -580,6 +667,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 Util.clearAllStarshipLegendsData();
                 return;
             }
+
 
 
             long xp = Global.getSector().getPlayerStats().getXP();

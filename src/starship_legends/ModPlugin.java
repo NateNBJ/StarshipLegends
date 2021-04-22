@@ -37,6 +37,7 @@ public class ModPlugin extends BaseModPlugin {
 
     public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
 
+
     public static boolean
             USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = true,
             USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = true,
@@ -57,8 +58,8 @@ public class ModPlugin extends BaseModPlugin {
             TRAITS_PER_TIER = 2,
             DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30,
             TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = 0,
-            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = 2,
-            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 8;
+            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = 1,
+            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5;
 
     public static float
             GLOBAL_EFFECT_MULT = 1,
@@ -77,6 +78,14 @@ public class ModPlugin extends BaseModPlugin {
             TRAIT_POSITION_CHANGE_CHANCE_MULT = 5.0f,
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
+
+//            DMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+//            SMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+//            SKILL_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+//            DMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+//            SMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+//            SKILL_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+//            STRENGTH_INCREASE_PER_PLAYER_LEVEL = 0.07f,
 
             TRAIT_CHANCE_MULT_FLAT = 0.1f,
             TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = 0.005f,
@@ -190,6 +199,10 @@ public class ModPlugin extends BaseModPlugin {
 
                 if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
                     bar.addEventCreator(new FamousShipBarEventCreator());
+                }
+
+                for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                    RepRecord.updateRepHullMod(ship);
                 }
 
                 if(settingsHaveBeenRead()) {
@@ -405,6 +418,15 @@ public class ModPlugin extends BaseModPlugin {
             TRAIT_CHANCE_MULT_PER_FLEET_POINT = (float) cfg.getDouble("traitChanceMultPerFleetPoint");
             TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageTakenPercent");
             TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageDealtPercent");
+
+//            DMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("dModFactorForPlayerShips");
+//            SMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("sModFactorForPlayerShips");
+//            SKILL_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("skillFactorForPlayerShips");
+//            DMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("dModFactorForEnemyShips");
+//            SMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("sModFactorForEnemyShips");
+//            SKILL_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("skillFactorForEnemyShips");
+//            STRENGTH_INCREASE_PER_PLAYER_LEVEL = (float) cfg.getDouble("strengthIncreasePerPlayerLevel");
+
 
 //            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = (float) cfg.getDouble("traitChanceMultForDeployedShips");
 //            MAX_XP_FOR_RESERVED_SHIPS = (float) cfg.getDouble("maxXpForReservedShips");

@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.BattleAPI;
 import com.fs.starfarer.api.campaign.FactionAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.*;
 import com.fs.starfarer.api.util.Misc;
@@ -74,7 +75,10 @@ public class BattleReport extends BaseIntelPlugin {
         float initPad = (mode == ListInfoMode.IN_DESC) ? opad : pad;
 
         if(enemyFaction != null) {
-            info.addPara("Battle against %s", 0f, tc, enemyFaction.getColor(), Misc.ucFirst(enemyFaction.getDisplayName()));
+            String factionName = enemyFaction.isShowInIntelTab()
+                    ? Misc.ucFirst(enemyFaction.getDisplayName())
+                    : "undesignated OpFor";
+            info.addPara("Battle against %s", 0f, tc, enemyFaction.getColor(), factionName);
         } else info.addPara("Battle report", 0f,tc);
 
         bullet(info);
@@ -123,12 +127,14 @@ public class BattleReport extends BaseIntelPlugin {
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);
             TooltipMakerAPI e = inner.createUIElement(width, totalHeight + noteCount * NOTE_HEIGHT, false);
             String resultMaybe = "";//(wasVictory != null) ? (wasVictory ?  "- Victory!" : "- Defeat!") : "";
+            String factionName = enemyFaction == null || !enemyFaction.isShowInIntelTab()
+                    ? "an undesignated opposing force"
+                    : Misc.ucFirst(enemyFaction.getDisplayNameLongWithArticle());
 
             outer.addCustom(inner, 0);
             e.addSectionHeading(" Battle Report " + resultMaybe, Alignment.LMID, 10);
 
-            e.addPara(title, 10, Misc.getTextColor(), getFactionForUIColors().getColor(),
-                    enemyFaction == null ? "" : enemyFaction.getDisplayNameLongWithArticle());
+            e.addPara(title, 10, Misc.getTextColor(), getFactionForUIColors().getColor(), factionName);
 
             if(playerFP > 0) e.addPara("Strength of your deployed forces: %s", 10, Misc.getHighlightColor(), "" + (int)playerFP);
             if(enemyFP > 0) e.addPara("Strength of enemy forces: %s", 10, Misc.getHighlightColor(), "" + (int)enemyFP);

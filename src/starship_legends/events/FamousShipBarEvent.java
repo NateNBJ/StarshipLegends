@@ -233,6 +233,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					|| system.hasTag("theme_core_populated")
 					|| system.hasTag("hidden")
 					|| system.hasTag("sun_sl_hidden")
+					|| system.hasTag("theme_hidden")
 					|| !Misc.getMarketsInLocation(system.getCenter().getContainingLocation()).isEmpty()
 					|| distance < timeScale.getMinDistance()) continue;
 
@@ -460,7 +461,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					for(StarSystemAPI system : Global.getSector().getStarSystems()) {
 						if(!system.hasTag("theme_core_populated") || system == Global.getSector().getCurrentLocation()
-								|| system.hasTag("hidden") || system.hasTag("sun_sl_hidden"))
+								|| system.hasTag("theme_hidden") || system.hasTag("hidden") || system.hasTag("sun_sl_hidden"))
 							continue;
 
 						for(MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
@@ -570,8 +571,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 					prepareMember(ship, wreckData);
 				}
-
-				ship.getVariant().addMod("reinforcedhull");
 			}
 		} catch (Exception e) {
 			ModPlugin.reportCrash(e);
