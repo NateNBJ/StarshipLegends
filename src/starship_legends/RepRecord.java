@@ -211,11 +211,31 @@ public class RepRecord {
             for (String mod : ship.getHullSpec().getBuiltInMods()) {
                 if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
             }
+
+            for (String mod : ship.getVariant().getSMods()) {
+                if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
+            }
+
+            if (ModPlugin.CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY) {
+                for (String mod : ship.getVariant().getHullMods()) {
+                    if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
+                }
+            }
         }
 
         if(!type.getRequiredBuiltInHullmods().isEmpty()) {
             if (!ship.getHullSpec().getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
                 return false;
+            }
+
+            if (!ship.getVariant().getPermaMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                return false;
+            }
+
+            if (ModPlugin.CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY) {
+                if (!ship.getVariant().getHullMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                    return false;
+                }
             }
         }
 

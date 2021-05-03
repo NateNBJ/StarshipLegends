@@ -88,10 +88,10 @@ public class TraitType {
         String[] ja = data.getString("tags").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) tags.add(ja[i].toLowerCase());
 
-        ja = data.getString("required_built_in_mods").replace(" ", "").split(",");
+        ja = data.getString("required_hullmods").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) requiredBuiltIns.add(ja[i]);
 
-        ja = data.getString("incompatible_built_in_mods").replace(" ", "").split(",");
+        ja = data.getString("incompatible_hullmods").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) incompatibleBuiltIns.add(ja[i]);
 
 

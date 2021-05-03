@@ -51,7 +51,9 @@ public class ModPlugin extends BaseModPlugin {
             SHOW_NEW_TRAIT_NOTIFICATIONS = true,
             ALLOW_CUSTOM_COMMANDER_PRESETS = true,
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = false,
-            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true;
+            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true,
+            CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY = false,
+            USE_ADVANCED_SHIP_STRENGTH_ESTIMATION = false;
 
     public static int
             MINIMUM_EFFECT_REDUCTION_PERCENT = -95,
@@ -79,13 +81,13 @@ public class ModPlugin extends BaseModPlugin {
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
-//            DMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-//            SMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-//            SKILL_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-//            DMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-//            SMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-//            SKILL_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-//            STRENGTH_INCREASE_PER_PLAYER_LEVEL = 0.07f,
+            DMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+            SMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+            SKILL_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
+            DMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+            SMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+            SKILL_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
+            STRENGTH_INCREASE_PER_PLAYER_LEVEL = 0.07f,
 
             TRAIT_CHANCE_MULT_FLAT = 0.1f,
             TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = 0.005f,
@@ -368,19 +370,13 @@ public class ModPlugin extends BaseModPlugin {
             jsonArray = Global.getSettings().loadCSV(LOYALTY_LEVEL_LIST_PATH);
             for (int i = 0; i < jsonArray.length(); i++) LoyaltyLevel.values()[i].init(jsonArray.getJSONObject(i));
 
-            //jsonArray = Global.getSettings().loadCSV(HULL_REGEN_SHIPS_PATH);
             jsonArray = Global.getSettings().getMergedSpreadsheetDataForMod("hull_id", HULL_REGEN_SHIPS_PATH, ID);
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject data = jsonArray.getJSONObject(i);
                 HULL_REGEN_SHIPS.put(data.getString("hull_id"), (float)data.getDouble("damage_counted_per_damage_sustained"));
             }
 
-            JSONObject cfg;
-
-//            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-//                cfg = Global.getSettings().getMergedJSONForMod(RUTHLESS_SETTINGS_PATH, ID);
-//            } else
-            cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
+            JSONObject cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
             FactionConfig.readDerelictChanceMultipliers(cfg.getJSONArray("famousDerelictChanceMultipliersByShipStrength"));
 
@@ -419,17 +415,20 @@ public class ModPlugin extends BaseModPlugin {
             TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageTakenPercent");
             TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageDealtPercent");
 
-//            DMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("dModFactorForPlayerShips");
-//            SMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("sModFactorForPlayerShips");
-//            SKILL_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("skillFactorForPlayerShips");
-//            DMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("dModFactorForEnemyShips");
-//            SMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("sModFactorForEnemyShips");
-//            SKILL_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("skillFactorForEnemyShips");
-//            STRENGTH_INCREASE_PER_PLAYER_LEVEL = (float) cfg.getDouble("strengthIncreasePerPlayerLevel");
+            USE_ADVANCED_SHIP_STRENGTH_ESTIMATION = cfg.getBoolean("useAdvancedShipStrengthEstimation");
 
+            try {
+                DMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("dModFactorForPlayerShips");
+                SMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("sModFactorForPlayerShips");
+                SKILL_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("skillFactorForPlayerShips");
+                DMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("dModFactorForEnemyShips");
+                SMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("sModFactorForEnemyShips");
+                SKILL_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("skillFactorForEnemyShips");
+                STRENGTH_INCREASE_PER_PLAYER_LEVEL = (float) cfg.getDouble("strengthIncreasePerPlayerLevel");
+            } catch (Exception e) {
+                if(USE_ADVANCED_SHIP_STRENGTH_ESTIMATION) throw e;
+            }
 
-//            TRAIT_CHANCE_MULT_FOR_DEPLOYED_SHIPS = (float) cfg.getDouble("traitChanceMultForDeployedShips");
-//            MAX_XP_FOR_RESERVED_SHIPS = (float) cfg.getDouble("maxXpForReservedShips");
             TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCombatShips");
             TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCivilianShips");
             TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("traitChanceBonusPerPlayerLevel");
@@ -467,6 +466,7 @@ public class ModPlugin extends BaseModPlugin {
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
 
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
+            CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY = cfg.getBoolean("considerNormalHullmodsForTraitCompatibility");
 
             ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;
 

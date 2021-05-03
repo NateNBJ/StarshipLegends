@@ -187,21 +187,17 @@ public class Util {
         return args.replace("good", "").replace("positive", "").replace("pos", "").replace("bad", "").replace("negative", "").replace("neg", "").trim();
     }
     public static float getShipStrength(FleetMemberAPI ship) {
+        if(ModPlugin.USE_ADVANCED_SHIP_STRENGTH_ESTIMATION) return getShipStrengthAdvanced(ship);
+
         if(ship.getHullSpec().isCivilianNonCarrier() || ship.isCivilian() || ship.isMothballed()) {
-            return ship.getDeploymentCostSupplies();
-        }
-
-        if(ModPlugin.USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH
-                && Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-
-            try { return ruthless_sector.ModPlugin.getShipStrength(ship); } catch (Exception e) { }
+            return ship.getDeploymentPointsCost();
         }
 
         float strength = ship.getFleetPointCost();
 
         if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
-            return 0;
-        } if(ship.isStation()) {
+            strength = 0;
+        } else if(ship.isStation()) {
             ShipVariantAPI variant = ship.getVariant();
             List<String> slots = variant.getModuleSlots();
             float totalOP = 0, detachedOP = 0;
@@ -219,77 +215,73 @@ public class Util {
 
             strength *= (totalOP - detachedOP) / Math.max(1, totalOP);
         } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
-            float dModMult = ship.getBaseDeploymentCostSupplies() > 0
-                    ? (ship.getDeploymentCostSupplies() / ship.getBaseDeploymentCostSupplies())
-                    : 1;
-
-            return strength * Math.max(1, Math.min(2, 1 + (strength - 5f) / 25f)) * dModMult;
+            return strength * Math.max(1, Math.min(2, 1 + (strength - 5f) / 25f));
         } else {
-            return ship.getDeploymentCostSupplies();
+            strength = ship.getDeploymentPointsCost();
         }
 
         return strength;
     }
-//    public static float getShipStrength(FleetMemberAPI ship) {
-//        float fp = ship.getFleetPointCost();
-//        float strength;
-//
-//        if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
-//            return 0;
-//        } if(ship.isStation()) {
-//            ShipVariantAPI variant = ship.getVariant();
-//            List<String> slots = variant.getModuleSlots();
-//            float totalOP = 0, detachedOP = 0;
-//
-//            for(int i = 0; i < slots.size(); ++i) {
-//                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
-//                float op = module.getHullSpec().getOrdnancePoints(null);
-//
-//                totalOP += op;
-//
-//                if(ship.getStatus().isPermaDetached(i+1)) {
-//                    detachedOP += op;
-//                }
-//            }
-//
-//            strength = fp * (totalOP - detachedOP) / Math.max(1, totalOP);
-//        } else {
-//            boolean isPlayerShip = ship.getOwner() == 0 && !ship.isAlly();
-//            float dModFactor = isPlayerShip ? ModPlugin.DMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.DMOD_FACTOR_FOR_ENEMY_SHIPS;
-//            float sModFactor = isPlayerShip ? ModPlugin.SMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SMOD_FACTOR_FOR_ENEMY_SHIPS;
-//            float skillFactor = isPlayerShip ? ModPlugin.SKILL_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SKILL_FACTOR_FOR_ENEMY_SHIPS;
-//
-//            float dMods = DModManager.getNumDMods(ship.getVariant());
-//            float sMods = ship.getVariant().getSMods().size();
-//            float skills = 0;
-//            PersonAPI captain = ship.getCaptain();
-//
-//            if(captain != null && !captain.isDefault()) {
-//                for(MutableCharacterStatsAPI.SkillLevelAPI skill : captain.getStats().getSkillsCopy()) {
-//                    if (skill.getSkill().isCombatOfficerSkill()) {
-//                        if(skill.getLevel() > 0) skills += skill.getSkill().isElite() ? 1.25f : 1;
-//                    }
-//                }
-//            }
-//
-//            float dModMult = (float) Math.pow(1 - dModFactor, dMods);
-//            float sModMult = (float) Math.pow(1 + sModFactor, sMods);
-//            float skillMult = (float) Math.pow(1 + skillFactor, skills);
-//            float playerStrengthMult = 1;
-//
-//            if(isPlayerShip) {
-//                playerStrengthMult += ModPlugin.STRENGTH_INCREASE_PER_PLAYER_LEVEL
-//                        * Global.getSector().getPlayerPerson().getStats().getLevel();
-//            }
-//
-//            strength = fp * (1 + (fp - 5f) / 25f) * dModMult * sModMult * skillMult * playerStrengthMult;
-//
-//            Global.getLogger(Util.class).info(String.format("%20s strength: %3.1f = %3.1f * %.2f * %.2f * %.2f * %.2f",
-//                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f), dModMult, sModMult, skillMult, playerStrengthMult));
-//        }
-//
-//        return strength;
-//    }
+    public static float getShipStrengthAdvanced(FleetMemberAPI ship) {
+        float fp = ship.getFleetPointCost();
+        float strength;
+
+        if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
+            strength = 0;
+        } else if(ship.isStation()) {
+            ShipVariantAPI variant = ship.getVariant();
+            List<String> slots = variant.getModuleSlots();
+            float totalOP = 0, detachedOP = 0;
+
+            for(int i = 0; i < slots.size(); ++i) {
+                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
+                float op = module.getHullSpec().getOrdnancePoints(null);
+
+                totalOP += op;
+
+                if(ship.getStatus().isPermaDetached(i+1)) {
+                    detachedOP += op;
+                }
+            }
+
+            strength = fp * (totalOP - detachedOP) / Math.max(1, totalOP);
+        } else {
+            boolean isPlayerShip = ship.getOwner() == 0 && !ship.isAlly();
+            float dModFactor = isPlayerShip ? ModPlugin.DMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.DMOD_FACTOR_FOR_ENEMY_SHIPS;
+            float sModFactor = isPlayerShip ? ModPlugin.SMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SMOD_FACTOR_FOR_ENEMY_SHIPS;
+            float skillFactor = isPlayerShip ? ModPlugin.SKILL_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SKILL_FACTOR_FOR_ENEMY_SHIPS;
+
+            float dMods = DModManager.getNumDMods(ship.getVariant());
+            float sMods = ship.getVariant().getSMods().size();
+            float skills = 0;
+            PersonAPI captain = ship.getCaptain();
+
+            if(captain != null && !captain.isDefault()) {
+                for(MutableCharacterStatsAPI.SkillLevelAPI skill : captain.getStats().getSkillsCopy()) {
+                    if (skill.getSkill().isCombatOfficerSkill()) {
+                        if(skill.getLevel() > 0) skills += skill.getSkill().isElite() ? 1.25f : 1;
+                    }
+                }
+            }
+
+            float dModMult = (float) Math.pow(1 - dModFactor, dMods);
+            float sModMult = (float) Math.pow(1 + sModFactor, sMods);
+            float skillMult = (float) Math.pow(1 + skillFactor, skills);
+            float playerStrengthMult = 1;
+
+            if(isPlayerShip) {
+                playerStrengthMult += ModPlugin.STRENGTH_INCREASE_PER_PLAYER_LEVEL
+                        * Global.getSector().getPlayerPerson().getStats().getLevel();
+            }
+
+            strength = fp * (1 + (fp - 5f) / 25f) * dModMult * sModMult * skillMult * playerStrengthMult;
+
+            Global.getLogger(Util.class).info(String.format("%20s strength: %3.1f = %3.1f * %.2f * %.2f * %.2f * %.2f",
+                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f), dModMult, sModMult, skillMult, playerStrengthMult));
+        }
+
+        return strength;
+    }
     public static void removeRepHullmodFromVariant(ShipVariantAPI v) {
         if(v == null) return;
 

@@ -176,7 +176,6 @@ public class FactionConfig {
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.CIVILIAN)
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.HIDE_IN_CODEX)
-                    || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.SHIP_WITH_MODULES)
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.STATION)
                     || spec.getHints().contains(ShipHullSpecAPI.ShipTypeHints.SHIP_WITH_MODULES)
             ) continue;
