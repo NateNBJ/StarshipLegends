@@ -419,7 +419,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                             msg += NEW_LINE + "Loyalty Increase Chance: " + (int) (loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
                             if (success) loyaltyChange = 1;
-                        } else if (loyaltyAdjustChance < 0.05f && !ll.isAtWorst() && adjustmentSign <= 0
+                        } else if (loyaltyAdjustChance < -0.05f && !ll.isAtWorst() && adjustmentSign <= 0
                                 && rc.damageTakenFraction >= ll.getDamageRequiredToWorsen()) {
 
                             loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);

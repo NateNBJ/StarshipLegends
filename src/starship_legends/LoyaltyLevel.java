@@ -32,7 +32,7 @@ public enum LoyaltyLevel {
         return ratingRequiredToImprove;
     }
     public float getDamageRequiredToWorsen() {
-        return ratingRequiredToImprove;
+        return damageRequiredToWorsen;
     }
     public int getTraitAdjustment() { return traitAdjustment; }
     public boolean isAtBest() { return getIndex() == ModPlugin.LOYALTY_LIMIT; }
