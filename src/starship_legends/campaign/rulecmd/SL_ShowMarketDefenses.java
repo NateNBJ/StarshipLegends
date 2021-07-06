@@ -18,6 +18,13 @@ import java.util.Map;
 public class SL_ShowMarketDefenses extends MarketCMD {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
+        PersonAPI commander = null;
+        List<CampaignFleetAPI> pulledIn = new ArrayList();
+
+        if(!ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) {
+            commander = guessCommander(pulledIn);
+        }
+
         if(Global.getSettings().getModManager().isModEnabled("nexerelin")) {
             try {
                 if(!(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) return false;
@@ -33,9 +40,6 @@ public class SL_ShowMarketDefenses extends MarketCMD {
 
         try {
             FactionConfig.clearEnemyFleetRep();
-            List<CampaignFleetAPI> pulledIn = new ArrayList();
-
-            PersonAPI commander = guessCommander(pulledIn);
 
             if (commander == null || commander.isDefault()) return false;
 
@@ -56,7 +60,7 @@ public class SL_ShowMarketDefenses extends MarketCMD {
             return false;
         }
     }
-
+    
     protected PersonAPI guessCommander(List<CampaignFleetAPI> pulledIn) {
         try {
             CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
