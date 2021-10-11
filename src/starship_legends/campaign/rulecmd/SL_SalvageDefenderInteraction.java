@@ -7,7 +7,7 @@ import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.impl.campaign.rulecmd.BaseCommandPlugin;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.SalvageDefenderInteraction;
 import com.fs.starfarer.api.util.Misc;
-import ruthless_sector.campaign.rulecmd.RS_SalvageDefenderInteraction;
+//import ruthless_sector.campaign.rulecmd.RS_SalvageDefenderInteraction;
 import starship_legends.FactionConfig;
 import starship_legends.ModPlugin;
 
@@ -20,13 +20,14 @@ public class SL_SalvageDefenderInteraction extends BaseCommandPlugin {
         try {
             BaseCommandPlugin si = new SalvageDefenderInteraction();
 
-            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-                try {
-                    si = new RS_SalvageDefenderInteraction();
-                } catch (Exception e) {
-                    ModPlugin.reportCrash(e, false);
-                }
-            }
+            // TODO fix this. Seems like agnostic import of classes from other mods from rules.csv stopped working in 0.95
+//            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+//                try {
+//                    si = new RS_SalvageDefenderInteraction();
+//                } catch (Exception e) {
+//                    ModPlugin.reportCrash(e, false);
+//                }
+//            }
 
             if(si.execute(ruleId, dialog, params, memoryMap)) {
                 if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return true;
