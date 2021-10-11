@@ -540,17 +540,19 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				if(fleet != null) {
 					try {
 						fleet.inflateIfNeeded();
+
+						commander = fleet.getCommander();
+						ship = fleet.getFlagship();
+						faction = fleet.getFaction();
+						traitCount = 5 + random.nextInt(3);
+
+						claimFleet(fleet);
 					} catch (Exception e) {
+						reset();
+
 						Global.getLogger(this.getClass()).warn("Failed to inflate fleet");
 						ModPlugin.reportCrash(e, false);
 					}
-
-					commander = fleet.getCommander();
-					ship = fleet.getFlagship();
-					faction = fleet.getFaction();
-					traitCount = 5 + random.nextInt(3);
-
-					claimFleet(fleet);
 				}
 			}
 

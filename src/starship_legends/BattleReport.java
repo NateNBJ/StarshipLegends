@@ -348,9 +348,8 @@ public class BattleReport extends BaseIntelPlugin {
     public Set<String> getIntelTags(SectorMapAPI map) {
         Set<String> tags = super.getIntelTags(map);
         tags.add("Reports");
-        //tags.add(Tags.INTEL_FLEET_LOG);
-        // TODO - don't add this tag if the enemy faction isn't known
-        if(enemyFaction != null) tags.add(enemyFaction.getId());
+        
+        if(enemyFaction != null && enemyFaction.isShowInIntelTab()) tags.add(enemyFaction.getId());
         return tags;
     }
 }

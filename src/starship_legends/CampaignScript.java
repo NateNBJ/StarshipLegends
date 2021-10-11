@@ -407,7 +407,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     LoyaltyLevel ll = rep.getLoyalty(rc.captain);
                     float loyaltyAdjustChance = (br.rating - 0.5f) + rep.getLoyaltyBonus(rc.captain);
-                    boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
 
                     if(ModPlugin.USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE
                             || Math.signum(loyaltyAdjustChance) == Math.signum(rc.ratingAdjustment)) {
@@ -416,6 +415,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                                 && rc.newRating >= ll.getRatingRequiredToImprove()) {
 
                             loyaltyAdjustChance *= ll.getBaseImproveChance() * ModPlugin.IMPROVE_LOYALTY_CHANCE_MULT;
+                            boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
                             msg += NEW_LINE + "Loyalty Increase Chance: " + (int) (loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
                             if (success) loyaltyChange = 1;
@@ -423,6 +423,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                                 && rc.damageTakenFraction >= ll.getDamageRequiredToWorsen()) {
 
                             loyaltyAdjustChance = Math.abs(loyaltyAdjustChance);
+                            boolean success = rand.nextFloat() <= Math.abs(loyaltyAdjustChance);
                             loyaltyAdjustChance *= ll.getBaseWorsenChance() * ModPlugin.WORSEN_LOYALTY_CHANCE_MULT;
                             msg += NEW_LINE + "Loyalty Reduction Chance: " + (int) (loyaltyAdjustChance * 100) + "% - " + (success ? "SUCCEEDED" : "FAILED");
 
@@ -643,12 +644,15 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     public boolean runWhilePaused() {
         return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES
                 || !ModPlugin.settingsAreRead
-                || famousRecoverableShip != null;
+                || famousRecoverableShip != null
+                || !Reputation.moduleMap.isEmpty();
     }
 
     @Override
     public void advance(float amount) {
         try {
+            if(Global.getSector().getCampaignUI().getCurrentCoreTab() != CoreUITabId.REFIT) Reputation.moduleMap.clear();
+
             if (!ModPlugin.readSettingsIfNecessary()) return;
 
             if(context != null && famousRecoverableShip != null && context.didPlayerWinEncounterOutright()) {

@@ -31,11 +31,22 @@ public class Reputation extends BaseHullMod {
     }
 
     static transient Saved<HashSet<FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashSet<FleetMemberAPI>());
+    public static transient HashMap<String, FleetMemberAPI> moduleMap = new HashMap<>(); // TODO - Remove this nonsense if Alex fixes getFleetMember
 
     public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
     public static final Color BORDER_COLOR = new Color(147, 102, 50, 0);
     public static final Color NAME_COLOR = new Color(224, 184, 139, 255);
 
+    public static FleetMemberAPI getFleetMember(MutableShipStatsAPI stats) {
+        String id = stats.getVariant().getHullVariantId();
+
+        return moduleMap.containsKey(id) ? moduleMap.get(id) : stats.getFleetMember();
+    }
+    public static FleetMemberAPI getFleetMember(ShipAPI ship) {
+        String id = ship.getVariant().getHullVariantId();
+
+        return moduleMap.containsKey(id) ? moduleMap.get(id) : ship.getFleetMember();
+    }
     public static void printRegistry() {
         String msg = "";
 
@@ -301,15 +312,26 @@ public class Reputation extends BaseHullMod {
     @Override
     public void applyEffectsBeforeShipCreation(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats, String id) {
         try {
-            if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || shipsOfNote.val.isEmpty())
+            if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES)
                 return;
 
-
-            FleetMemberAPI ship = stats.getFleetMember();
+            FleetMemberAPI ship = getFleetMember(stats);
 
             if(ship == null) return;
 
-            // ship.getOwner() will sometimes return 0 here for ships not owned by the player (e.g. for some tooltips)
+            try {
+                if (!stats.getVariant().getStationModules().isEmpty()) {
+                    moduleMap.clear();
+
+                    for (Map.Entry<String, String> e : stats.getVariant().getStationModules().entrySet()) {
+                        ShipVariantAPI module = stats.getVariant().getModuleVariant(e.getKey());
+
+                        moduleMap.put(module.getHullVariantId(), ship);
+                    }
+                }
+            } catch (Exception e) {
+                ModPlugin.reportCrash(e, false);
+            }
 
             if(id.equals(ENEMY_HULLMOD_ID)) {
                 if(FactionConfig.getEnemyFleetRep() != null) {
@@ -341,7 +363,7 @@ public class Reputation extends BaseHullMod {
     public String getDescriptionParam(int index, ShipAPI.HullSize hullSize, ShipAPI ship) {
         if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return "";
 
-        FleetMemberAPI fm = ship.getMutableStats().getFleetMember();
+        FleetMemberAPI fm = getFleetMember(ship);
 
         if(fm == null) return "SHIP NOT FOUND";
 
@@ -355,7 +377,7 @@ public class Reputation extends BaseHullMod {
         try {
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
 
-            FleetMemberAPI fm = ship.getMutableStats().getFleetMember();
+            FleetMemberAPI fm = getFleetMember(ship);
 
             if(fm == null || !RepRecord.existsFor(fm)) {
                 String msg = fm == null

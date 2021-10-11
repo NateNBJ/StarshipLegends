@@ -290,12 +290,16 @@ public class Util {
         v.removePermaMod("sun_sl_famous");
         v.removePermaMod("sun_sl_legendary");
 
-        // Line below may NPE
-        List<String> slots = v.getModuleSlots();
+        try {
+            List<String> slots = v.getModuleSlots();
 
-        for(int i = 0; i < slots.size(); ++i) {
-            ShipVariantAPI module = v.getModuleVariant(slots.get(i));
-            Util.removeRepHullmodFromVariant(module);
+            for (int i = 0; i < slots.size(); ++i) {
+                ShipVariantAPI module = v.getModuleVariant(slots.get(i));
+                Util.removeRepHullmodFromVariant(module);
+            }
+        } catch (Exception e) {
+            Global.getLogger(Util.class).warn("Could not retrieve module slots for variant " + v.getHullVariantId());
+            ModPlugin.reportCrash(e, false);
         }
     }
     public static PersonAPI getHighestLevelEnemyCommanderInBattle(List<CampaignFleetAPI> fleets) {

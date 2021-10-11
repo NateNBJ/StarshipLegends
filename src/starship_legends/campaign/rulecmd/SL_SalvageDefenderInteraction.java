@@ -7,7 +7,7 @@ import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.impl.campaign.rulecmd.BaseCommandPlugin;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.SalvageDefenderInteraction;
 import com.fs.starfarer.api.util.Misc;
-//import ruthless_sector.campaign.rulecmd.RS_SalvageDefenderInteraction;
+import ruthless_sector.campaign.rulecmd.RS_SalvageDefenderInteraction;
 import starship_legends.FactionConfig;
 import starship_legends.ModPlugin;
 
@@ -20,14 +20,13 @@ public class SL_SalvageDefenderInteraction extends BaseCommandPlugin {
         try {
             BaseCommandPlugin si = new SalvageDefenderInteraction();
 
-            // TODO import RS_SalvageDefenderInteraction once new RS jar is compiled
-//            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-//                try {
-//                    si = new RS_SalvageDefenderInteraction();
-//                } catch (Exception e) {
-//                    ModPlugin.reportCrash(e, false);
-//                }
-//            }
+            if(Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
+                try {
+                    si = new RS_SalvageDefenderInteraction();
+                } catch (Exception e) {
+                    ModPlugin.reportCrash(e, false);
+                }
+            }
 
             if(si.execute(ruleId, dialog, params, memoryMap)) {
                 if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return true;

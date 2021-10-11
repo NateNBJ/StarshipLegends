@@ -60,7 +60,7 @@ public class SL_ShowMarketDefenses extends MarketCMD {
             return false;
         }
     }
-    
+
     protected PersonAPI guessCommander(List<CampaignFleetAPI> pulledIn) {
         try {
             CampaignFleetAPI pf = Global.getSector().getPlayerFleet();

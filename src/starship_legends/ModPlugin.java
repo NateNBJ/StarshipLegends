@@ -186,6 +186,8 @@ public class ModPlugin extends BaseModPlugin {
     @Override
     public void onGameLoad(boolean newGame) {
         try {
+            Reputation.moduleMap.clear();
+
             Global.getSector().addTransientScript(script = new CampaignScript());
 
             Saved.loadPersistentData();
