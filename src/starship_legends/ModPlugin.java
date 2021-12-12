@@ -134,7 +134,7 @@ public class ModPlugin extends BaseModPlugin {
             if(MAJOR < other.MAJOR) return true;
             if(MINOR < other.MINOR) return true;
             if(PATCH < other.PATCH) return true;
-            if(!ignoreRC && RC < other.RC) return true;
+            if(!ignoreRC && !other.isOlderThan(this, true) && RC < other.RC) return true;
 
             return false;
         }
