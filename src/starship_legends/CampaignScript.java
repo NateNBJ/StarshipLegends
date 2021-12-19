@@ -5,7 +5,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
-import com.fs.starfarer.api.campaign.listeners.ListenerUtil;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetGoal;
@@ -15,12 +14,17 @@ import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.ui.CustomPanelAPI;
+import com.fs.starfarer.api.ui.PositionAPI;
+import com.fs.starfarer.api.ui.TooltipMakerAPI;
+import com.fs.starfarer.api.ui.UIComponentAPI;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.events.FamousShipBarEvent;
 import starship_legends.hullmods.Reputation;
 
+import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -47,6 +51,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             destroyedEnemies = new HashSet<>(),
             routedEnemies = new HashSet<>();
     static FleetEncounterContext context = null;
+    static TextPanelAPI textPanel = null;
 
     static Map<FleetMemberAPI, Float> playerDeployedFP = new HashMap();
     static Map<FleetMemberAPI, Float> enemyDeployedFP = new HashMap();
@@ -179,6 +184,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 Global.getLogger(CampaignScript.class).info("Famous ship force recovered");
             }
 
+            textPanel = null;
             context = null;
             famousRecoverableShip = null;
             playerFP = 0;
@@ -463,6 +469,95 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 rc.apply(false);
             }
 
+//            List<FleetMemberAPI> sl = new ArrayList<>();
+//            final float NOTE_HEIGHT = 64;
+
+//            TooltipMakerAPI ttm = textPanel.beginTooltip();
+//
+//            List<FleetMemberAPI> ships = new ArrayList<>();
+//            ships.add(report.changes.get(0).ship);
+//            ships.add(report.changes.get(1).ship);
+//            ships.add(report.changes.get(2).ship);
+//            ships.add(report.changes.get(3).ship);
+
+//            ttm.addShipList(4, 1, 32, Misc.getTextColor(), ships, 5);
+//
+////                    ttm.addImages(400, 32, 5, 5, report.changes.get(0).ship.getHullSpec().getSpriteName(),
+////                            report.changes.get(1).ship.getHullSpec().getSpriteName(),
+////                            report.changes.get(2).ship.getHullSpec().getSpriteName());
+//            ttm.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
+//                    @Override
+//                    public boolean isTooltipExpandable(Object tooltipParam) {
+//                        return false;
+//                    }
+//
+//                    @Override
+//                    public float getTooltipWidth(Object tooltipParam) {
+//                        return 500;
+//                    }
+//
+//                    @Override
+//                    public void createTooltip(TooltipMakerAPI tooltip, boolean expanded, Object tooltipParam) {
+//                        tooltip.addPara("THIS IS ONLY A TEST", 10);
+//                    }
+//                }, TooltipMakerAPI.TooltipLocation.RIGHT);
+//            textPanel.addTooltip();
+
+//            for(RepChange rc : report.changes) {
+//                TooltipMakerAPI ttm = textPanel.beginTooltip();
+//
+//                ttm.addImages(400, 32, 5, 5, report.changes.get(0).ship.getHullSpec().getSpriteName());
+//                TooltipMakerAPI iwt = ttm.beginImageWithText(rc.ship.getHullSpec().getSpriteName(), 32);
+//                iwt.beginImageWithText(rc.ship.getHullSpec().getSpriteName(), 32);
+//                iwt.beginImageWithText(rc.ship.getHullSpec().getSpriteName(), 32);
+//
+//                CustomPanelAPI panel = textPanel.;
+//
+//                iwt.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
+//                    @Override
+//                    public boolean isTooltipExpandable(Object tooltipParam) {
+//                        return false;
+//                    }
+//
+//                    @Override
+//                    public float getTooltipWidth(Object tooltipParam) {
+//                        return 500;
+//                    }
+//
+//                    @Override
+//                    public void createTooltip(TooltipMakerAPI tooltip, boolean expanded, Object tooltipParam) {
+//                        tooltip.addPara("THIS IS ONLY A TEST", 10);
+//                    }
+//                }, TooltipMakerAPI.TooltipLocation.BELOW);
+//                iwt.addPara("There's been some %s...", 5, Misc.getTextColor(), Misc.getHighlightColor(), "changes");
+//                iwt.addPara("There's been some %s...", 5, Misc.getTextColor(), Misc.getHighlightColor(), "changes");
+//                iwt.addPara("There's been some %s...", 5, Misc.getTextColor(), Misc.getHighlightColor(), "changes");
+//                ttm.addImageWithText(10);
+//                textPanel.addTooltip();
+//
+////
+////                if (!rc.hasAnyChanges() || !RepRecord.existsFor(rc.ship)) continue;
+////
+////                int notes = 0;
+////                if (rc.trait != null) ++notes;
+////                if (rc.captainOpinionChange != 0) ++notes;
+////
+////                TooltipMakerAPI e1 = textPanel.beginTooltip();// inner.createUIElement(NOTE_HEIGHT, NOTE_HEIGHT, false);
+////                sl.clear();
+////                sl.add(rc.ship);
+////                e1.addShipList(1, 1, NOTE_HEIGHT, Color.WHITE, sl, 10);
+////                e1.addToo
+////
+////
+////                inner.addUIElement(e1).inTL(0, totalHeight);
+////
+////                TooltipMakerAPI e2 = inner.createUIElement(width - NOTE_HEIGHT, NOTE_HEIGHT, false);
+////                rc.addCommentsToTooltip(e2);
+////                inner.addUIElement(e2).inTL(NOTE_HEIGHT, totalHeight + NOTE_HEIGHT / 2f - notes * 5f);
+////
+////                totalHeight += NOTE_HEIGHT;
+//            }
+
             if(report.changes.size() > 0) Global.getSector().getIntelManager().addIntel(report);
 
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {
@@ -484,33 +579,36 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     @Override
     public void reportShownInteractionDialog(InteractionDialogAPI dialog) {
         try {
-            if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || dialog == null || dialog.getPlugin() == null
-                    || !(dialog.getPlugin() instanceof FleetInteractionDialogPluginImpl))
+            if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || dialog == null || dialog.getPlugin() == null)
                 return;
 
+            textPanel = dialog.getTextPanel();
             isResetNeeded = true;
 
-            FleetInteractionDialogPluginImpl plugin = (FleetInteractionDialogPluginImpl) dialog.getPlugin();
+            if(dialog.getPlugin() instanceof FleetInteractionDialogPluginImpl) {
 
-            if (!(plugin.getContext() instanceof FleetEncounterContext)) return;
-            context = (FleetEncounterContext) plugin.getContext();
-            CampaignFleetAPI combined = context.getBattle() == null ? null : context.getBattle().getNonPlayerCombined();
+                FleetInteractionDialogPluginImpl plugin = (FleetInteractionDialogPluginImpl) dialog.getPlugin();
 
-            if (combined == null) return;
-            PersonAPI commander = Util.getHighestLevelEnemyCommanderInBattle(context.getBattle().getNonPlayerSide());
+                if (!(plugin.getContext() instanceof FleetEncounterContext)) return;
+                context = (FleetEncounterContext) plugin.getContext();
+                CampaignFleetAPI combined = context.getBattle() == null ? null : context.getBattle().getNonPlayerCombined();
 
-            FactionConfig fc  = FactionConfig.get(combined.getFaction());
+                if (combined == null) return;
+                PersonAPI commander = Util.getHighestLevelEnemyCommanderInBattle(context.getBattle().getNonPlayerSide());
 
-            if(fc != null) {
-                fc.showFleetReputation(dialog, commander);
+                FactionConfig fc = FactionConfig.get(combined.getFaction());
 
-                for(FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
-                    ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
+                if (fc != null) {
+                    fc.showFleetReputation(dialog, commander);
+
+                    for (FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
+                        ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
+                    }
                 }
-            }
 
-            for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousFlagshipIntel.class)) {
-                ((FamousFlagshipIntel)i).applyHullmodsToShip();
+                for (IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousFlagshipIntel.class)) {
+                    ((FamousFlagshipIntel) i).applyHullmodsToShip();
+                }
             }
         } catch (Exception e) {
             ModPlugin.reportCrash(e);
