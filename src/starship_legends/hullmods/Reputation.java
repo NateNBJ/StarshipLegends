@@ -1,22 +1,23 @@
 package starship_legends.hullmods;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.FleetDataAPI;
 import com.fs.starfarer.api.characters.OfficerDataAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
-import com.fs.starfarer.api.combat.*;
+import com.fs.starfarer.api.combat.BaseHullMod;
+import com.fs.starfarer.api.combat.MutableShipStatsAPI;
+import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Commodities;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
-import com.fs.starfarer.api.impl.hullmods.CompromisedStructure;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import org.lazywizard.console.Console;
 import starship_legends.*;
 
 import java.awt.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 
 public class Reputation extends BaseHullMod {
@@ -71,12 +72,12 @@ public class Reputation extends BaseHullMod {
     }
 
     public static void applyEffects(FleetMemberAPI ship) {
-        if(!RepRecord.existsFor(ship)) return;
+        if(!RepRecord.isShipNotable(ship)) return;
 
         RepRecord rep = RepRecord.get(ship);
 
         applyEffects(rep, ship, ship.getHullSpec().getHullSize(), ship.getCaptain(), ship.getStats(),
-                ship.isFighterWing(), rep.getTeir().getHullModID());
+                ship.isFighterWing(), rep.getTier().getHullModID());
     }
     public static void applyEffects(RepRecord rep, FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
         try {
@@ -85,8 +86,13 @@ public class Reputation extends BaseHullMod {
             float effectMult = id.equals(ENEMY_HULLMOD_ID) ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1.0f;
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-                loyaltyEffectAdjustment = rep.getLoyalty(captain).getTraitAdjustment();
-                stats.getCRLossPerSecondPercent().modifyPercent(id, rep.getLoyalty(captain).getCrDecayMult());
+                LoyaltyLevel ll = rep.getLoyalty(captain);
+                loyaltyEffectAdjustment = ll.getTraitAdjustment();
+                stats.getCRLossPerSecondPercent().modifyPercent(id, ll.getCrDecayMult());
+                if(ll.getMaxCrReduction() > 0) {
+                    stats.getPeakCRDuration().modifyPercent(id, -ll.getMaxCrReduction());
+                    stats.getMaxCombatReadiness().modifyFlat(id, -0.01f * ll.getMaxCrReduction(), ll.getName() + " crew");
+                }
             }
 
             for(Trait trait : rep.getTraits()) {
@@ -115,6 +121,22 @@ public class Reputation extends BaseHullMod {
                     }
                 } else {
                     switch (trait.getTypeId()) {
+                        case "ammo_regen":
+                            stats.getBallisticAmmoRegenMult().modifyPercent(id, e);
+                            stats.getEnergyAmmoRegenMult().modifyPercent(id, e);
+                            stats.getMissileAmmoRegenMult().modifyPercent(id, e);
+                            break;
+                        case "ammo_capacity":
+                            stats.getBallisticAmmoBonus().modifyPercent(id, e);
+                            stats.getEnergyAmmoBonus().modifyPercent(id, e);
+                            stats.getMissileAmmoBonus().modifyPercent(id, e);
+                            break;
+                        case "system_cooldown":
+                            stats.getSystemCooldownBonus().modifyPercent(id, e);
+                            break;
+                        case "system_regen_rate":
+                            stats.getSystemRegenBonus().modifyPercent(id, e);
+                            break;
                         case "ballistics_rof":
                             stats.getBallisticRoFMult().modifyPercent(id, e);
                             break;
@@ -302,7 +324,7 @@ public class Reputation extends BaseHullMod {
     public static void applyEffects(FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
         try {
             if(!ModPlugin.settingsHaveBeenRead()) return;
-            if(ship == null || !RepRecord.existsFor(ship)) return;
+            if(ship == null || !RepRecord.isShipNotable(ship)) return;
 
             RepRecord rep = RepRecord.get(ship);
             applyEffects(rep, ship, size, captain, stats, isFighter, id);
@@ -365,11 +387,7 @@ public class Reputation extends BaseHullMod {
 
         FleetMemberAPI fm = getFleetMember(ship);
 
-        if(fm == null) return "SHIP NOT FOUND";
-
-        return index == 1 && RepRecord.existsFor(fm)
-                ? (int)(RepRecord.get(fm).getRating() * 100) + "%"
-                : fm.getShipName();
+        return fm == null ? "SHIP NOT FOUND" : fm.getShipName();
     }
 
     @Override
@@ -404,18 +422,9 @@ public class Reputation extends BaseHullMod {
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = fm.getMinCrew() > 0 || fm.isMothballed();
-
-            if(Global.getSettings().isDevMode() || (ModPlugin.SHOW_COMBAT_RATINGS && !fm.getHullSpec().isCivilianNonCarrier())) {
-                tooltip.addPara("It has a rating of %s on the Evans-Zhao combat performance scale.", 10,
-                        Misc.getHighlightColor(), (int) (rep.getRating() * 100f) + "%");
-
-                if(Global.getSettings().isDevMode()) {
-                    tooltip.addPara("(Dev) Actual bonus fraction of traits: %s.", 10, Misc.getGrayColor(),
-                            Misc.getHighlightColor(), (int) (rep.getFractionOfBonusEffectFromTraits() * 100f) + "%");
-                    tooltip.addPara("(Dev) Strength estimation: %s.", 10, Misc.getGrayColor(),
-                            Misc.getHighlightColor(), (int) Util.getShipStrength(fm) + "");
-                }
-            }
+            boolean showXp = Global.getSettings().isDevMode()
+                    ? ModPlugin.SHOW_SHIP_XP_IN_DEV_MODE
+                    : ModPlugin.SHOW_SHIP_XP;
 
             Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft);
 
@@ -428,6 +437,13 @@ public class Reputation extends BaseHullMod {
             } else {
                 tooltip.addPara(tier.getFlavorText(requiresCrew), 10, Misc.getGrayColor(), Misc.getGrayColor(),
                         fm.getShipName());
+
+                if(showXp && rep.getTier() != Trait.Tier.Legendary) {
+                    String xp = Util.getImpreciseNumberString(rep.getXp());
+                    String req = Util.getImpreciseNumberString(RepRecord.getXpRequiredToLevelUp(fm));
+                    tooltip.addPara("Progress to next tier: " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
+                            Misc.getGrayColor());
+                }
             }
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
@@ -446,15 +462,43 @@ public class Reputation extends BaseHullMod {
                     else if (ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
                     else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
+                    if(ll.getMaxCrReduction() > 0) {
+                        message += " The maximum CR and peak performance time of the ship will be reduced by %s while "
+                                + fm.getCaptain().getNameString() + " remains the captain.";
+                    }
+
+                    if(ll == LoyaltyLevel.INSPIRED) {
+                        int daysLeft = RepRecord.getDaysOfInspirationRemaining(fm, fm.getCaptain());
+
+                        message += daysLeft <= 0
+                                ? " The crew will remain inspired until the end of the next battle."
+                                : " The crew will remain inspired for at least another " + daysLeft + " days.";
+                    }
+
                     tooltip.beginImageWithText(fm.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
-                            ll.getName(), (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc());
+                            ll.getName(), (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc(),
+                            (int)ll.getMaxCrReduction() + "%");
+
+                    if(showXp) {
+                        String xp = Util.getImpreciseNumberString(rep.getXp());
+
+                        if(ll == LoyaltyLevel.INSPIRED || ll == LoyaltyLevel.FIERCELY_LOYAL) {
+                            tooltip.addPara("Progress to next inspiration: " + xp + " XP", 10, Misc.getGrayColor(),
+                                    Misc.getGrayColor());
+                        } else {
+                            String req = Util.getImpreciseNumberString(ll.getXpToImprove());
+                            tooltip.addPara("Progress to improved loyalty: " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
+                                    Misc.getGrayColor());
+                        }
+                    }
+
                     tooltip.addImageWithText(8);
-                } else if(!rep.getOpinionsOfOfficers().isEmpty()) {
+                } else if(!rep.getCaptainLoyaltyLevels().isEmpty()) {
                     int bestOpinion = 0;
                     Set<String> trustedOfficers = new HashSet<>();
                     Set<String> unfoundOfficers = new HashSet<>();
 
-                    for(Map.Entry<String, Integer> e : rep.getOpinionsOfOfficers().entrySet()) {
+                    for(Map.Entry<String, Integer> e : rep.getCaptainLoyaltyLevels().entrySet()) {
                         boolean officerNotFound = !e.getKey().equals(Global.getSector().getPlayerPerson().getId());
 
                         if(officerNotFound) {
@@ -479,7 +523,7 @@ public class Reputation extends BaseHullMod {
                         if(e.getValue() == bestOpinion) trustedOfficers.add(e.getKey());
                     }
 
-                    for(String id : unfoundOfficers) rep.getOpinionsOfOfficers().remove(id);
+                    for(String id : unfoundOfficers) rep.getCaptainLoyaltyLevels().remove(id);
 
                     if(bestOpinion > 0 && !trustedOfficers.isEmpty()) {
                         LoyaltyLevel ll = LoyaltyLevel.values()[bestOpinion + ModPlugin.LOYALTY_LIMIT];
@@ -512,11 +556,29 @@ public class Reputation extends BaseHullMod {
                 Trait.Tier currentTier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
                 if(currentTier != previousTier) {
-                    tooltip.addPara("%s traits:", 10, Color.WHITE, currentTier.getDisplayName());
+                    tooltip.addPara("%s traits:", 10, Misc.getTextColor(), currentTier.getDisplayName());
                     previousTier = currentTier;
                 }
 
                 trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false, false);
+            }
+
+            int rumoredTraitsToShow = Global.getSettings().isDevMode() ?
+                    ModPlugin.RUMORED_TRAITS_SHOWN_IN_DEV_MODE : ModPlugin.RUMORED_TRAITS_SHOWN;
+
+            if(rumoredTraitsToShow > 0 && rep.getTraits().size() < ModPlugin.TRAIT_LIMIT) {
+                List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(fm, true);
+                int traitIndex = rep.getTraits().size();
+                int traitIndexOfLastRumoredTraitToShow = Math.min(ModPlugin.TRAIT_LIMIT, traitIndex + rumoredTraitsToShow - 1);
+
+                tooltip.addPara("Rumored traits:", 10, Misc.getGrayColor(), Misc.getGrayColor());
+
+                while (traitIndex <= traitIndexOfLastRumoredTraitToShow && destinedTraits.size() > traitIndex) {
+                    Trait trait = destinedTraits.get(traitIndex);
+                    trait.addParagraphTo(tooltip, Trait.Tier.Rumored, loyaltyEffectAdjustment,
+                            requiresCrew, hullSize, false, false);
+                    traitIndex += 1;
+                }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }

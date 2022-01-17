@@ -3,17 +3,10 @@ package starship_legends;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CombatDamageData;
 import com.fs.starfarer.api.combat.*;
-import com.fs.starfarer.api.combat.listeners.ApplyDamageResultAPI;
-import com.fs.starfarer.api.combat.listeners.DamageListener;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
-import com.fs.starfarer.api.mission.FleetSide;
-import com.fs.starfarer.combat.CombatEngine;
-import com.fs.starfarer.combat.CombatFleetManager;
-import starship_legends.hullmods.Reputation;
 
 import java.util.*;
-import java.util.List;
 
 public class CombatPlugin implements EveryFrameCombatPlugin {
     boolean damageHasBeenLogged = false, isFirstFrame = true;
@@ -75,7 +68,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if (tick++ % 300 == 0) {
                 for (ShipAPI ship : engine.getShips()) {
-                    FleetMemberAPI fm = getFleetMember(ship);
+                    FleetMemberAPI fm = ship.getFleetMember();
 
                     if(fm == null) continue;
 
@@ -102,15 +95,15 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
                         sectionSourceMap.put(key, ship.getParentStation().getFleetMemberId());
 
                         key = ship.getParentStation().getFleetMemberId();
-                        fm =  getFleetMember(ship.getParentStation());
+                        fm =  ship.getParentStation().getFleetMember();
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
-                        stationDeployCosts.put(key, Util.getShipStrength(fm));
+                        stationDeployCosts.put(key, Util.getShipStrength(fm, false));
                     } else if(//!ship.isStation()
-                            //&& ship.getMaxFlux() > 0
+                        //&& ship.getMaxFlux() > 0
                             !ship.isFighter()
-                            && ship.getParentStation() == null
-                            && !hpTotals.containsKey(key)) {
+                                    && ship.getParentStation() == null
+                                    && !hpTotals.containsKey(key)) {
                         //Global.getLogger(this.getClass()).info("Core found: " + ship.getHullSpec().getHullId() + " fp: " + getShipStrength(fm) + " id: " + ship.getFleetMemberId() + " hp: " + ship.getMaxHitpoints() + " station: " + ship.isStation());
 
                         hpTotals.put(key, ship.getMaxHitpoints() + (hpTotals.containsKey(key) ? hpTotals.get(key) : 0));
@@ -119,7 +112,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             }
 
-            if (!damageHasBeenLogged && (engine.isCombatOver() || isEnemyInFullRetreat())) {
+            if (!damageHasBeenLogged && (engine.isCombatOver() || engine.isEnemyInFullRetreat())) {
                 compileDamageDealt();
 
                 damageHasBeenLogged = true;
@@ -190,57 +183,13 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                 acc += (dmg / hp) * (stationDeployCosts.containsKey(targetID)
                         ? stationDeployCosts.get(targetID)
-                        : Util.getShipStrength(target));
+                        : Util.getShipStrength(target, false));
             }
         }
 
         //if(acc > 0) msg += "\r      Total FP worth of damage: " + acc;
 
         return acc;
-    }
-
-    public FleetMemberAPI getFleetMember(ShipAPI ship) {
-        FleetMemberAPI fleetMember = null;
-
-        CombatFleetManager manager = CombatEngine.getInstance().getFleetManager(ship.getOriginalOwner());
-        if (manager != null && manager.getDeployedFleetMemberEvenIfDisabled(ship) != null) {
-            fleetMember = manager.getDeployedFleetMemberEvenIfDisabled(ship).getMember();
-            if (fleetMember != null) {
-                if (ship.getOriginalOwner() == 0) {
-                    fleetMember.setOwner(0);
-                } else if (ship.getOriginalOwner() == 1) {
-                    fleetMember.setOwner(1);
-                }
-            }
-        }
-        return fleetMember;
-    }
-
-    public boolean isEnemyInFullRetreat() {
-        CombatFleetManagerAPI cfm = Global.getCombatEngine().getFleetManager(FleetSide.ENEMY);
-        if (cfm == null) return false;
-
-        CombatTaskManagerAPI taskManager = cfm.getTaskManager(false);
-        if (taskManager == null) return false;
-
-        boolean allDeployedRetreating = true;
-        for (DeployedFleetMemberAPI dfm : cfm.getDeployedCopyDFM()) {
-            if (dfm.isFighterWing()) continue;
-            if (!dfm.getShip().isRetreating()) {
-                allDeployedRetreating = false;
-            }
-        }
-
-        if (!allDeployedRetreating) return false;
-
-        cfm = Global.getCombatEngine().getFleetManager(FleetSide.PLAYER);
-        if (cfm == null) return false;
-        if (cfm.getReservesCopy().isEmpty() && cfm.getDeployedCopy().isEmpty()) {
-            return false;
-        }
-
-        cfm = Global.getCombatEngine().getFleetManager(FleetSide.ENEMY);
-        return cfm.getReservesCopy().isEmpty() || taskManager.isInFullRetreat();
     }
 
     @Override

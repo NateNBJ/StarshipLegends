@@ -19,9 +19,7 @@ public class FamousShipBarEventCreator extends BaseBarEventCreator {
 	public float getBarEventFrequencyWeight() {
 		if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return 0;
 
-		return super.getBarEventFrequencyWeight()
-				* (ModPlugin.FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE
-				+ ModPlugin.FAMOUS_DERELICT_BAR_EVENT_CHANCE);
+		return super.getBarEventFrequencyWeight() * FamousShipBarEvent.getChanceOfAnyStoryEvent();
 	}
 
 	@Override

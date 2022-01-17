@@ -1,28 +1,36 @@
 package starship_legends;
 
+import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.ShipHullSpecAPI;
+import com.fs.starfarer.api.combat.ShipSystemSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
+import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
+import com.thoughtworks.xstream.XStream;
 import org.json.JSONException;
 import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.awt.Color;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.fs.starfarer.api.combat.WeaponAPI.WeaponType.*;
+
 public class Trait implements Comparable<Trait> {
     public enum Tier {
-        Notable, Wellknown, Famous, Legendary, UNKNOWN;
+        UNKNOWN, Rumored, Notable, Wellknown, Famous, Legendary;
 
-        float traitChancePerXp = 1;
+        int xpRequired = 1;
         float effectMultiplier = 0;
 
-        public float getTraitChancePerXp() { return traitChancePerXp; }
+        public int getXpRequired() { return xpRequired; }
         public float getEffectMultiplier() {
             return effectMultiplier;
         }
@@ -84,11 +92,16 @@ public class Trait implements Comparable<Trait> {
 
             return "ERROR: UNKNOWN TRAIT TIER FLAVOR TEXT";
         }
+        public String getIcon() {
+            return Global.getSettings().getSpriteName("starship_legends", name().toLowerCase());
+        }
 
         public void init(JSONObject cfg) throws JSONException {
             JSONObject o = cfg.getJSONObject(name().toLowerCase());
-            traitChancePerXp = (float) o.getDouble("traitChancePerXp");
+            xpRequired = (int) o.getDouble("xpRequiredOnAverage");
             effectMultiplier = (float) o.getDouble("effectMult");
+
+            if(xpRequired <= 0) xpRequired = Integer.MAX_VALUE;
         }
     }
 
@@ -104,12 +117,17 @@ public class Trait implements Comparable<Trait> {
         return traits;
     }
 
+    public static void configureXStream(XStream x) {
+        x.alias("sun_sl_t", Trait.class);
+        x.aliasAttribute(Trait.class, "typeID", "t");
+        x.aliasAttribute(Trait.class, "effectSign", "e");
+    }
     String typeID;
     int effectSign;
 
-    public Trait(TraitType type, int effectSign) {
+    public Trait(TraitType type, boolean isMalus) {
         typeID = type.getId();
-        this.effectSign = effectSign;
+        this.effectSign = isMalus ? -1 : 1;
     }
 
     public TraitType getType() { return TraitType.get(typeID); }
@@ -126,8 +144,29 @@ public class Trait implements Comparable<Trait> {
         return getType().getDescriptionPrefix(effectSign < 0, requiresCrew);
     }
 
+    public String getDescPrefix(boolean requiresCrew, String previousPrefix) {
+        String retVal = getType().getDescriptionPrefix(effectSign < 0, requiresCrew).toLowerCase();
+        String firstWordOfPrev = previousPrefix.split(" ")[0].toLowerCase();
+
+        if(retVal.startsWith(firstWordOfPrev)) retVal = retVal.replace(firstWordOfPrev, "").trim();
+
+        if(!retVal.equals("")) retVal = " " + retVal;
+
+        return retVal;
+    }
+
+    public String getDescription() {
+        if(typeID.equals("phase_mad")) return "causes spontaneous malfunctions while phased";
+        else if(typeID.equals("cursed")) return "causes spontaneous malfunctions";
+        else return (effectSign * getType().getBaseBonus() > 0 ? "increases " : "decreases ") + getType().getEffectDescription();
+    }
+
+    public String getParentheticalDescription() {
+        return (effectSign * getType().getBaseBonus() > 0 ? "(+" : "(-") + getType().getEffectDescription() + ")";
+    }
+
     public String getEffectValueString(float percent) {
-        return (percent >= 0 ? "+" : "") + Misc.getRoundedValueMaxOneAfterDecimal(percent)
+        return (percent >= 0 ? "+" : "-") + Misc.getRoundedValueMaxOneAfterDecimal(Math.abs(percent))
                 + (getTags().contains(TraitType.Tags.FLAT_EFFECT) ? "" : "%");
     }
 
@@ -140,14 +179,18 @@ public class Trait implements Comparable<Trait> {
     }
 
     public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
-        float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
-                * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
-        tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(), 1, getHighlightColor(), getEffectValueString(effect));
-    }
 
-    public boolean isRelevantFor(FleetMemberAPI ship) {
-        return RepRecord.isTraitRelevantForShip(ship, this, true, true, true);
+        if(tier == Tier.Rumored) {
+            tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+                    1, Misc.getGrayColor(), getHighlightColor(),
+                    getEffectValueString(getEffectSign() * getType().getBaseBonus() * 0.0000001f));
+        } else {
+            float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
+                    * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
+            tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+                    1, getHighlightColor(), getEffectValueString(effect));
+        }
     }
 
     public String getTypeId() {
@@ -168,9 +211,121 @@ public class Trait implements Comparable<Trait> {
                 * ModPlugin.GLOBAL_EFFECT_MULT;
     }
 
+    public boolean isRelevantFor(FleetMemberAPI ship) { return isRelevantFor(ship, true); }
+
+    public boolean isRelevantFor(FleetMemberAPI ship, boolean allowCrewTrait) {
+        if(ship == null || ship.getHullSpec() == null) return false;
+
+        ShipHullSpecAPI hull = ship.getHullSpec();
+        ShieldAPI.ShieldType shieldType = hull.getShieldType();
+        TraitType type = getType();
+        ShipSystemSpecAPI system = Global.getSettings().getShipSystemSpec(hull.getShipSystemId());
+
+        for(String tag : type.getTags()) {
+            switch (tag) {
+                case TraitType.Tags.SYSTEM:
+                    if(system.getRegen(null) > 0) {
+                        if(type.getId().equals("system_cooldown")) return false;
+                    } else if(system.getCooldown(null) > 1) {
+                        if(type.getId().equals("system_regen_rate")) return false;
+                    } else return false;
+                    break;
+                case TraitType.Tags.DMOD:
+                    if(!hull.isDefaultDHull()) return false;
+                    break;
+                case TraitType.Tags.LOYALTY:
+                    if(!ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) return false;
+                    break;
+                case TraitType.Tags.CREW:
+                    if(!allowCrewTrait) return false;
+                    break;
+                case TraitType.Tags.CARRIER:
+                    if(!hull.getHints().contains(ShipHullSpecAPI.ShipTypeHints.CARRIER)) return false;
+                    break;
+                case TraitType.Tags.SHIELD:
+                    if(shieldType != ShieldAPI.ShieldType.FRONT && shieldType != ShieldAPI.ShieldType.OMNI)
+                        return false;
+                    break;
+                case TraitType.Tags.CLOAK:
+                    if(shieldType != ShieldAPI.ShieldType.PHASE) return false;
+                    break;
+                case TraitType.Tags.NO_AI:
+                    if(hull.getMinCrew() <= 0) return false;
+                    break;
+                case TraitType.Tags.ATTACK:
+                    boolean hasWeaponSlot = false;
+
+                    for(WeaponSlotAPI slot : hull.getAllWeaponSlotsCopy()) {
+                        switch (slot.getWeaponType()) {
+                            case SYSTEM: case DECORATIVE: case STATION_MODULE: case LAUNCH_BAY: continue;
+                            default: hasWeaponSlot = true; break;
+                        }
+
+                        if(hasWeaponSlot) break;
+                    }
+
+                    if(!hasWeaponSlot) return false;
+                    break;
+                case TraitType.Tags.TURRET:
+                    boolean hasTurretSlot = false;
+
+                    for(WeaponSlotAPI slot : hull.getAllWeaponSlotsCopy()) {
+                        switch (slot.getWeaponType()) {
+                            case SYSTEM: case DECORATIVE: case STATION_MODULE: case LAUNCH_BAY: continue;
+                            default: hasTurretSlot = slot.isTurret(); break;
+                        }
+
+                        if(hasTurretSlot) break;
+                    }
+
+                    if(!hasTurretSlot) return false;
+                    break;
+                case TraitType.Tags.MISSILE:
+                    if(Util.getFractionOfFittingSlots(hull, MISSILE, COMPOSITE, SYNERGY) < 0.2f) return false;
+                case TraitType.Tags.BALLISTIC:
+                    if(Util.getFractionOfFittingSlots(hull, BALLISTIC, COMPOSITE, HYBRID) < 0.4f) return false;
+                case TraitType.Tags.ENERGY:
+                    if(Util.getFractionOfFittingSlots(hull, ENERGY, SYNERGY, HYBRID) < 0.4f) return false;
+                case TraitType.Tags.SYNERGY:
+                    if(Util.getFractionOfFittingSlots(hull, SYNERGY, ENERGY, MISSILE) < 0.3f) return false;
+                case TraitType.Tags.COMPOSITE:
+                    if(Util.getFractionOfFittingSlots(hull, COMPOSITE, BALLISTIC, MISSILE) < 0.3f) return false;
+                case TraitType.Tags.HYBRID:
+                    if(Util.getFractionOfFittingSlots(hull, HYBRID, ENERGY, BALLISTIC) < 0.4f) return false;
+                case TraitType.Tags.FLUX:
+                    switch (hull.getHullId()) {
+                        case "swp_excelsior":
+                        case "swp_boss_excelsior":
+                        case "swp_excelsior_elyon":
+                        case "swp_excelsior_reward":
+                            return false;
+                    }
+                    break;
+            }
+        }
+
+        if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
+            for (String mod : hull.getBuiltInMods()) {
+                if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
+            }
+        }
+
+        if(!type.getRequiredBuiltInHullmods().isEmpty()) {
+            if (!hull.getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public boolean isBonus() { return effectSign > 0; }
+
+    public boolean isMalus() { return effectSign < 0; }
+
     @Override
     public String toString() {
-        return (effectSign > 0 ? "+" : "-") + typeID;
+        return (isBonus() ? "+" : "-") + typeID;
     }
 
     @Override

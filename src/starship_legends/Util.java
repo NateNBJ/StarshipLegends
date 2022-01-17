@@ -1,9 +1,14 @@
 package starship_legends;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.*;
+import com.fs.starfarer.api.campaign.BattleAPI;
+import com.fs.starfarer.api.campaign.CampaignFleetAPI;
+import com.fs.starfarer.api.campaign.SectorEntityToken;
+import com.fs.starfarer.api.campaign.TextPanelAPI;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.comm.IntelManagerAPI;
+import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.campaign.econ.SubmarketAPI;
 import com.fs.starfarer.api.characters.MutableCharacterStatsAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
@@ -39,12 +44,74 @@ public class Util {
         vowels.add("u");
     }
 
-    public static float getFractionOfFittingSlots(FleetMemberAPI ship, WeaponAPI.WeaponType primary,
-                                                  WeaponAPI.WeaponType hybrid1, WeaponAPI.WeaponType hybrid2) {
+    public static FleetMemberAPI findPlayerShip(String id) {
+        for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            if(ship.getId().equals(id)) return ship;
+        }
 
-        float total = ship.getHullSpec().getFighterBays() * 10, fit = 0;
+        for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+            SubmarketAPI storage = market.getSubmarket("storage");
 
-        for(WeaponSlotAPI slot : ship.getHullSpec().getAllWeaponSlotsCopy()) {
+            if(storage == null || storage.getCargo() == null || storage.getCargo().getMothballedShips() == null) continue;
+
+            for(FleetMemberAPI ship : storage.getCargo().getMothballedShips().getMembersListCopy()) {
+                if(ship.getId().equals(id)) return ship;
+            }
+        }
+
+        return null;
+    }
+    public static MarketAPI getStorageLocationOfShip(String id) {
+        for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+            SubmarketAPI storage = market.getSubmarket("storage");
+
+            if(storage == null || storage.getCargo() == null || storage.getCargo().getMothballedShips() == null) continue;
+
+            for(FleetMemberAPI ship : storage.getCargo().getMothballedShips().getMembersListCopy()) {
+                if(ship.getId().equals(id)) return market;
+            }
+        }
+
+        return null;
+    }
+    public static List<FleetMemberAPI> findPlayerOwnedShip(Trait.Tier minRepTier) {
+        List<FleetMemberAPI> retVal = new ArrayList<>();
+
+        for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            if(RepRecord.shipTierIsAtLeast(ship, minRepTier)) retVal.add(ship);
+        }
+
+        for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+            SubmarketAPI storage = market.getSubmarket("storage");
+
+            if(storage == null || storage.getCargo() == null || storage.getCargo().getMothballedShips() == null) continue;
+
+            for(FleetMemberAPI ship : storage.getCargo().getMothballedShips().getMembersListCopy()) {
+                if(RepRecord.shipTierIsAtLeast(ship, minRepTier)) retVal.add(ship);
+            }
+        }
+
+        return retVal;
+    }
+    public static String getImpreciseNumberString(double number) {
+        String retVal = "";
+
+        if(number >= 10000000d) {
+            retVal = (int)(number / 1000000d) + "M";
+        } else if(number >= 10000d) {
+            retVal = (int)(number / 1000d) + "K";
+        } else  {
+            retVal = (int)number + "";
+        }
+
+        return retVal;
+    }
+    public static float getFractionOfFittingSlots(ShipHullSpecAPI hull, WeaponAPI.WeaponType primary,
+                                                  WeaponAPI.WeaponType secondary1, WeaponAPI.WeaponType secondary2) {
+
+        float total = hull.getFighterBays() * 10, fit = 0;
+
+        for(WeaponSlotAPI slot : hull.getAllWeaponSlotsCopy()) {
             float op = 0;
 
             switch (slot.getSlotSize()) {
@@ -54,8 +121,8 @@ public class Util {
             }
 
             if(slot.getWeaponType() == primary) fit += op * 1.0f;
-            else if(slot.getWeaponType() == hybrid1) fit += op * 0.8f;
-            else if(slot.getWeaponType() == hybrid2) fit += op * 0.8f;
+            else if(slot.getWeaponType() == secondary1) fit += op * 0.8f;
+            else if(slot.getWeaponType() == secondary2) fit += op * 0.8f;
             else if(slot.getWeaponType() == WeaponAPI.WeaponType.UNIVERSAL) fit += op * 0.6f;
 
             total += op;
@@ -186,102 +253,6 @@ public class Util {
     public static String removeGoodnessKeywordsFromArgs(String args) {
         return args.replace("good", "").replace("positive", "").replace("pos", "").replace("bad", "").replace("negative", "").replace("neg", "").trim();
     }
-    public static float getShipStrength(FleetMemberAPI ship) {
-        if(ModPlugin.USE_ADVANCED_SHIP_STRENGTH_ESTIMATION) return getShipStrengthAdvanced(ship);
-
-        if(ship.getHullSpec().isCivilianNonCarrier() || ship.isCivilian() || ship.isMothballed()) {
-            return ship.getDeploymentPointsCost();
-        }
-
-        float strength = ship.getFleetPointCost();
-
-        if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
-            strength = 0;
-        } else if(ship.isStation()) {
-            ShipVariantAPI variant = ship.getVariant();
-            List<String> slots = variant.getModuleSlots();
-            float totalOP = 0, detachedOP = 0;
-
-            for(int i = 0; i < slots.size(); ++i) {
-                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
-                float op = module.getHullSpec().getOrdnancePoints(null);
-
-                totalOP += op;
-
-                if(ship.getStatus().isPermaDetached(i+1)) {
-                    detachedOP += op;
-                }
-            }
-
-            strength *= (totalOP - detachedOP) / Math.max(1, totalOP);
-        } else if(ship.getHullSpec().hasTag("UNBOARDABLE")) {
-            return strength * Math.max(1, Math.min(2, 1 + (strength - 5f) / 25f));
-        } else {
-            strength = ship.getDeploymentPointsCost();
-        }
-
-        return strength;
-    }
-    public static float getShipStrengthAdvanced(FleetMemberAPI ship) {
-        float fp = ship.getFleetPointCost();
-        float strength;
-
-        if(ship.isFighterWing() || !ship.canBeDeployedForCombat()) {
-            strength = 0;
-        } else if(ship.isStation()) {
-            ShipVariantAPI variant = ship.getVariant();
-            List<String> slots = variant.getModuleSlots();
-            float totalOP = 0, detachedOP = 0;
-
-            for(int i = 0; i < slots.size(); ++i) {
-                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
-                float op = module.getHullSpec().getOrdnancePoints(null);
-
-                totalOP += op;
-
-                if(ship.getStatus().isPermaDetached(i+1)) {
-                    detachedOP += op;
-                }
-            }
-
-            strength = fp * (totalOP - detachedOP) / Math.max(1, totalOP);
-        } else {
-            boolean isPlayerShip = ship.getOwner() == 0 && !ship.isAlly();
-            float dModFactor = isPlayerShip ? ModPlugin.DMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.DMOD_FACTOR_FOR_ENEMY_SHIPS;
-            float sModFactor = isPlayerShip ? ModPlugin.SMOD_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SMOD_FACTOR_FOR_ENEMY_SHIPS;
-            float skillFactor = isPlayerShip ? ModPlugin.SKILL_FACTOR_FOR_PLAYER_SHIPS : ModPlugin.SKILL_FACTOR_FOR_ENEMY_SHIPS;
-
-            float dMods = DModManager.getNumDMods(ship.getVariant());
-            float sMods = ship.getVariant().getSMods().size();
-            float skills = 0;
-            PersonAPI captain = ship.getCaptain();
-
-            if(captain != null && !captain.isDefault()) {
-                for(MutableCharacterStatsAPI.SkillLevelAPI skill : captain.getStats().getSkillsCopy()) {
-                    if (skill.getSkill().isCombatOfficerSkill()) {
-                        if(skill.getLevel() > 0) skills += skill.getSkill().isElite() ? 1.25f : 1;
-                    }
-                }
-            }
-
-            float dModMult = (float) Math.pow(1 - dModFactor, dMods);
-            float sModMult = (float) Math.pow(1 + sModFactor, sMods);
-            float skillMult = (float) Math.pow(1 + skillFactor, skills);
-            float playerStrengthMult = 1;
-
-            if(isPlayerShip) {
-                playerStrengthMult += ModPlugin.STRENGTH_INCREASE_PER_PLAYER_LEVEL
-                        * Global.getSector().getPlayerPerson().getStats().getLevel();
-            }
-
-            strength = fp * (1 + (fp - 5f) / 25f) * dModMult * sModMult * skillMult * playerStrengthMult;
-
-            Global.getLogger(Util.class).info(String.format("%20s strength: %3.1f = %3.1f * %.2f * %.2f * %.2f * %.2f",
-                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f), dModMult, sModMult, skillMult, playerStrengthMult));
-        }
-
-        return strength;
-    }
     public static void removeRepHullmodFromVariant(ShipVariantAPI v) {
         if(v == null) return;
 
@@ -355,6 +326,13 @@ public class Util {
 
         textPanel.addTooltip();
     }
+    public static void teleportEntity(SectorEntityToken entityToMove, SectorEntityToken destination) {
+        entityToMove.getContainingLocation().removeEntity(entityToMove);
+        destination.getContainingLocation().addEntity(entityToMove);
+        Global.getSector().setCurrentLocation(destination.getContainingLocation());
+        entityToMove.setLocation(destination.getLocation().x,
+                destination.getLocation().y-150);
+    }
     public static void clearAllStarshipLegendsData() {
         IntelManagerAPI intelManager = Global.getSector().getIntelManager();
 
@@ -375,11 +353,58 @@ public class Util {
 
         ModPlugin.REMOVE_ALL_DATA_AND_FEATURES = true;
     }
-    public static void teleportEntity(SectorEntityToken entityToMove, SectorEntityToken destination) {
-        entityToMove.getContainingLocation().removeEntity(entityToMove);
-        destination.getContainingLocation().addEntity(entityToMove);
-        Global.getSector().setCurrentLocation(destination.getContainingLocation());
-        entityToMove.setLocation(destination.getLocation().x,
-                destination.getLocation().y-150);
+    public static float getShipStrength(FleetMemberAPI ship, boolean isPlayerShip) {
+        float fp = ship.getFleetPointCost();
+        float strength;
+
+        if(ship.isFighterWing() || !ship.canBeDeployedForCombat() || ship.getHullSpec().isCivilianNonCarrier() || ship.isMothballed()) {
+            strength = 0;
+        } else if(ship.isStation()) {
+            ShipVariantAPI variant = ship.getVariant();
+            List<String> slots = variant.getModuleSlots();
+            float totalOP = 0, detachedOP = 0;
+
+            for(int i = 0; i < slots.size(); ++i) {
+                ShipVariantAPI module = variant.getModuleVariant(slots.get(i));
+                float op = module.getHullSpec().getOrdnancePoints(null);
+
+                totalOP += op;
+
+                if(ship.getStatus().isPermaDetached(i+1)) {
+                    detachedOP += op;
+                }
+            }
+
+            strength = fp * (totalOP - detachedOP) / Math.max(1, totalOP);
+        } else if(isPlayerShip) {
+            strength = fp * (1 + (fp - 5f) / 25f);
+
+//            Global.getLogger(ModPlugin.class).info(String.format("%20s strength: %3.1f = %3.1f",
+//                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f)));
+        } else {
+            float dMods = DModManager.getNumDMods(ship.getVariant());
+            float sMods = ship.getVariant().getSMods().size();
+            float skills = 0;
+            PersonAPI captain = ship.getCaptain();
+
+            if(captain != null && !captain.isDefault()) {
+                for(MutableCharacterStatsAPI.SkillLevelAPI skill : captain.getStats().getSkillsCopy()) {
+                    if (skill.getSkill().isCombatOfficerSkill()) {
+                        if(skill.getLevel() > 0) skills += skill.getSkill().isElite() ? 1.25f : 1;
+                    }
+                }
+            }
+
+            float dModMult = (float) Math.pow(0.9, dMods);
+            float sModMult = (float) Math.pow(1.1, sMods);
+            float skillMult = (float) Math.pow(1.1, skills);
+
+            strength = fp * (1 + (fp - 5f) / 25f) * dModMult * sModMult * skillMult;
+
+//            Global.getLogger(ModPlugin.class).info(String.format("%20s strength: %3.1f = %3.1f * %.2f * %.2f * %.2f",
+//                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f), dModMult, sModMult, skillMult));
+        }
+
+        return strength;
     }
 }

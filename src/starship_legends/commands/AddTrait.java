@@ -1,11 +1,13 @@
 package starship_legends.commands;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import org.lazywizard.console.BaseCommand;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
-import starship_legends.*;
+import starship_legends.ModPlugin;
+import starship_legends.RepRecord;
+import starship_legends.Trait;
+import starship_legends.Util;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -24,58 +26,79 @@ public class AddTrait implements BaseCommand {
 
             if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return  CommandResult.WRONG_CONTEXT;
 
-            boolean requireRelevance = args.toLowerCase().contains("relevant");
+            boolean requireRelevance = args.contains("relevant");
+            boolean predetermined = args.contains("predetermined") || args.contains("deterministic");
 
-            if(requireRelevance) args = args.replace("relevant", "");
+            args = args.replace("deterministic", "").replace("relevant", "").replace("predetermined", "");
 
             String aa[] = args.split("to ");
-            List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", relevant");
             List<FleetMemberAPI> ships = Util.getShipsMatchingDescription(aa.length > 1 ? aa[1] : "");
-            Random rand = new Random();
 
-            if(traits.isEmpty() || ships.isEmpty()) return CommandResult.BAD_SYNTAX;
+            if(ships.isEmpty()) return CommandResult.BAD_SYNTAX;
 
-            for(FleetMemberAPI ship : ships) {
-                RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
-                List<Trait> traitsCopy = new LinkedList<>(traits);
-                float prevRatingDiscrepancy = rep.getRatingDiscrepancy();
+            if(predetermined) {
+                for (FleetMemberAPI ship : ships) {
+                    RepRecord rep = RepRecord.getOrCreate(ship);
+                    List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(ship, true);
 
-                if(rep.hasMaximumTraits()) {
-                    Console.showMessage("The " + ship.getShipName() + " already has the maximum number of traits.");
-                    continue;
+                    if(destinedTraits.size() <= rep.getTraits().size()) {
+                        Console.showMessage("The " + ship.getShipName() + " already has the maximum number of traits.");
+                        continue;
+                    }
+
+                    Trait newTrait = destinedTraits.get(rep.getTraits().size());
+
+                    addTraitToShip(ship, rep, newTrait);
                 }
+            } else {
+                List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", relevant");
+                Random rand = new Random();
 
-                while(!traitsCopy.isEmpty()) {
-                    int i = rand.nextInt(traitsCopy.size());
-                    Trait newTrait = traitsCopy.get(i);
+                if (traits.isEmpty()) return CommandResult.BAD_SYNTAX;
 
-                    traitsCopy.remove(i);
+                for (FleetMemberAPI ship : ships) {
+                    RepRecord rep = RepRecord.getOrCreate(ship);
+                    List<Trait> traitsCopy = new LinkedList<>(traits);
 
-                    if(!rep.hasTraitType(newTrait.getType())
-                            && (!requireRelevance || newTrait.isRelevantFor(ship))) {
+                    while (!traitsCopy.isEmpty()) {
 
-                        rep.getTraits().add(newTrait);
-                        RepRecord.updateRepHullMod(ship);
-                        String discrepancyMaybe = Global.getSettings().isDevMode()
-                                ? "  (" + (int)(prevRatingDiscrepancy * 100) + "% -> " + (int)(rep.getRatingDiscrepancy() * 100) + "%)"
-                                : "";
+                        int i = rand.nextInt(traitsCopy.size());
+                        Trait newTrait = traitsCopy.get(i);
 
-                        Console.showMessage("The " + ship.getShipName() + " is now known for "
-                                + newTrait.getDescPrefix(true) + " " + newTrait.getName(true).toUpperCase()
-                                + discrepancyMaybe);
+                        traitsCopy.remove(i);
+
+                        if (rep.hasTraitType(newTrait.getType()) || (requireRelevance && !newTrait.isRelevantFor(ship))) {
+                            if (traitsCopy.isEmpty()) {
+                                Console.showMessage("The " + ship.getShipName() + " already has all of the selected traits.");
+                                break;
+                            } else continue;
+                        }
+
+                        addTraitToShip(ship, rep, newTrait);
+
                         break;
-                    } else if(traitsCopy.isEmpty()) {
-                        Console.showMessage("The " + ship.getShipName() + " already has all of the selected traits.");
                     }
                 }
             }
-
         } catch (Exception e) {
             Console.showException("Error: unhandled exception!", e);
             return CommandResult.ERROR;
         }
 
-
         return CommandResult.SUCCESS;
+    }
+
+    private boolean addTraitToShip(FleetMemberAPI ship, RepRecord rep, Trait newTrait) {
+        if (rep.hasMaximumTraits()) {
+            Console.showMessage("The " + ship.getShipName() + " already has the maximum number of traits.");
+            return false;
+        } else {
+            rep.getTraits().add(newTrait);
+            RepRecord.updateRepHullMod(ship);
+
+            Console.showMessage("The " + ship.getShipName() + " is now known for "
+                    + newTrait.getDescPrefix(true).toLowerCase() + " " + newTrait.getName(true).toUpperCase());
+            return true;
+        }
     }
 }

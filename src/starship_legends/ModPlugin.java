@@ -15,100 +15,89 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousShipBarEventCreator;
+import starship_legends.events.FanclubBarEventCreator;
+import starship_legends.events.OwnCrewBarEventCreator;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
-    public static final String TRAIT_LIST_PATH = "sun_sl/data/traits.csv";
-    public static final String LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv";
-    public static final String HULL_REGEN_SHIPS_PATH = "data/config/starship_legends/hull_regen_ships.csv";
-    public static final String SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
+    public static final String
+            TRAIT_LIST_PATH = "sun_sl/data/traits.csv",
+            LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv",
+            REP_THEMES_PATH = "sun_sl/data/rep_themes/",
+            REP_THEME_LIST_PATH = REP_THEMES_PATH + "rep_themes.csv",
+            HULL_REGEN_SHIPS_PATH = "data/config/starship_legends/hull_regen_ships.csv",
+            SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
     public static final int TIER_COUNT = 4;
-    public static final int LOYALTY_LIMIT = 3;
-    public static final int DEFAULT_TRAIT_LIMIT = 8;
+    public static final int LOYALTY_LIMIT = 4;
+    public static final int TRAIT_LIMIT = 8;
 
     static Saved<String> version = new Saved<>("version", "");
 
-    static boolean settingsAreRead = false;
+    static boolean settingsAreRead = false, isNewGame = false;
 
     public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
 
-
     public static boolean
-            USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = true,
-            USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = true,
             ENABLE_OFFICER_LOYALTY_SYSTEM = true,
-            LOG_REPUTATION_CALCULATION_FACTORS = true,
             COMPENSATE_FOR_EXPERIENCE_MULT = true,
-            USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = false,
-            SHOW_COMBAT_RATINGS = true,
-            IGNORE_ALL_MALUSES = false,
             REMOVE_ALL_DATA_AND_FEATURES = false,
             SHOW_NEW_TRAIT_NOTIFICATIONS = true,
             ALLOW_CUSTOM_COMMANDER_PRESETS = true,
-            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = false,
-            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = true,
-            CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY = false,
-            USE_ADVANCED_SHIP_STRENGTH_ESTIMATION = false;
+            SHOW_SHIP_XP = false,
+            SHOW_SHIP_XP_IN_DEV_MODE = true,
+            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = false;
 
     public static int
             MINIMUM_EFFECT_REDUCTION_PERCENT = -95,
             TRAITS_PER_TIER = 2,
-            DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = 30,
             TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = 0,
             TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = 1,
+            MAX_INITIAL_NEGATIVE_TRAITS = 4,
+            MIN_INITIAL_NEGATIVE_TRAITS = 1,
+            LOYALTY_LEVELS_LOST_WHEN_DISABLED = 2,
+            RUMORED_TRAITS_SHOWN = 2,
+            RUMORED_TRAITS_SHOWN_IN_DEV_MODE = 8,
             TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5;
 
     public static float
             GLOBAL_EFFECT_MULT = 1,
             FLEET_TRAIT_EFFECT_MULT = 2,
-            TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = 0.02f,
-            BONUS_CHANCE_FOR_CIVILIAN_SHIPS = 0.5f,
+            FAME_BONUS_PER_PLAYER_LEVEL = 0.02f,
 
-            BASE_RATING = 0.5f,
-            BONUS_CHANCE_RANDOMNESS = 0.001f,
-            BATTLE_DIFFICULTY_MULT = 0.0f,
-            SUPPORT_MULT = 0.125f,
-            DAMAGE_TAKEN_MULT = 0.5f,
-            DAMAGE_DEALT_MULT = 0.125f,
-            DAMAGE_DEALT_MIN_THRESHOLD = 0.0f,
-            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = 1.0f,
-            TRAIT_POSITION_CHANGE_CHANCE_MULT = 5.0f,
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
 
-            DMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-            SMOD_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-            SKILL_FACTOR_FOR_ENEMY_SHIPS = 0.1f,
-            DMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-            SMOD_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-            SKILL_FACTOR_FOR_PLAYER_SHIPS = 0.0f,
-            STRENGTH_INCREASE_PER_PLAYER_LEVEL = 0.07f,
+            MIN_NEGATIVE_TRAITS = 1,
+            LOYALTY_IMPROVEMENT_RATE_MULT = 1,
 
-            TRAIT_CHANCE_MULT_FLAT = 0.1f,
-            TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = 0.005f,
-            TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = 0.01f,
-            TRAIT_CHANCE_MULT_PER_FLEET_POINT = 0.0075f,
-            TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = 0.01f,
-            TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = 0.005f,
+            XP_MULT_FLAT = 0.1f,
+            XP_MULT_PER_PLAYER_CAPTAIN_LEVEL = 0.005f,
+            XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = 0.01f,
+            XP_MULT_PER_FLEET_POINT = 0.0075f,
+            XP_MULT_PER_DAMAGE_DEALT_PERCENT = 0.005f,
 
-            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
-            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.0f,
+            XP_MULT_FOR_RESERVED_COMBAT_SHIPS = 0.0f,
+            XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS = 0.0f,
 
-            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = 0,
-            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = 0,
+            PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = 0,
+            PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = 0,
 
+            TRAIT_UPGRADE_BAR_EVENT_CHANCE = 1f,
+            TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = 2f,
+            REPAIR_DMOD_BAR_EVENT_CHANCE = 0.5f,
+            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = 1.5f,
+            BUY_SHIP_OFFER_BAR_EVENT_CHANCE = 1f,
+            JOIN_WITH_SHIP_BAR_EVENT_CHANCE = 0.5f,
+            HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = 1f,
             FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = 2f,
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = 0.5f,
-            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = 2.5f,
 
-            IMPROVE_LOYALTY_CHANCE_MULT = 1,
-            WORSEN_LOYALTY_CHANCE_MULT = 1,
-            AVERAGE_FRACTION_OF_GOOD_TRAITS = 1;
+            AVERAGE_FRACTION_OF_GOOD_TRAITS = 0.75f;
 
     CampaignScript script;
 
@@ -193,7 +182,16 @@ public class ModPlugin extends BaseModPlugin {
             CampaignScript.reset();
             FactionConfig.clearEnemyFleetRep();
 
-            readSettingsIfNecessary();
+            readSettingsIfNecessary(true);
+
+            if(isNewGame) {
+                for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                    RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.StartedWith, "");
+                }
+
+                isNewGame = false;
+            }
+
 
             if (REMOVE_ALL_DATA_AND_FEATURES) {
                 Util.clearAllStarshipLegendsData();
@@ -202,6 +200,8 @@ public class ModPlugin extends BaseModPlugin {
 
                 if (!bar.hasEventCreator(FamousShipBarEventCreator.class)) {
                     bar.addEventCreator(new FamousShipBarEventCreator());
+                    bar.addEventCreator(new OwnCrewBarEventCreator());
+                    bar.addEventCreator(new FanclubBarEventCreator());
                 }
 
                 for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
@@ -216,8 +216,6 @@ public class ModPlugin extends BaseModPlugin {
                     Global.getSector().getPlayerFleet().getFleetData().updateCargoCapacities();
                 }
             }
-
-            boolean allRepRecordsHaveNoRating = true;
 
             if(isUpdateDiagnosticCheckNeeded()) {
                 String oldVersion = version.val;
@@ -288,8 +286,6 @@ public class ModPlugin extends BaseModPlugin {
                     for (RepRecord rep : RepRecord.INSTANCE_REGISTRY.val.values()) {
                         Set<TraitType> found = new HashSet<>();
 
-                        if (rep.getRating() != 0) allRepRecordsHaveNoRating = false;
-
                         for (Trait t : new ArrayList<>(rep.getTraits())) {
                             if (found.contains(t.getType()) || t.getName(true).isEmpty()) {
                                 rep.getTraits().remove(t);
@@ -299,57 +295,27 @@ public class ModPlugin extends BaseModPlugin {
                 } catch (Exception e) {
                     log("An error occurred while removing duplicate traits!");
                 }
-
-                // If no ships have ratings, estimate them
-                try {
-                    if (allRepRecordsHaveNoRating) {
-                        for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
-                            if (!ship.getHullSpec().isCivilianNonCarrier() && RepRecord.existsFor(ship)) {
-                                RepRecord rep = RepRecord.get(ship);
-                                float progress = rep.getTraits().size() / (float) Trait.getTraitLimit();
-
-                                rep.setRating(RepRecord.INITIAL_RATING * (1f - progress)
-                                        + rep.getFractionOfBonusEffectFromTraits() * progress);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    log("An error occurred while estimating ratings!");
-                }
-
-                // Remove RepRecords with no traits
-                try {
-                    for (FleetMemberAPI ship : new LinkedList<>(Reputation.getShipsOfNote())) {
-                        if (!RepRecord.existsFor(ship) || RepRecord.get(ship).getTraits().isEmpty()) {
-                            RepRecord.deleteFor(ship);
-                        }
-                    }
-                } catch (Exception e) {
-                    log("An error occurred while removing RepRecords without traits!");
-                }
             }
         } catch (Exception e) { reportCrash(e); }
     }
 
     @Override
     public void configureXStream(XStream x) {
-        x.alias("sun_sl_rr", RepRecord.class);
-        x.aliasAttribute(RepRecord.class, "traits", "t");
-        x.aliasAttribute(RepRecord.class, "opinionsOfOfficers", "o");
-        x.aliasAttribute(RepRecord.class, "rating", "r");
-
-        x.alias("sun_sl_t", Trait.class);
-        x.aliasAttribute(Trait.class, "typeID", "t");
-        x.aliasAttribute(Trait.class, "effectSign", "e");
-
-        x.alias("sun_sl_rc", RepChange.class);
-        x.aliasAttribute(RepChange.class, "ship", "s");
-        x.aliasAttribute(RepChange.class, "captain", "c");
-        x.aliasAttribute(RepChange.class, "trait", "t");
-        x.aliasAttribute(RepChange.class, "captainOpinionChange", "o");
-        x.aliasAttribute(RepChange.class, "shuffleSign", "d");
+        RepRecord.configureXStream(x);
+        RepRecord.Story.configureXStream(x);
+        RepRecord.Origin.configureXStream(x);
+        Trait.configureXStream(x);
+        RepChange.configureXStream(x);
+        BattleReport.configureXStream(x);
     }
-    
+
+    @Override
+    public void onNewGameAfterTimePass() {
+        super.onNewGameAfterTimePass();
+
+        isNewGame = true;
+    }
+
     public static boolean isUpdateDiagnosticCheckNeeded() {
         if(version.val == null || version.val.equals("")) return true;
 
@@ -361,8 +327,10 @@ public class ModPlugin extends BaseModPlugin {
 
     public static boolean settingsHaveBeenRead() { return settingsAreRead; }
 
-    public static boolean readSettingsIfNecessary() {
+    public static boolean readSettingsIfNecessary(boolean forceRefresh) {
         try {
+            if(forceRefresh) settingsAreRead = false;
+
             if(settingsAreRead) return true;
 
             JSONArray jsonArray = Global.getSettings().loadCSV(TRAIT_LIST_PATH);
@@ -375,6 +343,16 @@ public class ModPlugin extends BaseModPlugin {
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject data = jsonArray.getJSONObject(i);
                 HULL_REGEN_SHIPS.put(data.getString("hull_id"), (float)data.getDouble("damage_counted_per_damage_sustained"));
+            }
+
+            jsonArray = Global.getSettings().getMergedSpreadsheetDataForMod("theme_id", REP_THEME_LIST_PATH, ID);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject data = jsonArray.getJSONObject(i);
+                String key = data.getString("theme_id");
+
+                JSONObject json = Global.getSettings().getMergedJSONForMod(REP_THEMES_PATH + key + ".json", ID);
+
+                new RepTheme(key, (float)data.getDouble("likelihood"), json);
             }
 
             JSONObject cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
@@ -394,62 +372,28 @@ public class ModPlugin extends BaseModPlugin {
 
             REMOVE_ALL_DATA_AND_FEATURES = cfg.getBoolean("removeAllDataAndFeatures");
 
-            USE_RUTHLESS_SECTOR_TO_CALCULATE_BATTLE_DIFFICULTY = cfg.getBoolean("useRuthlessSectorToCalculateBattleDifficulty");
-            USE_RUTHLESS_SECTOR_TO_CALCULATE_SHIP_STRENGTH = cfg.getBoolean("useRuthlessSectorToCalculateShipStrength");
             ENABLE_OFFICER_LOYALTY_SYSTEM = cfg.getBoolean("enableOfficerLoyaltySystem");
-            LOG_REPUTATION_CALCULATION_FACTORS = cfg.getBoolean("logReputationCalculationFactors");
             COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
-            IGNORE_ALL_MALUSES = cfg.getBoolean("ignoreAllMaluses");
-            SHOW_COMBAT_RATINGS = cfg.getBoolean("showCombatRatings");
             SHOW_NEW_TRAIT_NOTIFICATIONS = cfg.getBoolean("showNewTraitNotifications");
-            MULTIPLY_RATING_LOSSES_BY_PERCENTAGE_OF_LOST_HULL = cfg.getBoolean("multiplyRatingLossesByPercentageOfLostHull");
 
             GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
             FLEET_TRAIT_EFFECT_MULT = (float) cfg.getDouble("fleetTraitEffectMult");
-            TRAITS_PER_TIER = cfg.getInt("traitsPerTier");
-            DAYS_MOTHBALLED_PER_TRAIT_TO_RESET_REPUTATION = cfg.getInt("daysMothballedPerTraitToResetReputation");
 
-            TRAIT_CHANCE_MULT_FLAT = (float) cfg.getDouble("traitChanceMultFlat");
-            TRAIT_CHANCE_MULT_PER_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("traitChanceMultPerPlayerCaptainLevel");
-            TRAIT_CHANCE_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("traitChanceMultPerNonPlayerCaptainLevel");
-            TRAIT_CHANCE_MULT_PER_FLEET_POINT = (float) cfg.getDouble("traitChanceMultPerFleetPoint");
-            TRAIT_CHANCE_MULT_PER_DAMAGE_TAKEN_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageTakenPercent");
-            TRAIT_CHANCE_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("traitChanceMultPerDamageDealtPercent");
+            MAX_INITIAL_NEGATIVE_TRAITS = cfg.getInt("maxInitialNegativeTraits");
+            MIN_INITIAL_NEGATIVE_TRAITS = cfg.getInt("minInitialNegativeTraits");
+            MIN_NEGATIVE_TRAITS = (float) cfg.getDouble("minNegativeTraits");
+            LOYALTY_IMPROVEMENT_RATE_MULT = (float) cfg.getDouble("loyaltyImprovementRateMult");
+            LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("loyaltyLevelsLostWhenDisabled");
 
-            USE_ADVANCED_SHIP_STRENGTH_ESTIMATION = cfg.getBoolean("useAdvancedShipStrengthEstimation");
+            XP_MULT_FLAT = (float) cfg.getDouble("xpMultFlat");
+            XP_MULT_PER_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("xpMultPerPlayerCaptainLevel");
+            XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("xpMultPerNonPlayerCaptainLevel");
+            XP_MULT_PER_FLEET_POINT = (float) cfg.getDouble("xpMultPerFleetPoint");
+            XP_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("xpMultPerDamageDealtPercent");
 
-            try {
-                DMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("dModFactorForPlayerShips");
-                SMOD_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("sModFactorForPlayerShips");
-                SKILL_FACTOR_FOR_PLAYER_SHIPS = (float) cfg.getDouble("skillFactorForPlayerShips");
-                DMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("dModFactorForEnemyShips");
-                SMOD_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("sModFactorForEnemyShips");
-                SKILL_FACTOR_FOR_ENEMY_SHIPS = (float) cfg.getDouble("skillFactorForEnemyShips");
-                STRENGTH_INCREASE_PER_PLAYER_LEVEL = (float) cfg.getDouble("strengthIncreasePerPlayerLevel");
-            } catch (Exception e) {
-                if(USE_ADVANCED_SHIP_STRENGTH_ESTIMATION) throw e;
-            }
-
-            TRAIT_CHANCE_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCombatShips");
-            TRAIT_CHANCE_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForReservedCivilianShips");
-            TRAIT_CHANCE_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("traitChanceBonusPerPlayerLevel");
-
-            BASE_RATING = (float) cfg.getDouble("baseRating");
-            BATTLE_DIFFICULTY_MULT = (float) cfg.getDouble("battleDifficultyMult");
-            SUPPORT_MULT = (float) cfg.getDouble("supportMult");
-            DAMAGE_TAKEN_MULT = (float) cfg.getDouble("damageTakenMult");
-            DAMAGE_DEALT_MULT = (float) cfg.getDouble("damageDealtMult");
-            DAMAGE_DEALT_MIN_THRESHOLD = (float) cfg.getDouble("damageDealtMinThreshold");
-
-
-            BONUS_CHANCE_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("bonusChanceForCivilianShips");
-            BONUS_CHANCE_RANDOMNESS = (float) cfg.getDouble("bonusChanceRandomness");
-            BONUS_CHANCE_FOR_RESERVED_SHIPS_MULT = (float) cfg.getDouble("bonusChanceForReservedShipsMult");
-            TRAIT_POSITION_CHANGE_CHANCE_MULT = (float) cfg.getDouble("traitPositionChangeChanceMult");
-            USE_RATING_FROM_LAST_BATTLE_AS_BASIS_FOR_BONUS_CHANCE = cfg.getBoolean("useRatingFromLastBattleAsBasisForBonusChance");
-
-            IMPROVE_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("improveLoyaltyChanceMult");
-            WORSEN_LOYALTY_CHANCE_MULT = (float) cfg.getDouble("worsenLoyaltyChanceMult");
+            XP_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("xpMultForReservedCombatShips");
+            XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("xpMultForReservedCivilianShips");
+            FAME_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("fameBonusPerPlayerLevel");
 
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS  = (float) cfg.getDouble("chanceToIgnoreLogisticsTraitsOnCombatShips");
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = (float) cfg.getDouble("chanceToIgnoreCombatTraitsOnCivilianShips");
@@ -460,16 +404,21 @@ public class ModPlugin extends BaseModPlugin {
             TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = cfg.getInt("traitsForFleetsWithMaxLevelCommander");
             ALLOW_CUSTOM_COMMANDER_PRESETS = cfg.getBoolean("allowCustomCommanderPresets");
 
-            TRAIT_CHANCE_MULT_FOR_COMBAT_SHIPS = (float) cfg.getDouble("traitChanceMultForCombatShips");
-            TRAIT_CHANCE_MULT_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("traitChanceMultForCivilianShips");
+            PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = (float) cfg.getDouble("peacefulXpMultForCombatShips");
+            PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("peacefulXpMultForCivilianShips");
 
-            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousFlagshipBarEventChance");
-            FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) cfg.getDouble("famousDerelictBarEventChance");
+            JSONObject eventChances = cfg.getJSONObject("barEventChanceMultipliers");
+            TRAIT_UPGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitUpgrade");
+            TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitSidegrade");
+            REPAIR_DMOD_BAR_EVENT_CHANCE = (float) eventChances.getDouble("repairDmod");
+            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = (float) eventChances.getDouble("loyalCrewJoins");
+            BUY_SHIP_OFFER_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToBuyFamousShip");
+            JOIN_WITH_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToJoinWithShip");
+            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("famousFlagshipIntel");
+            FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) eventChances.getDouble("famousDerelictIntel");
+            HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("hearLegendOfOwnShip");
 
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
-            CONSIDER_NORMAL_HULLMODS_FOR_TRAIT_COMPATIBILITY = cfg.getBoolean("considerNormalHullmodsForTraitCompatibility");
-
-            ANY_FAMOUS_SHIP_BAR_EVENT_CHANCE_MULT = FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE + FAMOUS_DERELICT_BAR_EVENT_CHANCE;
 
             return settingsAreRead = true;
         } catch (Exception e) {

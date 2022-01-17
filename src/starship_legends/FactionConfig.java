@@ -7,7 +7,6 @@ import com.fs.starfarer.api.campaign.TextPanelAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
-import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
@@ -22,11 +21,13 @@ public class FactionConfig {
     public class ForcedRepPreset {
         List<Trait> forcedGoodTraits = new LinkedList();
         List<Trait> forcedBadTraits = new LinkedList();
-        int defaultNumberOfForcedTraits = Integer.MIN_VALUE;
+        int defaultNumberOfForcedTraits = Integer.MIN_VALUE; // Legacy version of numberOfForcedTraits
+        int numberOfForcedTraits = Integer.MIN_VALUE;
 
         public ForcedRepPreset(JSONObject data) throws JSONException {
 
             if(data.has("defaultNumberOfTraits")) defaultNumberOfForcedTraits = data.getInt("defaultNumberOfTraits");
+            if(data.has("numberOfTraits")) numberOfForcedTraits = data.getInt("numberOfTraits");
 
             readForcedTraits(data, true);
             readForcedTraits(data, false);
@@ -142,9 +143,11 @@ public class FactionConfig {
         ForcedRepPreset preset = getPreset(commander);
 
 
-        if(preset != null && preset.defaultNumberOfForcedTraits >= 0) {
+        if(preset != null && preset.numberOfForcedTraits >= 0) {
+            return (int)(preset.numberOfForcedTraits * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / 4f));
+        } else if(preset != null && preset.defaultNumberOfForcedTraits >= 0) {
             return (int)(preset.defaultNumberOfForcedTraits
-                    * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / (float)ModPlugin.DEFAULT_TRAIT_LIMIT));
+                    * (ModPlugin.TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER / (float)ModPlugin.TRAIT_LIMIT));
         } else if(commander != null && !commander.isDefault()) {
             return (int)(ModPlugin.TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER
                     + (commander.getStats().getLevel() / Math.max(1, Global.getSettings().getFloat("officerMaxLevel")-1))
@@ -345,29 +348,34 @@ public class FactionConfig {
             exclusiveDerelictProbability.put(hullID, (float)Math.min(exclusiveDerelictProbability.get(hullID), probabilityWeight));
         } else exclusiveDerelictProbability.put(hullID, probabilityWeight);
     }
-    public RepRecord buildReputation(PersonAPI commander, int traitCount) {
-//        int loyalty = (rand.nextFloat() < (0.4f + commander.getStats().getLevel() * 0.025f) ? 1 : -1)
-//                * (int)Math.floor(Math.pow(rand.nextFloat(), 0.75f) * (ModPlugin.LOYALTY_LIMIT + 1));
 
-        int loyalty = 0;
+    public WeightedRandomPicker<TraitType> createGoodTraitPicker(Random rand) {
+        WeightedRandomPicker<TraitType> retVal = new WeightedRandomPicker(rand);
 
-        return buildReputation(commander, traitCount, ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS, null, true, loyalty);
+        for(Map.Entry<Trait, Float> e : goodTraitFrequency.entrySet()) retVal.add(e.getKey().getType(), e.getValue());
+
+        return retVal;
     }
-    public RepRecord buildReputation(PersonAPI commander, int traitCount, float ratingGoal, FleetMemberAPI ship,
-                                     boolean allowCrewTraits, int loyalty) {
+
+    public WeightedRandomPicker<TraitType> createBadTraitPicker(Random rand) {
+        WeightedRandomPicker<TraitType> retVal = new WeightedRandomPicker(rand);
+
+        for(Map.Entry<Trait, Float> e : badTraitFrequency.entrySet()) retVal.add(e.getKey().getType(), e.getValue());
+
+        return retVal;
+    }
+
+    public RepRecord buildReputation(PersonAPI commander, int traitCount) {
 
         if(traitCount <= 0) return null;
 
         Random rand = new Random(commander != null && !commander.isDefault()
                 ? commander.getNameString().hashCode()
                 : getFaction().getDisplayNameLong().hashCode());
-        RepRecord retVal = ship == null ? new RepRecord() : new RepRecord(ship);
-        WeightedRandomPicker<TraitType> randomGoodTraits = new WeightedRandomPicker(rand);
-        WeightedRandomPicker<TraitType> randomBadTraits = new WeightedRandomPicker(rand);
+        RepRecord retVal = new RepRecord();
+        WeightedRandomPicker<TraitType> randomGoodTraits = createGoodTraitPicker(rand);
+        WeightedRandomPicker<TraitType> randomBadTraits = createBadTraitPicker(rand);
         ForcedRepPreset preset = getPreset(commander);
-
-        for(Map.Entry<Trait, Float> e : goodTraitFrequency.entrySet()) randomGoodTraits.add(e.getKey().getType(), e.getValue());
-        for(Map.Entry<Trait, Float> e : badTraitFrequency.entrySet()) randomBadTraits.add(e.getKey().getType(), e.getValue());
 
         List<Trait> forcedGoodTraits = new LinkedList();
         List<Trait> forcedBadTraits = new LinkedList();
@@ -380,16 +388,14 @@ public class FactionConfig {
         while (retVal.getTraits().size() < traitCount) {
             float traits = retVal.getTraits().size();
             boolean isBonus = traits <= 2
-                    ? rand.nextFloat() < (ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS * (1 - traits/3f) + ratingGoal * (traits/3f))
-                    : retVal.getFractionOfBonusEffectFromTraits() <= ratingGoal;
+                    ? rand.nextFloat() < (ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS * (1 - traits/3f) + ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS * (traits/3f))
+                    : retVal.getFractionOfBonusEffectFromTraits() <= ModPlugin.AVERAGE_FRACTION_OF_GOOD_TRAITS;
 
             WeightedRandomPicker<TraitType> randomTraits = isBonus ? randomGoodTraits : randomBadTraits;
             List<Trait> forcedTraits = isBonus ? forcedGoodTraits : forcedBadTraits;
             Trait newTrait = null;
 
-            if(ship != null) {
-                newTrait = RepRecord.chooseNewTrait(ship, rand, !isBonus, true, true, allowCrewTraits, randomTraits);
-            } else if(preset != null && !forcedTraits.isEmpty()) {
+            if(preset != null && !forcedTraits.isEmpty()) {
                 newTrait = forcedTraits.get(0);
                 forcedTraits.remove(0);
             } else if(!randomTraits.isEmpty()) {
@@ -401,8 +407,6 @@ public class FactionConfig {
             else if(retVal.hasTraitType(newTrait.getType())) continue;
             else retVal.getTraits().add(newTrait);
         }
-
-        if(commander != null) retVal.setLoyalty(commander, loyalty);
 
         return retVal;
     }

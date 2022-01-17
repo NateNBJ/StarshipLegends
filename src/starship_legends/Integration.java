@@ -2,7 +2,6 @@ package starship_legends;
 
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.campaign.Faction;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,8 +25,6 @@ public class Integration {
     }
     public static boolean isFamousFlagshipEventAvailableAtMarket(MarketAPI market) {
         FactionConfig cfg = FactionConfig.get(market.getFactionId());
-
-        if(ModPlugin.FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE <= 0) return false;
 
         if(flagshipAvailabilityOverride.containsKey(market.getId())) {
             return flagshipAvailabilityOverride.get(market.getId());

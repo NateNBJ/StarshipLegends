@@ -4,11 +4,17 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public enum LoyaltyLevel {
-    OPENLY_INSUBORDINATE, INSUBORDINATE, DOUBTFUL, INDIFFERENT, CONFIDENT, LOYAL, FIERCELY_LOYAL, UNKNOWN;
+    MUTINOUS, OPENLY_INSUBORDINATE, INSUBORDINATE, DOUBTFUL, INDIFFERENT, CONFIDENT, LOYAL, FIERCELY_LOYAL, INSPIRED, UNKNOWN;
+
+    public static LoyaltyLevel fromInt(int loyaltyInt) {
+        int index = Math.max(0, Math.min(ModPlugin.LOYALTY_LIMIT * 2, loyaltyInt + ModPlugin.LOYALTY_LIMIT));
+
+        return LoyaltyLevel.values()[index];
+    }
 
     String name, preposition, traitAdjustDesc;
-    float crDecay, baseImproveChance, baseWorsenChance, ratingRequiredToImprove, damageRequiredToWorsen;
-    int traitAdjustment;
+    float crDecay, maxCrReduction;
+    int traitAdjustment, xpToImprove;
 
     public String getName() {
         return name;
@@ -22,17 +28,9 @@ public enum LoyaltyLevel {
     public float getCrDecayMult() {
         return crDecay;
     }
-    public float getBaseImproveChance() {
-        return baseImproveChance;
-    }
-    public float getBaseWorsenChance() {
-        return baseWorsenChance;
-    }
-    public float getRatingRequiredToImprove() {
-        return ratingRequiredToImprove;
-    }
-    public float getDamageRequiredToWorsen() {
-        return damageRequiredToWorsen;
+    public float getMaxCrReduction() { return maxCrReduction; }
+    public int getXpToImprove() {
+        return xpToImprove;
     }
     public int getTraitAdjustment() { return traitAdjustment; }
     public boolean isAtBest() { return getIndex() == ModPlugin.LOYALTY_LIMIT; }
@@ -45,10 +43,8 @@ public enum LoyaltyLevel {
         traitAdjustDesc = o.getString("trait_adjust_desc");
 
         crDecay = (float) o.getDouble("cr_decay");
-        baseImproveChance = (float) o.getDouble("base_improve_chance");
-        baseWorsenChance = (float) o.getDouble("base_worsen_chance");
-        ratingRequiredToImprove = (float) o.getDouble("rating_required_to_improve");
-        damageRequiredToWorsen = (float) o.getDouble("damage_required_to_worsen");
+        xpToImprove = o.getInt("xp_to_improve");
+        maxCrReduction = (float) o.getDouble("max_cr_reduction");
 
         traitAdjustment = o.getInt("trait_adjustment");
     }

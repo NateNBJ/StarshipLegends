@@ -1,23 +1,23 @@
 package starship_legends.events;
 
-import java.awt.*;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.*;
+import com.fs.starfarer.api.campaign.CampaignFleetAPI;
+import com.fs.starfarer.api.campaign.FactionAPI;
+import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.characters.FullName;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
-import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.impl.campaign.intel.PersonBountyIntel;
 import com.fs.starfarer.api.impl.campaign.intel.misc.FleetLogIntel;
-import com.fs.starfarer.api.ui.*;
+import com.fs.starfarer.api.ui.IntelUIAPI;
+import com.fs.starfarer.api.ui.SectorMapAPI;
+import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import org.lwjgl.input.Keyboard;
 import starship_legends.*;
+
+import java.awt.*;
+import java.util.Set;
 
 public class FamousFlagshipIntel extends FleetLogIntel {
 	public static float MAX_DURATION = PersonBountyIntel.MAX_DURATION / 2f;
@@ -43,6 +43,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 
 		Misc.makeImportant(fleet, "sun_sl_famous_flagship");
 		setRemoveTrigger(fleet);
+
+		RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.FamousFlagship, faction.getDisplayName());
 	}
 
 	@Override
@@ -100,6 +102,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 
 //			ButtonAPI button = info.addButton("Abandon", "abandon", width, 20, 6);
 //			button.setShortcut(Keyboard.KEY_U, true);
+
+			addDeleteButton(info, width);
 
 			if(Global.getSettings().isDevMode()) {
 				info.addButton("Go to fleet", "gotoFleet", width, 20, 6);

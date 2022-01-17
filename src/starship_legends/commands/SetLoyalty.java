@@ -41,7 +41,7 @@ public class SetLoyalty implements BaseCommand {
                 if(cap == null || cap.isDefault()) {
                     Console.showMessage("The " + ship.getShipName() + " has no captain assigned");
                 } else {
-                    RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
+                    RepRecord rep = RepRecord.getOrCreate(ship);
 
                     rep.setLoyalty(cap, newLoyalty);
 

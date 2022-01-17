@@ -7,6 +7,7 @@ import com.fs.starfarer.api.combat.EngagementResultAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import org.lwjgl.input.Keyboard;
+import starship_legends.RepRecord;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -97,6 +98,12 @@ public class SalvageFamousDerelictDialogPlugin implements InteractionDialogPlugi
                 dialog.getOptionPanel().clearOptions();
                 dialog.getOptionPanel().addOption("Leave", LEAVE);
                 dialog.getOptionPanel().setShortcut(LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
+
+                RepRecord.Origin.Type origin = intel.timeScale == FamousDerelictIntel.TimeScale.Centuries
+                        ? RepRecord.Origin.Type.AncientDerelict
+                        : RepRecord.Origin.Type.FamousDerelict;
+
+                RepRecord.setShipOrigin(intel.ship,  origin);
 
                 break;
             case LEAVE:

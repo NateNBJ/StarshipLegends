@@ -9,38 +9,73 @@ import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.impl.campaign.intel.MessageIntel;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
+import com.thoughtworks.xstream.XStream;
 
 import java.awt.*;
 
 public class RepChange {
+    class Intel extends MessageIntel {
+        RepChange rc;
+        Trait.Tier tier;
+
+        Intel(RepChange rc, Trait.Tier tier) {
+            this.rc = rc;
+            this.tier = tier;
+
+            setSound(tier == Trait.Tier.Legendary ? "ui_increase_ship_rep_max" : "ui_increase_ship_rep");
+            setIcon(rc.ship.getHullSpec().getSpriteName());
+            //setIcon(tier.getIcon());
+        }
+        @Override
+        public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
+            boolean requiresCrew = ship.getMinCrew() > 0;
+
+//            info.beginImageWithText(tier.getIcon(), TRAIT_TIER_SIZE)
+//                    .addPara("The " + rc.ship.getShipName() + " is now known for:", 0);
+//            info.addImageWithText(0);
+//            info.addPara("The " + rc.ship.getShipName() + " (" + rc.ship.getHullSpec().getBaseHull().getHullName()
+//                    + ") is now known for:", 0);
+
+            info.addPara("The " + rc.ship.getShipName() + " is now known for:", 0);
+            rc.addTraitBulletToTooltip(info, trait1, requiresCrew);
+            rc.addTraitBulletToTooltip(info, trait2, requiresCrew);
+        }
+    }
+
+    static final float TRAIT_TIER_SIZE = 16;
+
+    public static void configureXStream(XStream x) {
+        x.alias("sun_sl_rc", RepChange.class);
+        x.aliasAttribute(RepChange.class, "ship", "s");
+        x.aliasAttribute(RepChange.class, "captain", "c");
+        x.aliasAttribute(RepChange.class, "captainOpinionChange", "oc");
+        x.aliasAttribute(RepChange.class, "loyaltyLevel", "ll");
+        x.aliasAttribute(RepChange.class, "trait1", "t1");
+        x.aliasAttribute(RepChange.class, "trait2", "t2");
+        x.aliasAttribute(RepChange.class, "damageDealtPercent", "dd");
+        x.aliasAttribute(RepChange.class, "damageTakenFraction", "dt");
+        x.aliasAttribute(RepChange.class, "xpEarned", "xp");
+        x.aliasAttribute(RepChange.class, "deployed", "dp");
+        x.aliasAttribute(RepChange.class, "disabled", "ds");
+    }
     FleetMemberAPI ship;
     PersonAPI captain;
-    int captainOpinionChange, shuffleSign = 0, loyaltyLevel = Integer.MIN_VALUE;
-    Trait trait, traitDown;
-
-    float damageTakenFraction = 0, damageDealtPercent = 0, newRating = Integer.MIN_VALUE, ratingAdjustment = 0;
+    int captainOpinionChange, loyaltyLevel = Integer.MIN_VALUE;
+    Trait trait1, trait2;
+    float damageDealtPercent = 0, damageTakenFraction = 0, xpEarned = 0;
     boolean deployed, disabled;
 
     public LoyaltyLevel getLoyaltyLevel() {
-        return loyaltyLevel == Integer.MIN_VALUE && RepRecord.existsFor(ship)
+        return loyaltyLevel == Integer.MIN_VALUE && RepRecord.isShipNotable(ship)
                 ? RepRecord.get(ship).getLoyalty(captain)
                 : (loyaltyLevel == Integer.MIN_VALUE ? LoyaltyLevel.INDIFFERENT : LoyaltyLevel.values()[loyaltyLevel]);
     }
     public void setLoyaltyChange(int loyaltyChange) {
         captainOpinionChange = loyaltyChange;
 
-        if(RepRecord.existsFor(ship) && captain != null && !captain.isDefault()) {
+        if(RepRecord.isShipNotable(ship) && captain != null && !captain.isDefault()) {
             loyaltyLevel = RepRecord.get(ship).getLoyalty(captain).ordinal() + loyaltyChange;
         }
-    }
-    public void setTraitChange(Trait trait) {
-        this.trait = trait;
-        this.shuffleSign = 0;
-    }
-    public void setTraitChange(Trait trait[], int shuffleSign) {
-        this.trait = trait.length > 0 ? trait[0] : null;
-        this.traitDown = trait.length > 1 ? trait[1] : null;
-        this.shuffleSign = shuffleSign;
     }
 
     public RepChange(FleetMemberAPI ship) {
@@ -56,24 +91,18 @@ public class RepChange {
     }
 
     public boolean hasAnyChanges() {
-        return trait != null || (captainOpinionChange != 0 && captain != null && !captain.isDefault());
+        return hasNewTraitPair() || (captainOpinionChange != 0 && captain != null && !captain.isDefault());
     }
+    public boolean hasNewTraitPair() { return trait1 != null && trait2 != null; }
 
     public boolean apply(boolean allowNotification) {
         if(ship == null) throw new RuntimeException("RepChange ship is null");
 
         boolean showNotification = false;
-        RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : new RepRecord(ship);
-        MessageIntel intel = new MessageIntel();
+        RepRecord rep = RepRecord.getOrCreate(ship);
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
 
-        if(newRating != Integer.MIN_VALUE) rep.setRating(newRating / 100f);
-
         if(!hasAnyChanges()) return false;
-
-        for(Trait t : rep.getTraits()) {
-            if(shuffleSign == 0 && trait != null && t.getType() == trait.getType()) return false;
-        }
 
         if(allowNotification && pf != null && ModPlugin.SHOW_NEW_TRAIT_NOTIFICATIONS) {
             for (FleetMemberAPI s : pf.getFleetData().getMembersListCopy()) {
@@ -84,57 +113,23 @@ public class RepChange {
             }
         }
 
-        if(trait != null) {
-            if(shuffleSign == 0) {
-                rep.getTraits().add(trait);
-//                intel.addLine("The %s has gained a reputation for %s %s.", Misc.getTextColor(),
-//                        new String[]{ship.getShipName(), trait.getDescPrefix(ship.getMinCrew() > 0), trait.getName(ship.getMinCrew() > 0).toLowerCase()},
-//                        Misc.getTextColor(), Misc.getTextColor(), trait.getHighlightColor());
-            } else {
-                //intel.addLine("Trait shuffle");
+        Trait.Tier prevTier = rep.getTier();
 
-                for(int i = 1; i < rep.getTraits().size(); i++) {
-                    Trait t = rep.getTraits().get(i);
+        if(trait1 != null) rep.getTraits().add(trait1);
+        if(trait2 != null) rep.getTraits().add(trait2);
 
-                    if(t.equals(trait)) {
-                        int shuffleDirection = t.effectSign > 0 ? -shuffleSign : shuffleSign;
-
-                        if(i + shuffleDirection >= rep.getTraits().size()) {
-                            rep.getTraits().remove(i);
-                        } else {
-                            rep.getTraits().set(i, rep.getTraits().get(i + shuffleDirection));
-                            rep.getTraits().set(i + shuffleDirection, t);
-                        }
-
-                        break;
-                    }
-                }
-            }
+        if(rep.getTier() == Trait.Tier.Legendary && prevTier != Trait.Tier.Legendary) {
+            RepRecord.getQueuedStories().add(ship.getId());
         }
 
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             LoyaltyLevel ll = rep.getLoyalty(captain);
-            int llSign = (int)Math.signum(ll.getIndex());
-            String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-            String merelyMaybe = (llSign != 0 && llSign != captainOpinionChange) ? "merely " : "";
 
             rep.adjustLoyalty(captain, captainOpinionChange);
-
-//            intel.addLine("The crew of the %s has %s %s and is now " + merelyMaybe + "%s.", Misc.getTextColor(),
-//                    new String[] { ship.getShipName(), change, captain.getNameString().trim(), rep.getLoyalty(captain).getName().toLowerCase() },
-//                    Misc.getTextColor(), Misc.getTextColor(), Misc.getTextColor(),
-//                    captainOpinionChange < 0 ? Misc.getNegativeHighlightColor() : Misc.getHighlightColor());
         }
 
-        if(showNotification && trait != null) {
-            boolean requiresCrew = ship.getMinCrew() > 0 || ship.isMothballed();
-            String message = "The " + ship.getShipName() + " has gained a reputation for "
-                    + trait.getDescPrefix(requiresCrew) + " %s";
-
-            intel.setSound("ui_intel_something_posted");
-            intel.setIcon(ship.getHullSpec().getSpriteName());
-            intel.addLine(message, Misc.getTextColor(), new String[] { trait.getName(requiresCrew) },
-                    trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor());
+        if(showNotification && hasAnyChanges()) {
+            Intel intel = new Intel(this, rep.getTier());
             Global.getSector().getCampaignUI().addMessage(intel, CommMessageAPI.MessageClickAction.REFIT_TAB, ship);
         }
 
@@ -143,71 +138,85 @@ public class RepChange {
         return showNotification;
     }
 
-    public void addCommentsToTooltip(TooltipMakerAPI tooltip) {
-        if(!hasAnyChanges()) return;
+    public void addTraitBulletToTooltip(TooltipMakerAPI tooltip, Trait trait, boolean requiresCrew) {
+        tooltip.addPara("  - " + "%s %s %s", 0,
+            new Color[] {
+                Misc.getTextColor(),
+                trait.getEffectSign() > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
+                Misc.getGrayColor()
+            },
+            trait.getDescPrefix(requiresCrew),
+            trait.getName(requiresCrew),
+            trait.getParentheticalDescription()
+        );
+    }
+    public int addCommentsToTooltip(TooltipMakerAPI tooltip) {
+        if(!hasAnyChanges()) return 0;
         if(ship == null) throw new RuntimeException("RepChange ship is null");
-        if(!RepRecord.existsFor(ship)) throw new RuntimeException("Ship with RepChange has no RepRecord");
 
-        RepRecord rep = RepRecord.get(ship);
-        String message;
-        boolean requiresCrew = ship.getMinCrew() > 0 || ship.isMothballed();
+        int lines = 1;
+        int PAD = 0;
 
-        if(trait != null) {
-            if (shuffleSign == 0) {
-                message = "The " + ship.getShipName() + " has gained a reputation for "
-                        + trait.getDescPrefix(requiresCrew) + " %s  %s";
-                String desc = (trait.effectSign * trait.getType().getBaseBonus() > 0 ? "(increased " : "(reduced ")
-                        + trait.getType().getEffectDescription() + ")";
+        tooltip.addPara(" " + ship.getShipName() + ":", PAD);
+//        RepRecord rep = RepRecord.getOrCreate(ship);
+//        tooltip.beginImageWithText(rep.getTier().getIcon(), TRAIT_TIER_SIZE)
+//                .addPara(ship.getShipName() + ":", PAD);
+//        tooltip.addImageWithText(0);
 
-                tooltip.addPara(message, 3, Misc.getTextColor(), trait.getLowerCaseName(requiresCrew), desc)
-                        .setHighlightColors(trait.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                                Misc.getGrayColor());
-            } else if(!rep.hasTrait(trait)) {
-                message = "The " + ship.getShipName() + " is no longer known for "
-                        + trait.getDescPrefix(requiresCrew) + " %s.";
+        if(hasNewTraitPair()) {
+            boolean requiresCrew = ship.getMinCrew() > 0;
+            String
+                    pref1 = trait1.getDescPrefix(requiresCrew).toLowerCase(),
+                    pref2 = trait2.getDescPrefix(requiresCrew, pref1).toLowerCase();
 
-                tooltip.addPara(message, 3, Misc.getTextColor(),
-                        shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                        trait.getLowerCaseName(requiresCrew));
-            } else {
-                int shuffleDirection = trait.effectSign > 0 ? -shuffleSign : shuffleSign;
+            // Leave the double space below. Otherwise the highlight color to the left of "and" will sometimes bleed over to it for some reason...
+            tooltip.addPara(BaseIntelPlugin.BULLET + "Now known for %s %s %s  and%s %s %s", PAD,
+                new Color[]{
+                        Misc.getTextColor(),
+                        trait1.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
+                        Misc.getGrayColor(),
+                        Misc.getTextColor(),
+                        trait2.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
+                        Misc.getGrayColor()
+                },
+                pref1,
+                trait1.getLowerCaseName(requiresCrew),
+                trait1.getParentheticalDescription(),
+                pref2,
+                trait2.getLowerCaseName(requiresCrew),
+                trait2.getParentheticalDescription()
+            );
 
-                if(traitDown == null) {
-                    message = "The reputation of the " + ship.getShipName()
-                            + " for " + trait.getDescPrefix(requiresCrew) + " %s has become %s prominent.";
-
-                    tooltip.addPara(message, 3, Misc.getTextColor(),
-                            shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                            trait.getLowerCaseName(requiresCrew), (shuffleDirection < 0 ? "more" : "less"));
-                } else {
-                    message = "The " + ship.getShipName() + " is now known better for "
-                            + trait.getDescPrefix(true) + " %s than " + traitDown.getDescPrefix(true) + " %s";
-
-                    Color hl = traitDown != null && trait.getEffectSign() == traitDown.getEffectSign()
-                            ? Misc.getHighlightColor()
-                            : (shuffleSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor());
-
-                    tooltip.addPara(message, 3, Misc.getTextColor(), hl, trait.getLowerCaseName(requiresCrew),
-                            traitDown.getLowerCaseName(requiresCrew));
-                }
-            }
+            lines += 1;
         }
 
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-
             LoyaltyLevel ll = getLoyaltyLevel();
             int llSign = (int)Math.signum(ll.getIndex());
-            String change = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-            String merelyMaybe = llSign != captainOpinionChange ? "merely " : "";
+            String highlight1 = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
+            String highlight2 = ll.getName().toLowerCase();
             String crewOrAI = ship.getMinCrew() > 0 || ship.isMothballed() ? "crew" : "AI persona";
-            message = BaseIntelPlugin.BULLET + "The " + crewOrAI + " of the " + ship.getShipName() + " has %s "
-                    + captain.getNameString().trim() + " and is now " + merelyMaybe + "%s.";
+            String message = BaseIntelPlugin.BULLET + "The " + crewOrAI;
 
-            tooltip.addPara(message, 3, Misc.getTextColor(),
+            if(ll == LoyaltyLevel.INSPIRED) {
+                highlight1 = ll.getName().toLowerCase();
+                message += " has become %s by " + captain.getNameString().trim() + ", and will remain so for at "
+                        + "least " + RepRecord.getDaysOfInspirationRemaining(ship, captain) + " more days.";
+            } else if(ll == LoyaltyLevel.FIERCELY_LOYAL && captainOpinionChange < 0) {
+                message += " is no longer inspired by " + captain.getNameString().trim() + ".";
+            } else {
+                String merelyMaybe = llSign != (int)Math.signum(captainOpinionChange) ? "merely " : "";
+                message += " has %s " + captain.getNameString().trim() + " and is now "
+                        + merelyMaybe + "%s.";
+            }
+
+            tooltip.addPara(message, PAD, Misc.getTextColor(),
                     captainOpinionChange > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
-                    change, ll.getName().toLowerCase());
+                    highlight1, highlight2);
+
+            lines += 1;
         }
 
-        //tooltip.addButton("View", ship, 50, 20, 3);
+        return lines;
     }
 }

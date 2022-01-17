@@ -5,7 +5,6 @@ import com.fs.starfarer.api.Script;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.impl.campaign.fleets.FleetFactoryV3;
 import com.fs.starfarer.api.impl.campaign.fleets.FleetParamsV3;
 import com.fs.starfarer.api.impl.campaign.ids.*;
 import com.fs.starfarer.api.impl.campaign.intel.PersonBountyIntel;
@@ -18,19 +17,19 @@ import com.fs.starfarer.api.ui.SectorMapAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
-import org.lwjgl.util.vector.Vector2f;
 import starship_legends.*;
 
 import java.awt.*;
-import java.util.*;
+import java.util.Random;
+import java.util.Set;
 
 public class FamousDerelictIntel extends FleetLogIntel {
 	public enum LocationGranularity {CONSTELATION, SYSTEM, ENTITY }
 	public enum TimeScale {
 		//         survv  dist  slvg  ambsh grnu  trts  xp
-		Months    (0.60f, 0.0f, 0.8f, 0.0f, 0.9f, 5, 6, 100,   "Surprisingly"),
-		Years     (0.20f, 0.3f, 0.4f, 0.4f, 0.6f, 5, 7, 500,   "Amazingly"),
-		Decades   (0.05f, 0.6f, 0.1f, 0.8f, 0.3f, 6, 7, 2500,  "Miraculously"),
+		Months    (0.60f, 0.0f, 0.8f, 0.0f, 0.9f, 4, 4, 100,   "Surprisingly"),
+		Years     (0.20f, 0.3f, 0.4f, 0.4f, 0.6f, 4, 6, 500,   "Amazingly"),
+		Decades   (0.05f, 0.6f, 0.1f, 0.8f, 0.3f, 4, 8, 2500,  "Miraculously"),
 		Centuries (0.00f, 0.9f, 0.0f, 1.0f, 0.1f, 6, 8, 12500, "Impossibly");
 
 		final float survivorChance, salvagerChance, baseAmbushChance, improveGranularityChance, minDistance, xp;
@@ -63,8 +62,7 @@ public class FamousDerelictIntel extends FleetLogIntel {
 					+ name().toLowerCase() + " within the cold husk of the ship.";
 		}
 		public int chooseTraitCount(Random random) {
-			return (int)((minTraits + random.nextInt(maxTraits - minTraits))
-					* (ModPlugin.DEFAULT_TRAIT_LIMIT / (float)Trait.getTraitLimit()));
+			return maxTraits == minTraits ? minTraits : minTraits + random.nextInt((maxTraits - minTraits) / 2) * 2;
 		}
 
 		public LocationGranularity chooseLocationGranularity(Random random) {
@@ -301,6 +299,14 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		for(FleetMemberAPI fm : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
 			if(fm == ship) {
 				notifyThatPlayerRecoveredDerelict();
+
+				RepRecord.Origin.Type origin = timeScale == FamousDerelictIntel.TimeScale.Centuries
+						? RepRecord.Origin.Type.AncientDerelict
+						: RepRecord.Origin.Type.FamousDerelict;
+
+				RepRecord.setShipOrigin(ship,  origin);
+
+				if(RepRecord.get(ship).getTier() == Trait.Tier.Legendary) RepRecord.getQueuedStories().add(ship.getId());
 				break;
 			}
 		}
@@ -462,6 +468,9 @@ public class FamousDerelictIntel extends FleetLogIntel {
 							daysLeft > 0? days : "already recovered by someone else");
 				}
 			}
+
+			// Awkward to clean up existing fleets created by this mission if it is randomly canceled
+			//addDeleteButton(info, width);
 
 			if(Global.getSettings().isDevMode()) {
 				info.addButton("Go to derelict", "gotoDerelict", width, 20, 6);

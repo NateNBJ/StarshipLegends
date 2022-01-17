@@ -1,21 +1,30 @@
 package starship_legends.commands;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import org.lazywizard.console.BaseCommand;
 import org.lazywizard.console.CommonStrings;
 import org.lazywizard.console.Console;
-import starship_legends.*;
+import starship_legends.ModPlugin;
+import starship_legends.RepRecord;
+import starship_legends.Trait;
+import starship_legends.Util;
 
 import java.util.LinkedList;
 import java.util.List;
 
 public class RemoveTraits implements BaseCommand {
     private void removeTrait(FleetMemberAPI ship, RepRecord rep, Trait trait) {
-        rep.getTraits().remove(trait);
-        String message = BaseIntelPlugin.BULLET + "The " + ship.getShipName() + " is no longer known for "
-                + trait.getDescPrefix(ship.getMinCrew() > 0 || ship.isMothballed()) + " %s.";
+        String message = BaseIntelPlugin.BULLET + "The " + ship.getShipName();
+
+        if(rep.getTraits().contains(trait)) {
+            rep.getTraits().remove(trait);
+            message += " is no longer known for ";
+        } else {
+            message += " is not known for ";
+        }
+
+        message += trait.getDescPrefix(ship.getMinCrew() > 0).toLowerCase() + " %s.";
 
         Console.showMessage(String.format(message, trait.getName(true).toUpperCase()));
     }
@@ -43,7 +52,7 @@ public class RemoveTraits implements BaseCommand {
             if((!removeIrrelevant && (traits == null || traits.isEmpty())) || ships == null ||  ships.isEmpty()) return CommandResult.BAD_SYNTAX;
 
             for(FleetMemberAPI ship : ships) {
-                if(RepRecord.existsFor(ship)) {
+                if(RepRecord.isShipNotable(ship)) {
                     RepRecord rep = RepRecord.get(ship);
 
                     for (Trait t : traits) {

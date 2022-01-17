@@ -1,6 +1,5 @@
 package starship_legends;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,7 +27,11 @@ public class TraitType {
                 BALLISTIC = "ballistic",
                 ENERGY = "energy",
                 MISSILE = "missile",
+                SYNERGY = "synergy",
+                COMPOSITE = "composite",
+                HYBRID = "hybrid",
                 DMOD = "dmod",
+                SYSTEM = "system",
                 DEFENSE = "defense";
     }
     private static final WeightedRandomPicker<TraitType>
@@ -48,7 +51,7 @@ public class TraitType {
     private String id, desc, bonusName, malusName, bonusDesc, malusDesc,
             bonusNameAI, malusNameAI, bonusDescAI, malusDescAI;
     private Set<String> tags = new HashSet<>(), requiredBuiltIns = new HashSet<>(), incompatibleBuiltIns = new HashSet<>();
-    private float baseBonus;
+    private float baseBonus, baseChance;
     private Trait bonus, malus;
     private boolean applicableToFleets;
 
@@ -58,7 +61,14 @@ public class TraitType {
     public Set<String> getRequiredBuiltInHullmods() { return requiredBuiltIns; }
     public Set<String> getIncompatibleBuiltInHullmods() { return incompatibleBuiltIns; }
     public float getBaseBonus() { return baseBonus; }
+    public float getBaseChance() { return baseChance; }
     public Trait getTrait(boolean isMalus) { return isMalus ? malus : bonus; }
+    public boolean canBePositive() {
+        return bonus != null;
+    }
+    public boolean canBeNegative() {
+        return malus != null;
+    }
     public String getName(boolean isMalus, boolean requiresCrew) {
         return isMalus
                 ? (!requiresCrew && !malusNameAI.isEmpty()) ? malusNameAI : malusName
@@ -84,6 +94,7 @@ public class TraitType {
         desc = data.getString("desc");
         baseBonus = (float)data.getDouble("base_bonus");
         applicableToFleets = data.getBoolean("applicable_to_fleets");
+        baseChance = (float)data.getDouble("chance");
 
         String[] ja = data.getString("tags").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) tags.add(ja[i].toLowerCase());
@@ -95,16 +106,15 @@ public class TraitType {
         for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) incompatibleBuiltIns.add(ja[i]);
 
 
-        if(!bonusName.isEmpty()) bonus = new Trait(this, 1);
-        if(!malusName.isEmpty()) malus = new Trait(this, -1);
-
-        float chance = (float)data.getDouble("chance");
+        if(!bonusName.isEmpty()) bonus = new Trait(this, false);
+        if(!malusName.isEmpty()) malus = new Trait(this, true);
 
         if(tags.contains(Tags.DISABLED_ONLY)) {
             if(!tags.contains(Tags.DISABLED)) tags.add(Tags.DISABLED);
-        } else PICKER.add(this, chance);
-
-        if(tags.contains(Tags.DISABLED)) DISABLED_PICKER.add(this, chance);
+        }
+//        else PICKER.add(this, baseChance);
+//
+//        if(tags.contains(Tags.DISABLED)) DISABLED_PICKER.add(this, baseChance);
 
         INSTANCE_REGISTRY.put(id, this);
     }
