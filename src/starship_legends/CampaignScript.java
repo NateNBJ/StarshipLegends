@@ -207,11 +207,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 }
 
                 BattleRecord br = getBattleRecord(ship.getId());
+                br.damageDealt = Math.max(0, br.damageDealt) / Math.max(1, Util.getShipStrength(ship, true));
                 RepRecord rep = RepRecord.getOrCreate(ship);
                 RepChange rc = new RepChange(ship, br, deployedShips.contains(ship), disabledShips.contains(ship));
                 float xpForShip = xpEarned;
 
-                br.damageDealt = Math.max(0, br.damageDealt) / Math.max(1, Util.getShipStrength(ship, true));
 
                 if(rc.deployed) {
                     float traitChanceMultPerCaptainLevel = br.originalCaptain.isPlayer()

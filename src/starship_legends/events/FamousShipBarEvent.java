@@ -394,7 +394,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			if(isPlayerShipStory) {
 				while (!RepRecord.getQueuedStories().isEmpty()) {
 					String id = RepRecord.getQueuedStories().get(0);
-					RepRecord.getQueuedStories().remove(0);
 
 					for(FleetMemberAPI ship : Reputation.getShipsOfNote()) {
 						if(id.equals(ship.getId())) {
@@ -753,6 +752,9 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 
 					endEvent();
+
+					// Better for this to throw an error if the queue is empty at this point
+					RepRecord.getQueuedStories().remove(0);
 					break;
 				}
 				case FLAGSHIP_INIT: {

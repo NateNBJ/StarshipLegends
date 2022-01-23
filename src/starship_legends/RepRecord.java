@@ -31,6 +31,7 @@ public class RepRecord {
             AncientDerelict("miraculous discovery in %s after centuries adrift"),
             FamousFlagship("appropriation from a %s commander"),
             Manufactured("construction on %s"),
+            Recruitment("recruitment at %s"),
             Derelict("recovery in %s");
 
             String text;
@@ -321,13 +322,13 @@ public class RepRecord {
     }
     public static int getXpRequiredToLevelUp(FleetMemberAPI ship) {
         int currentTraits = RepRecord.isShipNotable(ship) ? RepRecord.get(ship).getTraits().size() : 0;
-        Trait.Tier tier = getTierFromTraitCount(currentTraits);
-        Random rand = new Random((ship.getId() + tier.name()).hashCode());
+        Trait.Tier nextTier = getTierFromTraitCount(currentTraits + 2);
+        Random rand = new Random((ship.getId() + nextTier.name()).hashCode());
         float variationMult = 0.5f + rand.nextFloat();
 
-        return tier.getXpRequired() == Integer.MAX_VALUE
+        return nextTier.getXpRequired() == Integer.MAX_VALUE
                 ? Integer.MAX_VALUE
-                : (int)(tier.getXpRequired() * variationMult);
+                : (int)(nextTier.getXpRequired() * variationMult);
     }
     public static boolean shouldSkipCombatLogisticsMismatch(TraitType type, Random rand, boolean isCivShip) {
         if(type.getTags().contains(TraitType.Tags.LOGISTICAL)

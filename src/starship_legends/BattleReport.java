@@ -20,7 +20,7 @@ public class BattleReport extends BaseIntelPlugin {
     public static void configureXStream(XStream x) {
         x.alias("sun_sl_br", BattleReport.class);
         x.aliasAttribute(BattleReport.class, "enemyFaction", "e");
-        x.aliasAttribute(BattleReport.class, "timestamp", "t");
+        //x.aliasAttribute(BattleReport.class, "timestamp", "ts");
         x.aliasAttribute(BattleReport.class, "changes", "c");
         x.aliasAttribute(BattleReport.class, "destroyed", "d");
         x.aliasAttribute(BattleReport.class, "routed", "r");
@@ -121,8 +121,8 @@ public class BattleReport extends BaseIntelPlugin {
             String blurb = "This report provides an overview of ship diagnostic information collected during the battle"
                     + " against %s " + Misc.getAgoStringForTimestamp(timestamp).toLowerCase()
                     + ", as well as interview feedback from randomly sampled crew members. "
-                    + " Note that the veracity of much of the information provided here should not be taken as"
-                    + " categorically true, as it is subject to the perceptions of those surveyed.";
+                    + " Note that the veracity of the information provided here should not be taken as"
+                    + " categorically true as it is subject to the perceptions of those surveyed.";
             float w = width - RIGHT_MARGIN;
             float totalHeight = 230 + Math.max(0, changes.size() - 3) * 20
                     + getShipListHeight(w, destroyed) + getShipListHeight(w, routed);
@@ -132,7 +132,7 @@ public class BattleReport extends BaseIntelPlugin {
             String resultMaybe = "";//(wasVictory != null) ? (wasVictory ?  "- Victory!" : "- Defeat!") : "";
             String factionName = enemyFaction == null || !enemyFaction.isShowInIntelTab()
                     ? "an undesignated opposing force"
-                    : Misc.ucFirst(enemyFaction.getDisplayNameLongWithArticle());
+                    : enemyFaction.getDisplayNameLongWithArticle();
             boolean showXp = Global.getSettings().isDevMode()
                     ? ModPlugin.SHOW_SHIP_XP_IN_DEV_MODE
                     : ModPlugin.SHOW_SHIP_XP;

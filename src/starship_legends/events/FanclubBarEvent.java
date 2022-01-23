@@ -66,7 +66,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
 
                     float repMult = 1 + (rep.getFractionOfBonusEffectFromTraits() - 0.5f) * rep.getTraits().size();
 
-                    if(repMult >= 1) {
+                    if(repMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
                         crewChange = (int) -ship.getMinCrew();
                         creditChange = (int)(crewChange * baseCrewCost + ship.getBaseBuyValue() * repMult);
 
@@ -204,7 +204,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         }
         if(subEvent != OptionId.CREW_JOIN_OFFER) addShowShipOptionIfNotAlreadyShown(OptionId.SHOW_SHIP);
         options.addOption(acceptText, OptionId.ACCEPT);
-        options.addOption("Thank them for their enthusiasm, but decline the offer", OptionId.LEAVE);
+        options.addOption("Thank " + getHimOrHer() + " for " + getHisOrHer() + " enthusiasm, but decline the offer", OptionId.LEAVE);
         options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 
         if(purse.get() < -creditChange) {
@@ -335,7 +335,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             + "I run a modest " + fleetType + ", you see, and I've been struggling to expand it. Most "
                             + "ships on the market are so shoddy or broken down that they're more liability than asset.\" "
                             + shipNotInFleetMaybe
-                            + "After a short bout of haggling it becomes clear that " + getHeOrShe() + " would be "
+                            + "After a short bout of haggling, it becomes clear that " + getHeOrShe() + " would be "
                             + "willing to purchase the " + ship.getShipName()
                             + (crewChange < 0 ? ", along with a skeleton crew of %s," : "") + " for %s. You think "
                             + getHeOrShe() + " might be a little optimistic about what the ship is capable of.";
@@ -365,11 +365,11 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                     break;
                 }
                 case CREW_JOIN_OFFER: {
-                    String str = "The ragtag group of spacers burbles excitedly when you approach. One of them stands "
+                    String str = "The ragtag group of spacers murmurs excitedly when you approach. One of them stands "
                             + "to greet you. \"I've heard of you. I was just telling my mates how you've been stirring "
                             + "things up in the sector. Some of us would like to be part of that. Are you looking "
-                            + "for crew? We'll waive our sign-on fees.\" Several of the other spacers shout objections "
-                            + " and their de-facto representative raises " + getHisOrHer() + " hands in apology. "
+                            + "for crew? We'll waive our sign-on fees.\" Several of the other spacers shout objections, "
+                            + " and their de facto representative raises " + getHisOrHer() + " hands in apology. "
                             + "\"Some of us will waive our sign-on fees.\"";
 
                     text.addPara(str, Misc.getTextColor(), Misc.getHighlightColor());
@@ -448,6 +448,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                         text.addPara(captain.getNameString() + " and " + getHisOrHer()
                                 + " ship are now part of your fleet.", Misc.getTextColor());
                         ship.getRepairTracker().setCR(0.7f);
+                        RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.Recruitment, market.getName());
                     }
 
                     BarEventManager.getInstance().notifyWasInteractedWith(this);

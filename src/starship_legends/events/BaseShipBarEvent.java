@@ -49,7 +49,7 @@ public class BaseShipBarEvent extends BaseBarEventWithPerson {
     }
     void addShowShipOptionIfNotAlreadyShown(Object optionId) {
         if(ship != null && !shipShown) {
-            options.addOption("View the " + ship.getShipName() + "'s specifications", optionId);
+            options.addOption("View the specifications of the " + ship.getShipName(), optionId);
         }
     }
     void reset() {

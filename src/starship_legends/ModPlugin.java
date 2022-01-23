@@ -1,9 +1,6 @@
 package starship_legends;
 
-import com.fs.starfarer.api.BaseModPlugin;
-import com.fs.starfarer.api.GameState;
-import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.ModSpecAPI;
+import com.fs.starfarer.api.*;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
@@ -65,6 +62,10 @@ public class ModPlugin extends BaseModPlugin {
             TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5;
 
     public static float
+            ORIGINAL_MIN_BAR_EVENTS = 1,
+            ORIGINAL_MAX_BAR_EVENTS = 3,
+            ORIGINAL_BAR_EVENT_PROB_ONE_MORE = 0.5f,
+
             GLOBAL_EFFECT_MULT = 1,
             FLEET_TRAIT_EFFECT_MULT = 2,
             FAME_BONUS_PER_PLAYER_LEVEL = 0.02f,
@@ -86,6 +87,8 @@ public class ModPlugin extends BaseModPlugin {
 
             PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = 0,
             PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = 0,
+
+            AVERAGE_ADDITIONAL_BAR_EVENTS = 0,
 
             TRAIT_UPGRADE_BAR_EVENT_CHANCE = 1f,
             TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = 2f,
@@ -149,6 +152,11 @@ public class ModPlugin extends BaseModPlugin {
                                 "\rCurrent Version: %s",
                         spec.getName(), minimumVersion, currentVersion);
             }
+
+            SettingsAPI settings = Global.getSettings();
+            ORIGINAL_MIN_BAR_EVENTS = settings.getInt("minBarEvents");
+            ORIGINAL_MAX_BAR_EVENTS = settings.getInt("maxBarEvents");
+            ORIGINAL_BAR_EVENT_PROB_ONE_MORE = settings.getFloat("barEventProbOneMore");
         } catch (Exception e) {
             Global.getLogger(this.getClass()).error("Version comparison failed.", e);
         }
@@ -419,6 +427,16 @@ public class ModPlugin extends BaseModPlugin {
             HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("hearLegendOfOwnShip");
 
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
+
+            AVERAGE_ADDITIONAL_BAR_EVENTS = (float) cfg.getDouble("averageAdditionalBarEvents");
+
+            SettingsAPI settings = Global.getSettings();
+            settings.setFloat("maxBarEvents", (float)(ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
+
+            if(ORIGINAL_BAR_EVENT_PROB_ONE_MORE > 0 && ORIGINAL_BAR_EVENT_PROB_ONE_MORE < 1) {
+                settings.setFloat("barEventProbOneMore",
+                        ORIGINAL_BAR_EVENT_PROB_ONE_MORE + (1 - ORIGINAL_BAR_EVENT_PROB_ONE_MORE) * (1 - (ORIGINAL_MAX_BAR_EVENTS - ORIGINAL_MIN_BAR_EVENTS) / (settings.getFloat("maxBarEvents") - ORIGINAL_MIN_BAR_EVENTS)));
+            }
 
             return settingsAreRead = true;
         } catch (Exception e) {

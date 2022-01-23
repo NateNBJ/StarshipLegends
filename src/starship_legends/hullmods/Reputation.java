@@ -480,7 +480,7 @@ public class Reputation extends BaseHullMod {
                             (int)ll.getMaxCrReduction() + "%");
 
                     if(showXp) {
-                        String xp = Util.getImpreciseNumberString(rep.getXp());
+                        String xp = Util.getImpreciseNumberString(rep.getLoyaltyXp(fm.getCaptain()));
 
                         if(ll == LoyaltyLevel.INSPIRED || ll == LoyaltyLevel.FIERCELY_LOYAL) {
                             tooltip.addPara("Progress to next inspiration: " + xp + " XP", 10, Misc.getGrayColor(),

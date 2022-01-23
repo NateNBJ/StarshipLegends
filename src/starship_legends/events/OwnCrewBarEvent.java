@@ -128,12 +128,15 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     setShip(picker.pickAndRemove());
                     trait = rep.getTraits().get(random.nextInt(rep.getTraits().size()));
                     replacementTrait = RepRecord.chooseRandomNewTrait(ship, getRandom(), trait.isMalus());
+
+                    if(replacementTrait == null) continue;
+
                     crewTraitMismatch = trait.getType().getTags().contains(TraitType.Tags.CREW)
                             != replacementTrait.getType().getTags().contains(TraitType.Tags.CREW);
 
                     if(crewTraitMismatch && random.nextFloat() < 0.75f) continue;
 
-                    if(replacementTrait != null) return true;
+                    return true;
                 }
 
                 break;
@@ -147,16 +150,16 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
         addShowShipOptionIfNotAlreadyShown(OptionId.SHOW_SHIP);
         options.addOption("Agree to the suggestion", OptionId.ACCEPT);
-        options.addOption("Reject the suggestion, for now", OptionId.LEAVE);
+        options.addOption("Reject the suggestion for now", OptionId.LEAVE);
         options.setShortcut(FamousShipBarEvent.OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
 
         if(cargo.getCrew() < crewCost) {
             options.setEnabled(OptionId.ACCEPT, false);
-            options.setTooltip(OptionId.ACCEPT, "You don't have enough crew (" + crewCost + ")");
+            options.setTooltip(OptionId.ACCEPT, "You don't have enough crew (" + crewCost + " needed)");
         }
         if(cargo.getSupplies() < supplyCost) {
             options.setEnabled(OptionId.ACCEPT, false);
-            options.setTooltip(OptionId.ACCEPT, "You don't have enough supplies (" + supplyCost + ")");
+            options.setTooltip(OptionId.ACCEPT, "You don't have enough supplies (" + supplyCost + " needed)");
         }
 
 //        String tt;
@@ -242,7 +245,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             TextPanelAPI text = dialog.getTextPanel();
             text.addPara("A small group of officers from " + shipOrShips + " are here on shore leave. One of them waves.");
 
-            dialog.getOptionPanel().addOption("_________ Join your officers for a drink", this);
+            dialog.getOptionPanel().addOption("Join your officers for a drink", this);
         } catch (Exception e) {
             ModPlugin.reportCrash(e);
         }
@@ -274,11 +277,11 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 }
 
                 if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist";
-                else if (captain.isPlayer()) personDesc = "Your second in command";
+                else if (captain.isPlayer()) personDesc = "Your second-in-command";
                 else personDesc = "The ship's captain";
 
                 dialog.getTextPanel().addPara("You join the group of officers from the " + ship.getShipName()
-                        + "'s " + officerTypeStr + ". A few of the lower ranking officers seem ill at ease with their boss intruding "
+                        + " " + officerTypeStr + ". A few of the lower-ranking officers seem ill at ease with their boss intruding "
                         + "on what is supposed to be their time off, but they relax after you buy a round of drinks and "
                         + "make it clear that the normal rules don't apply here.");
 
@@ -307,7 +310,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     Set<String> tags = replacementTrait.getTags();
                     String evenTheCrewMaybe = requiresCrew && !trait.getTags().contains(TraitType.Tags.CREW)
                             ? ", even the crew" : "";
-                    String str = "Eventually, " + personDesc.toLowerCase() + " leans forward, seeming to become more sober. "
+                    String str = personDesc + " eventually leans forward, seeming to become more sober. "
                             + "\"The " + ship.getShipName() + " is a fine ship, but I think people underestimate it"
                             + evenTheCrewMaybe + ". You're aware that it has a reputation for "
                             + trait.getDescPrefix(requiresCrew).toLowerCase() + " %s? ";
@@ -315,22 +318,22 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     if(trait.getType().getId().equals("phase_mad")) {
                         str += "Well, I've found a solution. Nothing can be done about the unusually high amount of "
                                 + "brainwave interference caused by the ship's phase field, but I've discovered a "
-                                + "minimally invasive medical procedure developed by the Tri-Tachyon corporation "
-                                + "that mitigates the effects. It would even heighten the crew's senses. I'm sure many "
-                                + "of the crew won't appreciate the benefits, given that it can be quite painful, but "
-                                + "I'm sure they'll get over it in time. Thoughts?\"";
+                                + "neural augmentation analeptic developed by the Tri-Tachyon corporation "
+                                + "that counteracts the effects. It would even heighten the crew's senses. I'm sure many "
+                                + "of the crew won't appreciate the benefits, given that it can cause discomfort. I'm "
+                                + "sure it won't take them too long to acclimate, however. Thoughts?\"";
                     } else if(trait.getType().getId().equals("recovery_chance")) {
-                        str += "It's superstitious nonsense, of course, but unfortunately the effects are quite real. "
+                        str += "It's superstitious nonsense, of course. Unfortunately, the effects are quite real. "
                                 + "The crew is quick to despair and give up during recovery operations due to their "
                                 + "misguided beliefs. I think we can turn that around with a properly executed "
-                                + "re-education campaign, however. My quartermaster and I have been working on "
+                                + "re-education campaign. My quartermaster and I have been working on "
                                 + "something that should do the trick, although I'm sure it will alienate some of our "
                                 + "most superstitious crew members. All we need now is your permission.\"";
                     } else if(trait.getType().getId().equals("cursed")) {
-                        str += "It's superstitious nonsense, of course, but unfortunately the effects are quite real. "
+                        str += "It's superstitious nonsense, of course. Unfortunately, the effects are quite real. "
                                 + "The crew tends to panic and make careless mistakes when they hear certain noises "
                                 + "from the ships flux valves, which they foolishly interpret as some sort of omen. "
-                                + "The irony is that those noises are caused by a quirk of the ship's flux regulation "
+                                + "The irony is that those sounds are caused by a quirk of the ship's flux regulation "
                                 + "network that would be beneficial if the crew knew how to take advantage of it. "
                                 + "I think we can turn this sorry state of affairs around with a properly executed "
                                 + "re-education campaign. My quartermaster and I have been working on "
@@ -382,9 +385,9 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                         else if(supplyCost >= 30) supplyAmountDesc = "significant";
 
                         str += ". Replacing the necessary parts would require a " + supplyAmountDesc + " amount of "
-                                + "supplies, but the real catch is that the work involved is so dangerous. We might "
-                                + "lose as many as %s crew, and their loyalty will falter. It's not an easy call, but "
-                                + "it's not mine to make. What do you think?\"";
+                                + "supplies, but the real catch is that the work involved is so dangerous. The loyalty "
+                                + "of the ship's crew will surely suffer because of it, and we could lose as many as "
+                                + "%s personnel. It's not an easy call, but it's not mine to make. What do you think?\"";
                     }
 
                     text.addPara(str, Misc.getTextColor(), Misc.getHighlightColor(), trait.getName(requiresCrew).toLowerCase(),
@@ -410,7 +413,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                             + "a way to fix the " + ship.getShipName() + "'s %s. \"I was skeptical at first, but my "
                             + (ship.getMinCrew() >= 100 ? "chief" : "") + " engineers assured me it would work. The "
                             + "only catch is that the labor it would require is dangerous and toilsome. We might lose "
-                            + "as many as %s crew, and they're sure to resent " + meOrYou + " for the order, but I thought it might "
+                            + "as many as %s crew, and they're sure to resent " + meOrYou + " for the order. I thought it might "
                             + "be worth considering anyway.\"",
                             Misc.getTextColor(), Misc.getHighlightColor(), dmod.getDisplayName().toLowerCase(),
                             maxCrewCost + "");
@@ -449,9 +452,9 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
                     text.addPara("After a while, " + personDesc.toLowerCase() + " leans forward, seeming to become more sober. "
                             + "\"My " + officerType + " " + planPhrase + " that would result in the "
-                            + ship.getShipName() + " " + pref1 + " %s instead of" + pref2 + " %s. It seems "
+                            + ship.getShipName() + " " + pref1 + " %s rather than" + pref2 + " %s. It seems "
                             + "reasonable to me, but I thought I'd run it by you before implementing it.\" "
-                            + getHeOrShe() + " slides over a tripad displaying charts and diagrams. \"The details,\" "
+                            + Misc.ucFirst(getHeOrShe()) + " slides over a tripad displaying charts and diagrams. \"The details,\" "
                             + getHeOrShe() + " explains.", Misc.getTextColor(), Misc.getHighlightColor(),
                             replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
 
