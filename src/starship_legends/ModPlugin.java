@@ -32,6 +32,7 @@ public class ModPlugin extends BaseModPlugin {
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 4;
     public static final int TRAIT_LIMIT = 8;
+    public static final double TIMESTAMP_TICKS_PER_DAY = 8.64E7D;
 
     static Saved<String> version = new Saved<>("version", "");
 
@@ -72,6 +73,8 @@ public class ModPlugin extends BaseModPlugin {
 
             CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS = 0.75f,
             CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = 0.75f,
+
+            AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS = 30f,
 
             MIN_NEGATIVE_TRAITS = 1,
             LOYALTY_IMPROVEMENT_RATE_MULT = 1,
@@ -426,16 +429,20 @@ public class ModPlugin extends BaseModPlugin {
             FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) eventChances.getDouble("famousDerelictIntel");
             HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("hearLegendOfOwnShip");
 
+            AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS = (float) cfg.getDouble("averageDaysBetweenTraitSidegradeSuggestions");
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
-
             AVERAGE_ADDITIONAL_BAR_EVENTS = (float) cfg.getDouble("averageAdditionalBarEvents");
 
-            SettingsAPI settings = Global.getSettings();
-            settings.setFloat("maxBarEvents", (float)(ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
+            if(AVERAGE_ADDITIONAL_BAR_EVENTS > 0 && !REMOVE_ALL_DATA_AND_FEATURES) {
+                SettingsAPI settings = Global.getSettings();
+                settings.setFloat("maxBarEvents", (float) (ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
 
-            if(ORIGINAL_BAR_EVENT_PROB_ONE_MORE > 0 && ORIGINAL_BAR_EVENT_PROB_ONE_MORE < 1) {
-                settings.setFloat("barEventProbOneMore",
-                        ORIGINAL_BAR_EVENT_PROB_ONE_MORE + (1 - ORIGINAL_BAR_EVENT_PROB_ONE_MORE) * (1 - (ORIGINAL_MAX_BAR_EVENTS - ORIGINAL_MIN_BAR_EVENTS) / (settings.getFloat("maxBarEvents") - ORIGINAL_MIN_BAR_EVENTS)));
+                if (ORIGINAL_BAR_EVENT_PROB_ONE_MORE > 0 && ORIGINAL_BAR_EVENT_PROB_ONE_MORE < 1) {
+                    float newProb = ORIGINAL_BAR_EVENT_PROB_ONE_MORE + (1 - ORIGINAL_BAR_EVENT_PROB_ONE_MORE)
+                            * (AVERAGE_ADDITIONAL_BAR_EVENTS / (AVERAGE_ADDITIONAL_BAR_EVENTS + 1));
+
+                    settings.setFloat("barEventProbOneMore", newProb);
+                }
             }
 
             return settingsAreRead = true;

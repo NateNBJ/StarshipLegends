@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.campaign.comm.CommMessageAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.impl.campaign.intel.MessageIntel;
@@ -23,26 +24,27 @@ public class RepChange {
             this.tier = tier;
 
             setSound(tier == Trait.Tier.Legendary ? "ui_increase_ship_rep_max" : "ui_increase_ship_rep");
-            setIcon(rc.ship.getHullSpec().getSpriteName());
-            //setIcon(tier.getIcon());
+            //setIcon(rc.ship.getHullSpec().getSpriteName());
+            setIcon(tier.getIntelIcon());
         }
         @Override
+
         public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
             boolean requiresCrew = ship.getMinCrew() > 0;
+            ShipHullSpecAPI hull = rc.ship.getHullSpec().getBaseHull() == null
+                    ? rc.ship.getHullSpec()
+                    : rc.ship.getHullSpec().getBaseHull();
 
 //            info.beginImageWithText(tier.getIcon(), TRAIT_TIER_SIZE)
 //                    .addPara("The " + rc.ship.getShipName() + " is now known for:", 0);
 //            info.addImageWithText(0);
-//            info.addPara("The " + rc.ship.getShipName() + " (" + rc.ship.getHullSpec().getBaseHull().getHullName()
-//                    + ") is now known for:", 0);
 
-            info.addPara("The " + rc.ship.getShipName() + " is now known for:", 0);
+            info.addPara("The " + rc.ship.getShipName() + " (" + hull.getHullName()
+                    + ") is now known for:", 0);
             rc.addTraitBulletToTooltip(info, trait1, requiresCrew);
             rc.addTraitBulletToTooltip(info, trait2, requiresCrew);
         }
     }
-
-    static final float TRAIT_TIER_SIZE = 16;
 
     public static void configureXStream(XStream x) {
         x.alias("sun_sl_rc", RepChange.class);
@@ -63,7 +65,7 @@ public class RepChange {
     int captainOpinionChange, loyaltyLevel = Integer.MIN_VALUE;
     Trait trait1, trait2;
     float damageDealtPercent = 0, damageTakenFraction = 0, xpEarned = 0;
-    boolean deployed, disabled;
+    boolean deployed, disabled, foughtInBattle = true;
 
     public LoyaltyLevel getLoyaltyLevel() {
         return loyaltyLevel == Integer.MIN_VALUE && RepRecord.isShipNotable(ship)
@@ -81,10 +83,11 @@ public class RepChange {
     public RepChange(FleetMemberAPI ship) {
         this.ship = ship;
     }
-    public RepChange(FleetMemberAPI ship, CampaignScript.BattleRecord br, boolean deployed, boolean disabled) {
+    public RepChange(FleetMemberAPI ship, CampaignScript.BattleRecord br, boolean deployed, boolean disabled, boolean foughtInBattle) {
         this.ship = ship;
         this.deployed = deployed;
         this.disabled = disabled;
+        this.foughtInBattle = foughtInBattle;
         this.captain = br.originalCaptain != null ? br.originalCaptain : ship.getCaptain();
         this.damageTakenFraction = br.fractionDamageTaken;
         this.damageDealtPercent = deployed ? br.damageDealt : 0;

@@ -15,6 +15,23 @@ import java.util.List;
 import java.util.*;
 
 public class BattleReport extends BaseIntelPlugin {
+    public static Comparator<RepChange> CHANGE_RELEVANCE_COMPARATOR = new Comparator<RepChange>() {
+        int getRelevance(RepChange rc) {
+            return (rc.hasAnyChanges() ? 10000000 : 0)
+                    + (rc.foughtInBattle ? 1000000 : 0)
+                    + (rc.deployed ? (rc.disabled ? 100000 : 500000 ) : 0)
+                    + (rc.ship.getHullSpec().isCivilianNonCarrier() ? 0 : 50000)
+                    + rc.ship.getHullSpec().getHullSize().ordinal() * 10000
+                    + (int)(rc.damageDealtPercent * 1000)
+                    + (int)rc.ship.getHullSpec().getHitpoints();
+        }
+
+        @Override
+        public int compare(RepChange rc1, RepChange rc2) {
+            return getRelevance(rc2) - getRelevance(rc1);
+        }
+    };
+
     static final float DURATION = 30, RIGHT_MARGIN = 40, NOTE_HEIGHT = 64;
 
     public static void configureXStream(XStream x) {
@@ -73,6 +90,9 @@ public class BattleReport extends BaseIntelPlugin {
     public void addChange(RepChange change) {
         changes.add(change);
     }
+    public void sortChanges() {
+        Collections.sort(changes, CHANGE_RELEVANCE_COMPARATOR);
+    }
 
     @Override
     public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
@@ -124,7 +144,7 @@ public class BattleReport extends BaseIntelPlugin {
                     + " Note that the veracity of the information provided here should not be taken as"
                     + " categorically true as it is subject to the perceptions of those surveyed.";
             float w = width - RIGHT_MARGIN;
-            float totalHeight = 230 + Math.max(0, changes.size() - 3) * 20
+            float totalHeight = 280 + Math.max(0, changes.size() - 3) * 20
                     + getShipListHeight(w, destroyed) + getShipListHeight(w, routed);
             TooltipMakerAPI outer = panel.createUIElement(width, height, true);
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);
@@ -165,7 +185,7 @@ public class BattleReport extends BaseIntelPlugin {
                         loyalty = "-";
 
                 Color
-                        statusColor = rc.disabled ? Misc.getHighlightColor() : (rc.deployed ? Misc.getTextColor() : Misc.getGrayColor()),
+                        statusColor = rc.disabled ? Misc.getNegativeHighlightColor() : (rc.foughtInBattle ? Misc.getTextColor() : Misc.getGrayColor()),
                         dealtColor = rc.damageDealtPercent == 0 ? Misc.getGrayColor() : Misc.getTextColor(),
                         loyaltyColor,
                         repColor = Misc.getGrayColor(),
@@ -173,9 +193,15 @@ public class BattleReport extends BaseIntelPlugin {
 
                 if (rc.hasAnyChanges()) changesWereFound = true;
 
-                if(rc.captainOpinionChange > 0) loyaltyColor = Misc.getPositiveHighlightColor();
-                else if(rc.captainOpinionChange < 0) loyaltyColor = Misc.getNegativeHighlightColor();
-                else loyaltyColor = Misc.getGrayColor();
+                if(rc.captainOpinionChange < 0 && rc.loyaltyLevel == LoyaltyLevel.FIERCELY_LOYAL.ordinal()) {
+                    loyaltyColor = Misc.getTextColor();
+                } else if(rc.captainOpinionChange > 0) {
+                    loyaltyColor = Misc.getPositiveHighlightColor();
+                } else if(rc.captainOpinionChange < 0) {
+                    loyaltyColor = Misc.getNegativeHighlightColor();
+                } else {
+                    loyaltyColor = Misc.getGrayColor();
+                }
 
                 if(rc.damageTakenFraction == Float.MAX_VALUE) {
                     status = "destroyed";
@@ -249,11 +275,11 @@ public class BattleReport extends BaseIntelPlugin {
                     sl.clear();
                     sl.add(rc.ship);
                     e1.addShipList(1, 1, NOTE_HEIGHT, Color.WHITE, sl, 15);
-                    inner.addUIElement(e1).inTL(0, totalHeight);
+                    inner.addUIElement(e1).inTL(0, totalHeight  - 45);
 
                     TooltipMakerAPI e2 = inner.createUIElement(width - NOTE_HEIGHT, NOTE_HEIGHT, false);
                     int lines = rc.addCommentsToTooltip(e2);
-                    inner.addUIElement(e2).inTL(NOTE_HEIGHT, totalHeight + 15);// + NOTE_HEIGHT / 2f - lines * 5f);
+                    inner.addUIElement(e2).inTL(NOTE_HEIGHT, totalHeight - 45 + 15);// + NOTE_HEIGHT / 2f - lines * 5f);
 
                     totalHeight += NOTE_HEIGHT;
                 }

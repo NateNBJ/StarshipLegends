@@ -545,4 +545,9 @@ public class FamousDerelictIntel extends FleetLogIntel {
 		tags.add(Tags.INTEL_ACCEPTED);
 		return tags;
 	}
+
+	@Override
+	public String getIcon() {
+		return rep != null ? rep.getTier().getIntelIcon() : super.getIcon();
+	}
 }

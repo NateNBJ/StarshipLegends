@@ -64,11 +64,13 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 while (!picker.isEmpty()) {
                     setShip(picker.pickAndRemove());
 
-                    float repMult = 1 + (rep.getFractionOfBonusEffectFromTraits() - 0.5f) * rep.getTraits().size();
+                    float repMult = 1 + (rep.getFractionOfBonusEffectFromTraits() - 0.5f) * rep.getTraits().size() * 0.5f;
+                    float qualMult = 1 - DModManager.getNumDMods(ship.getVariant()) * 0.2f
+                            + ship.getVariant().getSMods().size() * 0.2f;
 
-                    if(repMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
+                    if(repMult * qualMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
                         crewChange = (int) -ship.getMinCrew();
-                        creditChange = (int)(crewChange * baseCrewCost + ship.getBaseBuyValue() * repMult);
+                        creditChange = (int)(crewChange * baseCrewCost + ship.getBaseBuyValue() * repMult * qualMult);
 
                         if(!playerFleet.getFleetData().getMembersListCopy().contains(ship)) {
                             marketWhereShipIsStored = Util.getStorageLocationOfShip(ship.getId());
@@ -159,9 +161,10 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             && ship.getCaptain() != null
                             && !ship.getCaptain().isDefault()) {
 
-                        float significance = LoyaltyLevel.values().length - RepRecord.get(ship).getLoyalty(ship.getCaptain()).getIndex();
+                        LoyaltyLevel ll = RepRecord.get(ship).getLoyalty(ship.getCaptain());
+                        float significance = LoyaltyLevel.values().length - ll.getIndex();
 
-                        if(significance > 0) picker.add(ship, significance);
+                        if(significance > 0 && !ll.isAtBest()) picker.add(ship, significance);
                     }
                 }
 
@@ -226,7 +229,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             Random rand = new Random(seed + market.getId().hashCode());
 
             return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES ? false : super.shouldShowAtMarket(market)
-                    && market.getFaction().getRelToPlayer().isAtWorst(RepLevel.WELCOMING)
+                    && (market.getFaction().getRelToPlayer().isAtWorst(RepLevel.WELCOMING) || market.getFaction().isPlayerFaction())
                     && Integration.isFamousFlagshipEventAvailableAtMarket(market)
                     && Global.getSector().getPlayerStats().getLevel() > (rand.nextInt(8) + 7);
         } catch (Exception e) {
@@ -289,7 +292,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             if(subEvent != OptionId.INVALID) {
                 if(captain == null || captain.isDefault() || captain.isPlayer()) {
                     dialog.getVisualPanel().showFleetMemberInfo(ship);
-                } else {
+                } else if(subEvent == OptionId.SHIP_JOIN_OFFER) {
                     person = captain;
                     dialog.getVisualPanel().showPersonInfo(person, true);
                 }
@@ -431,14 +434,16 @@ public class FanclubBarEvent extends BaseShipBarEvent {
 
                     if(subEvent == OptionId.CREW_JOIN_OFFER && ship != null) {
                         rep.adjustLoyaltyXp(crewChange * 10000, captain);
-                        text.addPara("The new crew members joined the " + ship.getShipName() + ", slightly improving "
-                                + "loyalty.", Misc.getTextColor());
+                        text.addPara("The spacers joined the " + ship.getShipName() + ", bringing the crew closer to "
+                                + " becoming " + rep.getLoyalty(captain).getOneBetter().getName().toLowerCase() + ".",
+                                Misc.getTextColor());
                     } else if(subEvent == OptionId.BUY_SHIP_OFFER) {
-                        playerFleet.getFleetData().removeFleetMember(ship);
                         if(marketWhereShipIsStored == null) {
+                            playerFleet.getFleetData().removeFleetMember(ship);
                             text.addPara("The " + ship.getShipName() + " is no longer part of your fleet.",
                                     Misc.getTextColor());
                         } else {
+                            marketWhereShipIsStored.getSubmarket("storage").getCargo().getMothballedShips().removeFleetMember(ship);
                             text.addPara("The " + ship.getShipName() + " has been removed from your storage at "
                                     + marketWhereShipIsStored.getName(), Misc.getTextColor());
                         }
@@ -448,6 +453,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                         text.addPara(captain.getNameString() + " and " + getHisOrHer()
                                 + " ship are now part of your fleet.", Misc.getTextColor());
                         ship.getRepairTracker().setCR(0.7f);
+                        RepRecord.updateRepHullMod(ship);
                         RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.Recruitment, market.getName());
                     }
 

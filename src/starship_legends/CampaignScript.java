@@ -7,16 +7,19 @@ import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.EngagementResultAPI;
+import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
 import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.plugins.LevelupPlugin;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
 import starship_legends.events.FamousShipBarEvent;
+import starship_legends.events.RepSuggestionPopupEvent;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
@@ -29,11 +32,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     public CampaignScript() { super(true); }
 
+    Saved<Long> timestampOfNextTraitSuggestion = new Saved<>("tsOfNextJealousy", Long.MAX_VALUE);
+
     static boolean isResetNeeded = false, damageOnlyDealtViaNukeCommand = true, checkForRecoveredDerelicts = false;
     static long previousXP = Long.MAX_VALUE;
     static Set<FleetMemberAPI>
             deployedShips = new HashSet<>(),
             disabledShips = new HashSet<>(),
+            shipsDeployedInProperBattle = new HashSet<>(),
             destroyedEnemies = new HashSet<>(),
             routedEnemies = new HashSet<>();
     static FleetEncounterContext context = null;
@@ -77,7 +83,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     public static long getReAdjustedXp() {
         long xpEarned = Global.getSector().getPlayerStats().getXP() - previousXP;
 
-        if(ModPlugin.COMPENSATE_FOR_EXPERIENCE_MULT) xpEarned /= Global.getSettings().getFloat("xpGainMult");
+        // At max level, xp resets at each "level up" to the amount needed at max level, so...
+        if(xpEarned < 0) {
+            LevelupPlugin lup = Global.getSettings().getLevelupPlugin();
+            long xpPerRollover = lup.getXPForLevel(lup.getMaxLevel() + 1) - lup.getXPForLevel(lup.getMaxLevel());
+            xpEarned += xpPerRollover;
+        }
+
+        if (ModPlugin.COMPENSATE_FOR_EXPERIENCE_MULT) xpEarned /= Global.getSettings().getFloat("xpGainMult");
 
         return xpEarned;
     }
@@ -158,6 +171,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             battleRecords.clear();
             originalShipList = null;
             deployedShips.clear();
+            shipsDeployedInProperBattle.clear();
             disabledShips.clear();
             disabledShips.clear();
             destroyedEnemies.clear();
@@ -209,19 +223,20 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 BattleRecord br = getBattleRecord(ship.getId());
                 br.damageDealt = Math.max(0, br.damageDealt) / Math.max(1, Util.getShipStrength(ship, true));
                 RepRecord rep = RepRecord.getOrCreate(ship);
-                RepChange rc = new RepChange(ship, br, deployedShips.contains(ship), disabledShips.contains(ship));
+                RepChange rc = new RepChange(ship, br, deployedShips.contains(ship), disabledShips.contains(ship),
+                        shipsDeployedInProperBattle.contains(ship));
                 float xpForShip = xpEarned;
 
 
-                if(rc.deployed) {
-                    float traitChanceMultPerCaptainLevel = br.originalCaptain.isPlayer()
+                if(rc.foughtInBattle) {
+                    float xpMultPerCaptainLevel = br.originalCaptain.isPlayer()
                             ? ModPlugin.XP_MULT_PER_PLAYER_CAPTAIN_LEVEL
                             : ModPlugin.XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
 
                     xpForShip *= ModPlugin.XP_MULT_FLAT
                             + ModPlugin.XP_MULT_PER_FLEET_POINT * ship.getHullSpec().getFleetPoints()
                             + ModPlugin.XP_MULT_PER_DAMAGE_DEALT_PERCENT * br.damageDealt * 100f
-                            + traitChanceMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
+                            + xpMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
                 } else {
                     xpForShip *= ship.getHullSpec().isCivilianNonCarrier()
                             ? ModPlugin.XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS
@@ -234,7 +249,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 rc.apply(false);
             }
 
-            if(report.changes.size() > 0) Global.getSector().getIntelManager().addIntel(report);
+            if(report.changes.size() > 0) {
+                report.sortChanges();
+                Global.getSector().getIntelManager().addIntel(report);
+            }
 
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {
                 ((FamousDerelictIntel)i).checkIfPlayerRecoveredDerelict();
@@ -314,6 +332,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             deployedShips.addAll(pf.getRetreated());
             deployedShips.addAll(disabledShips);
 
+            if(ef.getGoal() != FleetGoal.ESCAPE) {
+                shipsDeployedInProperBattle.addAll(deployedShips);
+            }
+
             for(FleetMemberAPI ship : ef.getDestroyed()) {
                 destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
 
@@ -336,12 +358,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             }
 
             previousXP = Global.getSector().getPlayerStats().getXP();
-
-            List<FleetMemberAPI> shipsDeployed = new ArrayList<>();
-            shipsDeployed.addAll(pf.getDeployed());
-            shipsDeployed.addAll(pf.getDisabled());
-            shipsDeployed.addAll(pf.getRetreated());
-            shipsDeployed.addAll(pf.getDestroyed());
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
 
@@ -447,6 +463,41 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {
                 ((FamousDerelictIntel)i).updateFleetActions();
+            }
+
+            if(!Global.getSector().isPaused()) {
+                if(ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS > 0) {
+                    long ts = Global.getSector().getClock().getTimestamp();
+                    boolean incrementTS = false;
+
+                    if(ts >= timestampOfNextTraitSuggestion.val) {
+                        float traitsInFleet = 0;
+                        float minTraitsToGuaranteeEvent = 50;
+                        boolean suggestionAlreadyExists = RepSuggestionPopupEvent.getActiveSuggestion() != null;
+                        Random rand = new Random(ts);
+
+                        for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                            traitsInFleet += RepRecord.isShipNotable(ship) ? RepRecord.get(ship).getTraits().size() : 0;
+                        }
+
+                        if(!suggestionAlreadyExists && traitsInFleet / minTraitsToGuaranteeEvent > rand.nextFloat()) {
+                            RepSuggestionPopupEvent intel = new RepSuggestionPopupEvent();
+
+                            if (intel.isValid()) Global.getSector().getIntelManager().addIntel(intel);
+                        }
+
+                        incrementTS = true;
+                    } else if(timestampOfNextTraitSuggestion.val.equals(Long.MAX_VALUE)) {
+                        incrementTS = true;
+                    }
+
+                    if(incrementTS) {
+                        Random rand = new Random(ts);
+                        timestampOfNextTraitSuggestion.val = ts + (long)(ModPlugin.TIMESTAMP_TICKS_PER_DAY
+                                * (1 + ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS)
+                                * (rand.nextDouble() + 0.5));
+                    }
+                }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }

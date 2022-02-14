@@ -12,6 +12,8 @@ public class RepTheme {
     private static final Map<String, RepTheme> INSTANCE_REGISTRY = new HashMap<>();
     private static final WeightedRandomPicker<RepTheme> THEME_PICKER = new WeightedRandomPicker<>();
 
+    private final String key;
+
     Map<Trait, Float> goodTraitFrequency = new TreeMap();
     Map<Trait, Float> badTraitFrequency = new TreeMap();
 
@@ -48,6 +50,8 @@ public class RepTheme {
     }
 
     RepTheme(String key, float likelihood, JSONObject data) throws JSONException, IOException {
+        this.key = key;
+
         try {
             for(TraitType type : TraitType.getAll()) {
                 if(type.canBePositive()) goodTraitFrequency.put(type.getTrait(false), type.getBaseChance());
@@ -64,6 +68,7 @@ public class RepTheme {
         }
     }
 
+    public String getKey() { return key; }
     public WeightedRandomPicker<TraitType> createGoodTraitPicker(Random rand) {
         WeightedRandomPicker<TraitType> retVal = new WeightedRandomPicker(rand);
 

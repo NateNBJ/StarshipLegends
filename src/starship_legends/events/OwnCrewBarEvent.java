@@ -12,11 +12,14 @@ import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
 import com.fs.starfarer.api.impl.campaign.rulecmd.AddRemoveCommodity;
 import com.fs.starfarer.api.loading.HullModSpecAPI;
+import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import org.lwjgl.input.Keyboard;
 import starship_legends.*;
 
+import java.awt.*;
+import java.util.List;
 import java.util.*;
 
 public class OwnCrewBarEvent extends BaseShipBarEvent {
@@ -59,7 +62,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             case FLIP_TRAIT: {
                 for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
                     if(isShipViableForEvent(ship, LoyaltyLevel.FIERCELY_LOYAL) && RepRecord.get(ship).getFlipTrait() != null) {
-                        picker.add(ship);
+                        picker.add(ship, RepRecord.get(ship).getTraits().size() * (ship.isFlagship() ? 3 : 1));
                     }
                 }
 
@@ -116,12 +119,17 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     if(dmod != null) return true;
                 }
 
-                ship = picker.pick();
                 break;
             }
             case SIDEGRADE_TRAIT: {
+                FleetMemberAPI shipWithPreexistingSuggestion = RepSuggestionPopupEvent.getActiveSuggestion() == null
+                        ? null : RepSuggestionPopupEvent.getActiveSuggestion().barEvent.ship;
+
                 for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
-                    if(isShipViableForEvent(ship, null)) picker.add(ship);
+                    if(isShipViableForEvent(ship, null) && ship != shipWithPreexistingSuggestion) {
+                        picker.add(ship, RepRecord.get(ship).getTraits().size()
+                                * (ship.getHullSpec().isCivilianNonCarrier() ? 0.5f : 1));
+                    }
                 }
 
                 while (!picker.isEmpty()) {
@@ -200,11 +208,176 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         dmod = null;
         crewTraitMismatch = false;
     }
+    void chooseStrings() {
+        if (ship.getMinCrew() <= 0) officerTypeStr = "AI maintenance and monitoring team";
+        else if (ship.getMinCrew() <= 30) officerTypeStr = "crew";
+        else if (ship.getMinCrew() >= 300) officerTypeStr = "senior leadership";
+        else officerTypeStr = "leadership";
+
+        if (trait != null && replacementTrait != null) {
+            pref1 = replacementTrait.getDescPrefix(requiresCrew).toLowerCase();
+            pref2 = trait.getDescPrefix(requiresCrew, pref1).toLowerCase();
+        }
+
+        if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist";
+        else if (captain.isPlayer()) personDesc = "Your second-in-command";
+        else personDesc = "The ship's captain";
+    }
+    String getSidegradeProse(boolean requireFormality) {
+        String officerType, planPhrase;
+        boolean involvesSuperstition = trait.getType().getTags().contains(TraitType.Tags.SUPERSTITION)
+                || replacementTrait.getType().getTags().contains(TraitType.Tags.SUPERSTITION);
+        String knownForMaybe = involvesSuperstition ? " being known for " : " ";
+        Random rand = new Random(seed);
+
+        if(!requiresCrew) {
+            officerType = requireFormality ? "lead programmer" : "best coder";
+            planPhrase = (requireFormality ? "developed" : "came up with") + " an algorithm";
+        } else if(involvesSuperstition) {
+            officerType = "psychology officer";
+            planPhrase = "proposed a policy change";
+        } else if(crewTraitMismatch) {
+            officerType = ship.getMinCrew() > 100 ? "chief engineer" : "engineer";
+            planPhrase = "developed an automation process";
+        } else if(trait.getType().getTags().contains(TraitType.Tags.CREW)) {
+            officerType = "quartermaster";
+            planPhrase = rand.nextBoolean()
+                    ? (requireFormality ? "planned a crew reassignment" : "had a crew reassignment idea")
+                    : "created a retraining regimen";
+        } else {
+            officerType = ship.getMinCrew() > 100 ? "chief engineer" : "engineer";
+            planPhrase = rand.nextBoolean()
+                    ? "suggested a subsystem adjustment"
+                    : "designed an adapter replacement";
+        }
+
+        if(ship.getMinCrew() < 10) officerType = "XO";
+
+        if(requireFormality) {
+            if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist for the ";
+            else if (captain.isPlayer()) personDesc = "Your second-in-command aboard the ";
+            else personDesc = "The captain of the ";
+
+            return personDesc + ship.getShipName() + " submitted an approval request on behalf of their " + officerType
+                    + ", who " + planPhrase + " that would result in the ship" + knownForMaybe + pref1
+                    + " %s %s rather than" + pref2 + " %s %s.";
+        } else {
+            return "After a while, " + personDesc.toLowerCase() + " leans forward, seeming to become more sober. "
+                    + "\"My " + officerType + " " + planPhrase + " that would result in the "
+                    + ship.getShipName() + knownForMaybe + pref1 + " %s rather than" + pref2 + " %s. It seems "
+                    + "reasonable to me, but I thought I'd run it by you before implementing it.\" "
+                    + Misc.ucFirst(getHeOrShe()) + " slides over a tripad displaying charts and diagrams. \"The details,\" "
+                    + getHeOrShe() + " explains.";
+        }
+    }
+    void doApproveActions() {
+        CargoAPI cargo = Global.getSector().getPlayerFleet().getCargo();
+
+        if(trait != null && replacementTrait != null) {
+            rep.getTraits().add(rep.getTraitPosition(trait), replacementTrait);
+            rep.getTraits().remove(trait);
+        }
+
+        if(dmod != null) {
+            DModManager.removeDMod(ship.getVariant(), dmod.getId());
+            ship.setVariant(ship.getVariant(), true, true);
+        }
+
+        if(supplyCost > 0) {
+            cargo.removeSupplies(supplyCost);
+        }
+
+        if(crewCost > 0) {
+            cargo.removeCrew(crewCost);
+        }
+
+        if(loyaltyCost > 0 && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
+            rep.adjustLoyalty(captain, -loyaltyCost);
+        }
+    }
+    void showApproveText(TextPanelAPI text) {
+        if(trait != null && replacementTrait != null) {
+            text.addPara("The " + ship.getShipName() + " is now known for " + pref1 + " %s instead of" + pref2 + " %s",
+                    Misc.getTextColor(), Misc.getHighlightColor(),
+                    replacementTrait.getLowerCaseName(requiresCrew),
+                    trait.getLowerCaseName(requiresCrew)
+            );
+        }
+
+        if(dmod != null) {
+            text.addPara("The " + ship.getShipName() + " no longer has %s",
+                    Misc.getTextColor(), Misc.getHighlightColor(),
+                    dmod.getDisplayName().toLowerCase());
+        }
+
+        if(supplyCost > 0) {
+            AddRemoveCommodity.addCommodityLossText(Commodities.SUPPLIES, supplyCost, text);
+        }
+
+        if(crewCost > 0) {
+            AddRemoveCommodity.addCommodityLossText(Commodities.CREW, crewCost, text);
+        }
+
+        if(loyaltyCost > 0 && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
+            LoyaltyLevel ll = rep.getLoyalty(captain);
+            String str = ll.getName();
+
+            text.setFontSmallInsignia();
+            text.addParagraph("The crew of the " + ship.getShipName() + " is now merely " + str + " "
+                            + ll.getPreposition() + " " + captain.getNameString(),
+                    Misc.getNegativeHighlightColor());
+            text.highlightInLastPara(Misc.getHighlightColor(), str);
+            text.setFontInsignia();
+        }
+    }
+    void createSmallDescriptionForIntel(RepSuggestionPopupEvent event, TooltipMakerAPI info, float width, float height) {
+        Color h = Misc.getHighlightColor();
+        Color g = Misc.getGrayColor();
+        Color tc = Misc.getTextColor();
+        float pad = 3f;
+        float opad = 10f;
+        List<FleetMemberAPI> shipList = new ArrayList<>();
+        shipList.add(ship);
+
+        if(captain != null && !captain.isDefault() && !captain.isPlayer()) {
+            info.addImage(getPerson().getPortraitSprite(), width, 128, opad);
+        }
+
+        info.addPara(getSidegradeProse(true), opad, new Color[]{ h, g, h, g },
+                replacementTrait.getLowerCaseName(requiresCrew),
+                replacementTrait.getParentheticalDescription(),
+                trait.getLowerCaseName(requiresCrew),
+                trait.getParentheticalDescription());
+        info.addShipList(1, 1, 64, Color.WHITE, shipList, opad);
+        info.addPara("The " + ship.getShipName() + " is known for these traits:", opad);
+        Util.showTraits(info, rep, captain, requiresCrew,
+                ship.getHullSpec().getHullSize());
+
+        if(event.approved) {
+            info.addPara("You approved the suggestion, and the " + ship.getShipName() + " is now known for "
+                            + pref1 + " %s instead of" + pref2 + " %s.", opad, tc, h,
+                    replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
+        }
+    }
+    boolean prepareForIntel() {
+        subEvent = OptionId.SIDEGRADE_TRAIT;
+        regen(null);
+
+        if(subEvent == OptionId.INVALID) return false;
+
+        if(captain != null && !captain.isDefault() && !captain.isPlayer()) {
+            person = captain;
+        }
+
+        chooseStrings();
+
+        return true;
+    }
 
     @Override
     public boolean shouldShowAtMarket(MarketAPI market) {
         return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES ? false : super.shouldShowAtMarket(market)
-                && market.getFaction().getRelToPlayer().isAtWorst(RepLevel.SUSPICIOUS)
+                && (market.getFaction().getRelToPlayer().isAtWorst(RepLevel.SUSPICIOUS) || market.getFaction().isPlayerFaction())
                 && Integration.isFamousFlagshipEventAvailableAtMarket(market);
     }
 
@@ -212,25 +385,36 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
     protected void regen(MarketAPI market) {
         playerFleet = Global.getSector().getPlayerFleet();
 
-        if (this.market == market || playerFleet == null) return;
+        if(market == null) {
+            seed = Global.getSector().getClock().getTimestamp();
+            random = new Random(seed);
+            person = createPerson();
+        } else {
+            if (this.market == market || playerFleet == null) return;
 
-        super.regen(market);
+            super.regen(market);
+        }
+
         reset();
 
         if (Global.getSettings().isDevMode()) random = new Random();
 
-        WeightedRandomPicker<OptionId> picker = new WeightedRandomPicker(getRandom());
-        picker.add(OptionId.FLIP_TRAIT, ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE);
-        picker.add(OptionId.SIDEGRADE_TRAIT, ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE);
-        picker.add(OptionId.REMOVE_DMOD, ModPlugin.REPAIR_DMOD_BAR_EVENT_CHANCE);
+        if(subEvent == OptionId.INVALID) {
+            WeightedRandomPicker<OptionId> picker = new WeightedRandomPicker(getRandom());
+            picker.add(OptionId.FLIP_TRAIT, ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE);
+            picker.add(OptionId.SIDEGRADE_TRAIT, ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE);
+            picker.add(OptionId.REMOVE_DMOD, ModPlugin.REPAIR_DMOD_BAR_EVENT_CHANCE);
 
-        while (!picker.isEmpty()) {
-            OptionId pick = picker.pickAndRemove();
+            while (!picker.isEmpty()) {
+                OptionId pick = picker.pickAndRemove();
 
-            if(tryCreateEvent(pick)) {
-                subEvent = pick;
-                break;
+                if (tryCreateEvent(pick)) {
+                    subEvent = pick;
+                    break;
+                }
             }
+        } else if(!tryCreateEvent(subEvent)) {
+            subEvent = OptionId.INVALID;
         }
     }
 
@@ -266,19 +450,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     dialog.getVisualPanel().showPersonInfo(person, true);
                 }
 
-                if (ship.getMinCrew() <= 0) officerTypeStr = "AI maintenance and monitoring team";
-                else if (ship.getMinCrew() <= 30) officerTypeStr = "crew";
-                else if (ship.getMinCrew() >= 300) officerTypeStr = "senior leadership";
-                else officerTypeStr = "leadership";
-
-                if (trait != null && replacementTrait != null) {
-                    pref1 = replacementTrait.getDescPrefix(requiresCrew).toLowerCase();
-                    pref2 = trait.getDescPrefix(requiresCrew, pref1).toLowerCase();
-                }
-
-                if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist";
-                else if (captain.isPlayer()) personDesc = "Your second-in-command";
-                else personDesc = "The ship's captain";
+                chooseStrings();
 
                 dialog.getTextPanel().addPara("You join the group of officers from the " + ship.getShipName()
                         + " " + officerTypeStr + ". A few of the lower-ranking officers seem ill at ease with their boss intruding "
@@ -299,10 +471,11 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         try {
             if (!(optionData instanceof OwnCrewBarEvent.OptionId)) return;
 
-            CargoAPI cargo = Global.getSector().getPlayerFleet().getCargo();
             OptionPanelAPI options = dialog.getOptionPanel();
             TextPanelAPI text = dialog.getTextPanel();
             options.clearOptions();
+            Color g = Misc.getGrayColor();
+            Color h = Misc.getHighlightColor();
 
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {
@@ -390,14 +563,20 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                                 + "%s personnel. It's not an easy call, but it's not mine to make. What do you think?\"";
                     }
 
-                    text.addPara(str, Misc.getTextColor(), Misc.getHighlightColor(), trait.getName(requiresCrew).toLowerCase(),
-                            maxCrewCost + "");
+                    text.addPara(str, Misc.getTextColor(), h, trait.getName(requiresCrew).toLowerCase(), maxCrewCost + "");
 
                     text.setFontSmallInsignia();
-                    text.addPara(trait.getName(requiresCrew) + " " + trait.getDescription(), Misc.getGrayColor());
+                    text.addPara("%s " + trait.getDescription(), g, h, trait.getName(requiresCrew));
+
                     if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-                        text.addPara("Agreeing to this will reduce the loyalty of the crew", Misc.getGrayColor());
+                        if(supplyCost == 0) text.addPara("Agreeing to this will %s the loyalty of the crew", g, h, "reduce");
+                        else text.addPara("Agreeing to this will %s the loyalty of the crew and consume %s supplies", g, h, "reduce", "" + supplyCost);
+                    } else {
+                        if(supplyCost != 0) text.addPara("Agreeing to this will consume %s supplies", g, h, "" + supplyCost);
                     }
+
+                    if(maxCrewCost != 0) text.addPara("Up to %s crew may be lost", g, h, "" + maxCrewCost);
+
                     text.setFontInsignia();
 
                     addStandardOptions();
@@ -428,39 +607,14 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     break;
                 }
                 case SIDEGRADE_TRAIT: {
-                    String officerType, planPhrase;
-
-                    if(!requiresCrew) {
-                        officerType = "best coder";
-                        planPhrase = "came up with an algorithm";
-                    } else if(crewTraitMismatch) {
-                        officerType = ship.getMinCrew() > 100 ? "chief engineer" : "engineer";
-                        planPhrase = "developed an automation process";
-                    } else if(trait.getType().getTags().contains(TraitType.Tags.CREW)) {
-                        officerType = "quartermaster";
-                        planPhrase = random.nextBoolean()
-                                ? "had a crew reassignment idea"
-                                : "created a retraining plan";
-                    } else {
-                        officerType = ship.getMinCrew() > 100 ? "chief engineer" : "engineer";
-                        planPhrase = random.nextBoolean()
-                                ? "suggested a subsystem adjustment"
-                                : "designed an adapter replacement";
-                    }
-
-                    if(ship.getMinCrew() < 10) officerType = "XO";
-
-                    text.addPara("After a while, " + personDesc.toLowerCase() + " leans forward, seeming to become more sober. "
-                            + "\"My " + officerType + " " + planPhrase + " that would result in the "
-                            + ship.getShipName() + " " + pref1 + " %s rather than" + pref2 + " %s. It seems "
-                            + "reasonable to me, but I thought I'd run it by you before implementing it.\" "
-                            + Misc.ucFirst(getHeOrShe()) + " slides over a tripad displaying charts and diagrams. \"The details,\" "
-                            + getHeOrShe() + " explains.", Misc.getTextColor(), Misc.getHighlightColor(),
+                    text.addPara(getSidegradeProse(false), Misc.getTextColor(), Misc.getHighlightColor(),
                             replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
 
                     text.setFontSmallInsignia();
-                    text.addPara(replacementTrait.getName(requiresCrew) + " " + replacementTrait.getDescription(), Misc.getGrayColor());
-                    text.addPara(trait.getName(requiresCrew) + " " + trait.getDescription(), Misc.getGrayColor());
+                    text.addPara("%s " + replacementTrait.getDescription(), Misc.getGrayColor(), Misc.getHighlightColor(),
+                            replacementTrait.getName(requiresCrew));
+                    text.addPara("%s " + trait.getDescription(), Misc.getGrayColor(), Misc.getHighlightColor(),
+                            trait.getName(requiresCrew));
                     text.setFontInsignia();
 
                     addStandardOptions();
@@ -478,48 +632,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     break;
                 }
                 case ACCEPT: {
-                    if(trait != null && replacementTrait != null) {
-                        rep.getTraits().add(rep.getTraitPosition(trait), replacementTrait);
-                        rep.getTraits().remove(trait);
-                        text.addPara("The " + ship.getShipName() + " is now known for " + pref1 + " %s instead of" + pref2 + " %s",
-                                Misc.getTextColor(), Misc.getHighlightColor(),
-                                replacementTrait.getLowerCaseName(requiresCrew),
-                                trait.getLowerCaseName(requiresCrew)
-                        );
-                    }
-
-                    if(dmod != null) {
-                        DModManager.removeDMod(ship.getVariant(), dmod.getId());
-                        ship.setVariant(ship.getVariant(), true, true);
-                        text.addPara("The " + ship.getShipName() + " no longer has %s",
-                                Misc.getTextColor(), Misc.getHighlightColor(),
-                                dmod.getDisplayName().toLowerCase());
-                    }
-
-                    if(supplyCost > 0) {
-                        cargo.removeSupplies(supplyCost);
-                        AddRemoveCommodity.addCommodityLossText(Commodities.SUPPLIES, supplyCost, text);
-                    }
-
-                    if(crewCost > 0) {
-                        cargo.removeCrew(crewCost);
-                        AddRemoveCommodity.addCommodityLossText(Commodities.CREW, crewCost, text);
-                    }
-
-                    if(loyaltyCost > 0 && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-                        rep.adjustLoyalty(captain, -loyaltyCost);
-
-                        LoyaltyLevel ll = rep.getLoyalty(captain);
-                        String str = ll.getName();
-
-                        text.setFontSmallInsignia();
-                        text.addParagraph("The crew of the " + ship.getShipName() + " is now merely " + str + " "
-                                + ll.getPreposition() + " " + captain.getNameString(),
-                                Misc.getNegativeHighlightColor());
-                        text.highlightInLastPara(Misc.getHighlightColor(), str);
-                        text.setFontInsignia();
-                    }
-
+                    doApproveActions();
+                    showApproveText(text);
                     BarEventManager.getInstance().notifyWasInteractedWith(this);
                     options.addOption("Continue", OptionId.LEAVE);
                     break;

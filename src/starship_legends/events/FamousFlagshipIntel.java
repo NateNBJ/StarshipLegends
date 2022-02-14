@@ -171,4 +171,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 				: fleet.getStarSystem().getCenter();
 	}
 
+	@Override
+	public String getIcon() {
+		return rep != null ? rep.getTier().getIntelIcon() : super.getIcon();
+	}
 }

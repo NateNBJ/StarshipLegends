@@ -36,6 +36,12 @@ public enum LoyaltyLevel {
     public boolean isAtBest() { return getIndex() == ModPlugin.LOYALTY_LIMIT; }
     public boolean isAtWorst() { return getIndex() == -ModPlugin.LOYALTY_LIMIT; }
     public int getIndex() { return ordinal() - ModPlugin.LOYALTY_LIMIT; }
+    public LoyaltyLevel getOneBetter() {
+        return isAtBest() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() + 1);
+    }
+    public LoyaltyLevel getOneWorse() {
+        return isAtWorst() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() - 1);
+    }
 
     public void init(JSONObject o) throws JSONException {
         name = o.getString("name");

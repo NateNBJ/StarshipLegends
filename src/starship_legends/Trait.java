@@ -95,6 +95,9 @@ public class Trait implements Comparable<Trait> {
         public String getIcon() {
             return Global.getSettings().getSpriteName("starship_legends", name().toLowerCase());
         }
+        public String getIntelIcon() {
+            return Global.getSettings().getSpriteName("starship_legends", name().toLowerCase() + "Intel");
+        }
 
         public void init(JSONObject cfg) throws JSONException {
             JSONObject o = cfg.getJSONObject(name().toLowerCase());

@@ -9,9 +9,8 @@ import java.util.*;
 public class TraitType {
     public static class Tags {
         public static final String
+                SUPERSTITION = "superstition",
                 LOGISTICAL = "logistical",
-                DISABLED = "disabled",
-                DISABLED_ONLY = "disabled_only",
                 CARRIER = "carrier",
                 CREW = "crew",
                 ATTACK = "attack",
@@ -105,16 +104,8 @@ public class TraitType {
         ja = data.getString("incompatible_hullmods").replace(" ", "").split(",");
         for(int i = 0; i < ja.length; ++i) if(!ja[i].isEmpty()) incompatibleBuiltIns.add(ja[i]);
 
-
         if(!bonusName.isEmpty()) bonus = new Trait(this, false);
         if(!malusName.isEmpty()) malus = new Trait(this, true);
-
-        if(tags.contains(Tags.DISABLED_ONLY)) {
-            if(!tags.contains(Tags.DISABLED)) tags.add(Tags.DISABLED);
-        }
-//        else PICKER.add(this, baseChance);
-//
-//        if(tags.contains(Tags.DISABLED)) DISABLED_PICKER.add(this, baseChance);
 
         INSTANCE_REGISTRY.put(id, this);
     }

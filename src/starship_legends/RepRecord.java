@@ -17,6 +17,8 @@ import starship_legends.hullmods.Reputation;
 
 import java.util.*;
 
+import static starship_legends.ModPlugin.LOYALTY_LIMIT;
+
 public class RepRecord {
     public static class Origin {
         public enum Type {
@@ -105,7 +107,7 @@ public class RepRecord {
             }
 
             if(rc.loyaltyLevel != 0) {
-                if (rc.loyaltyLevel != Float.MIN_VALUE && rc.loyaltyLevel <= lowestLoyalty) {
+                if (rc.loyaltyLevel > Float.MIN_VALUE + 100 && rc.loyaltyLevel <= lowestLoyalty) {
                     lowestLoyalty = rc.loyaltyLevel;
                     mostHatedCaptain = rc.captain.getId();
                 }
@@ -132,10 +134,10 @@ public class RepRecord {
                     closingStatement = "",
                     crewOrAI = ship.getMinCrew() >= 0 ? "crew" : "AI persona";
 
-            if(rel.isAtWorst(RepLevel.FRIENDLY)) {
+            if(rel.isAtWorst(RepLevel.WELCOMING)) {
                 storyType = "an idealistic allegory";
                 closingStatement = "ends with a series of platitudes about the merits of duty and honor";
-            } else if(rel.isAtBest(RepLevel.INHOSPITABLE)) {
+            } else if(rel.isAtBest(RepLevel.SUSPICIOUS)) {
                 storyType = "an unflattering satire";
                 closingStatement = "eventually devolves into a tirade against you";
             } else {
@@ -152,19 +154,20 @@ public class RepRecord {
                             + getContributionToMostSignificantBattle();
                 } else if(enemyAgainstWhichLastDisabled != null) {
                     if (enemyAgainstWhichLastDisabled.equals(enemyAgainstHighestDamageDealt)) {
-                        lastNotableEvents += "its recovery after a brutal battle against a "
-                                + foughtAgainst.getDisplayName() + " fleet, in which it "
+                        lastNotableEvents += "its recovery after a brutal battle against "
+                                + foughtAgainst.getDisplayNameWithArticle() + ", in which it "
                                 + getContributionToMostSignificantBattle();
                     } else {
-                        lastNotableEvents += "being disabled during hard-fought battle against a "
-                                + disabledAgainst.getDisplayName()
-                                + " fleet. Much of the story involves a different battle, in which the " + ship.getShipName()
+                        lastNotableEvents += "being disabled during hard-fought battle against "
+                                + disabledAgainst.getDisplayNameWithArticle()
+                                + ". Much of the story involves a different battle, in which the " + ship.getShipName()
                                 + " " + getContributionToMostSignificantBattle() + " while facing off against "
                                 + (foughtAgainst.getId().equals("pirates") ? foughtAgainst.getDisplayName() : foughtAgainst.getDisplayNameWithArticle());
                     }
                 } else {
-                    lastNotableEvents += "its participation in a glorious battle against a" + foughtAgainst.getDisplayName()
-                            + " fleet, in which it " + getContributionToMostSignificantBattle();
+                    lastNotableEvents += "its participation in a glorious battle against "
+                            + foughtAgainst.getDisplayNameWithArticle()
+                            + ", in which it " + getContributionToMostSignificantBattle();
                 }
             } else {
                 if(wasLost) {
@@ -190,8 +193,8 @@ public class RepRecord {
                     if(data.getPerson().getId().equals(mostHatedCaptain)) hatedCap = data.getPerson();
                 }
 
-                LoyaltyLevel llGood = LoyaltyLevel.fromInt(highestLoyalty);
-                LoyaltyLevel llBad = LoyaltyLevel.fromInt(lowestLoyalty);
+                LoyaltyLevel llGood = LoyaltyLevel.fromInt(highestLoyalty - LOYALTY_LIMIT);
+                LoyaltyLevel llBad = LoyaltyLevel.fromInt(lowestLoyalty - LOYALTY_LIMIT);
 
                 loyaltyStatement += "A reoccurring topic throughout the story is the ";
 
@@ -226,8 +229,6 @@ public class RepRecord {
         }
     }
 
-    static final double TIMESTAMP_TICKS_PER_DAY = 8.64E7D;
-
     static final Saved<Map<String, RepRecord>> INSTANCE_REGISTRY
             = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
     static final Saved<Map<String, Map<String, Long>>> PENDING_INSPIRATION_EXPIRATIONS
@@ -235,6 +236,7 @@ public class RepRecord {
     static final Saved<Map<String, Origin>> SHIP_ORIGINS = new Saved<Map<String, Origin>>("shipOrigins", new HashMap<String, Origin>());
     static final Saved<List<String>> QUEUED_STORIES = new Saved<List<String>>("queuedStories", new LinkedList<String>());
 
+    public static Map<String, RepRecord> getInstanceRegistryCopy() { return new HashMap<>(INSTANCE_REGISTRY.val); }
     public static void printRegistry() {
         String msg = "";
 
@@ -374,6 +376,11 @@ public class RepRecord {
         }
 
         if(rep != null) {
+            if(rep.themeKey == null) {
+                Random rand2 = new Random(ship.getId().hashCode());
+                rep.themeKey = RepTheme.pickRandomTheme(rand2).getKey();
+            }
+
             if(rep.themeKeyIsFactionId && FactionConfig.get(rep.themeKey) != null) {
                 FactionConfig cfg = FactionConfig.get(rep.themeKey);
 
@@ -465,7 +472,7 @@ public class RepRecord {
             if(inspirations.containsKey(captain.getId())) {
                 long now = Global.getSector().getClock().getTimestamp();
                 long expiration = inspirations.get(captain.getId());
-                retVal = (int)((expiration - now) / TIMESTAMP_TICKS_PER_DAY);
+                retVal = (int)((expiration - now) / ModPlugin.TIMESTAMP_TICKS_PER_DAY);
             }
         }
 
@@ -521,13 +528,21 @@ public class RepRecord {
     public RepRecord(FleetMemberAPI ship, String themeKey, boolean themeKeyIsFactionId) {
         if(ship != null) INSTANCE_REGISTRY.val.put(ship.getId(), this);
 
-        this.themeKey = themeKey;
+        if(themeKey == null) {
+            Random rand = new Random(ship.getId().hashCode());
+            this.themeKey = RepTheme.pickRandomTheme(rand).getKey();
+        } else {
+            this.themeKey = themeKey;
+        }
+
         this.themeKeyIsFactionId = themeKeyIsFactionId;
     }
 
     public void progress(float xpEarned, RepChange rc) {
         int xpRequiredToLevelUp = RepRecord.getXpRequiredToLevelUp(rc.ship);
         float fameXpEarned = xpEarned * (1 + ModPlugin.FAME_BONUS_PER_PLAYER_LEVEL * Global.getSector().getPlayerStats().getLevel());
+
+        if(xp < 0) xp = 0;
 
         xp += fameXpEarned;
         rc.xpEarned = fameXpEarned;
@@ -566,14 +581,14 @@ public class RepRecord {
                     adjustLoyaltyXp(-loyaltyXp, rc.captain);
                 }
             } else if(ll == LoyaltyLevel.FIERCELY_LOYAL) {
-                int MIN_DAYS = 30, MAX_DAYS = 120, XP_PER_DAY_OF_INSPIRATION = 50000;
+                int MIN_DAYS = 30, MAX_DAYS = 120, XP_PER_DAY_OF_INSPIRATION = 150000;
                 int daysOfInspiration = (int)Math.min(MAX_DAYS, loyaltyXp / (float)XP_PER_DAY_OF_INSPIRATION);
                 float inspireChance = (daysOfInspiration - MIN_DAYS) / (MAX_DAYS - MIN_DAYS);
                 CampaignClockAPI clock = Global.getSector().getClock();
                 Random rand = new Random((rc.ship.getId() + clock.getDateString()).hashCode());
 
                 if(rand.nextFloat() < inspireChance) {
-                    long expireTS = (long)(clock.getTimestamp() + daysOfInspiration * TIMESTAMP_TICKS_PER_DAY);
+                    long expireTS = (long)(clock.getTimestamp() + daysOfInspiration * ModPlugin.TIMESTAMP_TICKS_PER_DAY);
 
                     Map<String, Long> inspirations;
 
@@ -671,17 +686,18 @@ public class RepRecord {
     }
     public void adjustLoyalty(PersonAPI officer, int adjustment) {
         int currentVal = captainLoyaltyLevels.containsKey(officer.getId()) ? captainLoyaltyLevels.get(officer.getId()) : 0;
-        int newVal = Math.max(Math.min(currentVal + adjustment, ModPlugin.LOYALTY_LIMIT), -ModPlugin.LOYALTY_LIMIT);
+        int newVal = Math.max(Math.min(currentVal + adjustment, LOYALTY_LIMIT), -LOYALTY_LIMIT);
 
         captainLoyaltyLevels.put(officer.getId(), newVal);
     }
     public void setLoyalty(PersonAPI officer, int newOpinionLevel) {
-        int newVal = Math.max(Math.min(newOpinionLevel, ModPlugin.LOYALTY_LIMIT), -ModPlugin.LOYALTY_LIMIT);
+        int newVal = Math.max(Math.min(newOpinionLevel, LOYALTY_LIMIT), -LOYALTY_LIMIT);
 
         captainLoyaltyLevels.put(officer.getId(), newVal);
     }
     public List<Trait> getTraits() { return traits; }
     public Trait.Tier getTier() { return getTierFromTraitCount(traits.size()); }
+    public String getThemeKey() { return themeKey; }
     public float getFractionOfBonusEffectFromTraits() {
         return getFractionOfBonusEffectFromTraits(false);
     }

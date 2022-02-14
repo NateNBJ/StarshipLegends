@@ -22,6 +22,7 @@ import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import org.lazywizard.console.Console;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
+import starship_legends.events.RepSuggestionPopupEvent;
 import starship_legends.hullmods.Reputation;
 
 import java.util.*;
@@ -92,6 +93,9 @@ public class Util {
         }
 
         return retVal;
+    }
+    public static String getSubString(String str, int length) {
+        return str == null ? "-" : str.substring(0, Math.min(length, str.length()));
     }
     public static String getImpreciseNumberString(double number) {
         String retVal = "";
@@ -339,6 +343,7 @@ public class Util {
         for(IntelInfoPlugin i : intelManager.getIntel(BattleReport.class)) intelManager.removeIntel(i);
         for(IntelInfoPlugin i : intelManager.getIntel(FamousFlagshipIntel.class)) intelManager.removeIntel(i);
         for(IntelInfoPlugin i : intelManager.getIntel(FamousDerelictIntel.class)) intelManager.removeIntel(i);
+        for(IntelInfoPlugin i : intelManager.getIntel(RepSuggestionPopupEvent.class)) intelManager.removeIntel(i);
 
         intelManager.removeAllThatShouldBeRemoved();
 

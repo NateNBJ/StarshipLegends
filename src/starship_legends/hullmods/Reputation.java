@@ -49,13 +49,49 @@ public class Reputation extends BaseHullMod {
         return moduleMap.containsKey(id) ? moduleMap.get(id) : ship.getFleetMember();
     }
     public static void printRegistry() {
-        String msg = "";
+        int shipsWithRepFound = 0;
+        Map<String, RepRecord> reps = RepRecord.getInstanceRegistryCopy();
+        List<FleetMemberAPI> registeredShipsWithNoRep = new ArrayList<>();
+        String msg = "HULL             ID       OWNER  NAME                 THEME        XP       LOYALTIES    TRAITS";
+        String format = "%-16s %-8s %-6s %-20s %-12s %-8s %-12s %s";
 
         for(FleetMemberAPI ship : shipsOfNote.val) {
-            msg += System.lineSeparator() + ship.toString();
+            String id = ship.getId();
+
+            if(reps.containsKey(id)) {
+                RepRecord rep = reps.get(id);
+
+                msg += System.lineSeparator() + String.format(format, Util.getSubString(ship.getHullId(), 16),
+                        id, ship.getOwner(), Util.getSubString(ship.getShipName(), 20),
+                        Util.getSubString(rep.getThemeKey(), 12), Util.getImpreciseNumberString(rep.getXp()),
+                        rep.getCaptainLoyaltyLevels().size(), rep.getTraits().size());
+
+                shipsWithRepFound++;
+                reps.remove(id);
+            } else {
+                registeredShipsWithNoRep.add(ship);
+            }
+        }
+
+        msg = shipsWithRepFound + " ships with reputation records:" + System.lineSeparator()
+                + System.lineSeparator() + msg;
+
+        if(!reps.isEmpty()) {
+            msg += System.lineSeparator() + System.lineSeparator()
+                    + reps.size() + " reputation records with no matching ship:";
+
+            for(RepRecord rep : reps.values()) msg += System.lineSeparator() + rep;
+        }
+
+        if(!registeredShipsWithNoRep.isEmpty()) {
+            msg += System.lineSeparator() + System.lineSeparator()
+                    + registeredShipsWithNoRep.size() + " ships with no reputation record:";
+
+            for(FleetMemberAPI ship : registeredShipsWithNoRep) msg += System.lineSeparator() + ship;
         }
 
         if(Global.getSettings().getModManager().isModEnabled("lw_console")) Console.showMessage(msg);
+
         Global.getLogger(RepRecord.class).info(msg);
     }
     public static float getFlatEffectMult(ShipAPI.HullSize size) {
