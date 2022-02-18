@@ -19,7 +19,11 @@ public class SL_SalvageDefenderInteraction extends BaseCommandPlugin {
         BaseCommandPlugin si = new SalvageDefenderInteraction();
 
         if (Global.getSettings().getModManager().isModEnabled("sun_ruthless_sector")) {
-            si = ruthless_sector.ModPlugin.createSalvageDefenderInteraction();
+            try {
+                si = ruthless_sector.ModPlugin.createSalvageDefenderInteraction();
+            } catch (Exception e) {
+                ModPlugin.reportCrash(e, false);
+            }
         }
 
         if(si.execute(ruleId, dialog, params, memoryMap)) {

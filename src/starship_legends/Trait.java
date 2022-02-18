@@ -222,12 +222,15 @@ public class Trait implements Comparable<Trait> {
         ShipHullSpecAPI hull = ship.getHullSpec();
         ShieldAPI.ShieldType shieldType = hull.getShieldType();
         TraitType type = getType();
-        ShipSystemSpecAPI system = Global.getSettings().getShipSystemSpec(hull.getShipSystemId());
 
         for(String tag : type.getTags()) {
             switch (tag) {
                 case TraitType.Tags.SYSTEM:
-                    if(system.getRegen(null) > 0) {
+                    ShipSystemSpecAPI system = Global.getSettings().getShipSystemSpec(hull.getShipSystemId());
+
+                    if(system == null) {
+                        return false;
+                    } else if(system.getRegen(null) > 0) {
                         if(type.getId().equals("system_cooldown")) return false;
                     } else if(system.getCooldown(null) > 1) {
                         if(type.getId().equals("system_regen_rate")) return false;

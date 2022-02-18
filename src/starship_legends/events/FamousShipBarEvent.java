@@ -632,7 +632,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							faction = fleet.getFaction();
 							traitCount = 4;
 
-							if (fleet.getFleetPoints() > 75) traitCount += 2;
+							if (fleet.getFleetPoints() > 50) traitCount += 2;
 							if (fleet.getFleetPoints() > 300) traitCount += 2;
 
 							claimFleet(fleet);
