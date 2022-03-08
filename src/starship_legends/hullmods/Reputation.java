@@ -474,6 +474,11 @@ public class Reputation extends BaseHullMod {
                 tooltip.addPara(tier.getFlavorText(requiresCrew), 10, Misc.getGrayColor(), Misc.getGrayColor(),
                         fm.getShipName());
 
+                if(Global.getSettings().isDevMode()) {
+                    tooltip.addPara("Reputation theme: " + rep.getThemeKey(), 10, Misc.getGrayColor(),
+                            Misc.getGrayColor());
+                }
+
                 if(showXp && rep.getTier() != Trait.Tier.Legendary) {
                     String xp = Util.getImpreciseNumberString(rep.getXp());
                     String req = Util.getImpreciseNumberString(RepRecord.getXpRequiredToLevelUp(fm));

@@ -51,7 +51,7 @@ public class AddTrait implements BaseCommand {
                     addTraitToShip(ship, rep, newTrait);
                 }
             } else {
-                List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", relevant");
+                List<Trait> traits = Util.getTraitsMatchingDescription(aa.length > 0 ? aa[0] : "", ", relevant, deterministic");
                 Random rand = new Random();
 
                 if (traits.isEmpty()) return CommandResult.BAD_SYNTAX;

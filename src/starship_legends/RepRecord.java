@@ -715,6 +715,14 @@ public class RepRecord {
     public List<Trait> getTraits() { return traits; }
     public Trait.Tier getTier() { return getTierFromTraitCount(traits.size()); }
     public String getThemeKey() { return themeKey; }
+    public void setTheme(RepTheme theme) {
+        themeKey = theme.getKey();
+        themeKeyIsFactionId = false;
+    }
+    public void setFactionTheme(FactionAPI faction) {
+        themeKey = faction.getId();
+        themeKeyIsFactionId = true;
+    }
     public float getFractionOfBonusEffectFromTraits() {
         return getFractionOfBonusEffectFromTraits(false);
     }

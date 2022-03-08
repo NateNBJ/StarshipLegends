@@ -248,7 +248,7 @@ public class Util {
         if(matches.isEmpty()) {
             Console.showMessage("Error: no traits matching the description provided: " + desc);
             Console.showMessage("Trait descriptions may be trait names or be composed of the following keywords:");
-            Console.showMessage("good, bad, positive, negative, pos, neg, logistical, combat, disabled, disabled_only, carrier, crew, attack, shield, cloak, no_ai, flat_effect, defense, flux" + additionallySupportedTags);
+            Console.showMessage("good, bad, positive, negative, pos, neg, logistical, combat, disabled, carrier, crew, attack, shield, cloak, no_ai, flat_effect, defense, flux" + additionallySupportedTags);
         }
 
         return matches;
