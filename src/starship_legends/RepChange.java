@@ -196,21 +196,32 @@ public class RepChange {
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             LoyaltyLevel ll = getLoyaltyLevel();
             int llSign = (int)Math.signum(ll.getIndex());
-            String highlight1 = captainOpinionChange < 0 ? "lost faith in" : "grown to trust";
-            String highlight2 = ll.getName().toLowerCase();
-            String crewOrAI = ship.getMinCrew() > 0 || ship.isMothballed() ? "crew" : "AI persona";
+            boolean requiresCrew = ship.getMinCrew() > 0;
+            String highlight1 = requiresCrew
+                    ? captainOpinionChange < 0 ? "lost faith in" : "grown to trust"
+                    : captainOpinionChange < 0 ? "degraded" : "improved";
+            String highlight2 = requiresCrew ? ll.getName().toLowerCase() : ll.getAiIntegrationStatusName().toLowerCase();
+            String crewOrAI = requiresCrew ? "crew" : "ship's integration status";
             String message = BaseIntelPlugin.BULLET + "The " + crewOrAI;
 
             if(ll == LoyaltyLevel.INSPIRED) {
-                highlight1 = ll.getName().toLowerCase();
-                message += " has become %s by " + captain.getNameString().trim() + ", and will remain so for at "
-                        + "least " + RepRecord.getDaysOfInspirationRemaining(ship, captain) + " more days.";
+                highlight1 = highlight2;
+
+                message += requiresCrew
+                    ? " has become %s by " + captain.getNameString().trim()
+                    : " has become %s";
+
+                message += ", and will remain so for at least " + RepRecord.getDaysOfInspirationRemaining(ship, captain)
+                        + " more days.";
             } else if(ll == LoyaltyLevel.FIERCELY_LOYAL && captainOpinionChange < 0) {
-                message += " is no longer inspired by " + captain.getNameString().trim() + ".";
+                message += requiresCrew
+                    ? " is no longer inspired by " + captain.getNameString().trim() + "."
+                    : " is no longer amplified.";
             } else {
                 String merelyMaybe = llSign != (int)Math.signum(captainOpinionChange) ? "merely " : "";
-                message += " has %s " + captain.getNameString().trim() + " and is now "
-                        + merelyMaybe + "%s.";
+                message += requiresCrew
+                    ? " has %s " + captain.getNameString().trim() + " and is now " + merelyMaybe + "%s."
+                    : " has %s and is now " + merelyMaybe + "%s.";
             }
 
             tooltip.addPara(message, PAD, Misc.getTextColor(),

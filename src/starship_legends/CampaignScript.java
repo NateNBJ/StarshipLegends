@@ -27,7 +27,7 @@ import java.util.*;
 public class CampaignScript extends BaseCampaignEventListener implements EveryFrameScript {
     static class BattleRecord {
         PersonAPI originalCaptain = null;
-        float fractionDamageTaken = 0, damageDealt = 0;
+        float fractionDamageTaken = 0, damageDealt = 0, loyaltyLossMult = 1;
     }
 
     public CampaignScript() { super(true); }
@@ -48,6 +48,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     static Map<String, BattleRecord> battleRecords = new HashMap<>();
     static Set<FleetMemberAPI> originalShipList;
     static FleetMemberAPI famousRecoverableShip = null;
+    static float strengthOfStrongestEnemyShip = 0;
 
     public static BattleRecord getBattleRecord(String shipID) {
         if(battleRecords.containsKey(shipID)) {
@@ -76,7 +77,16 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             originalShipList = new HashSet<>(Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy());
 
             for (FleetMemberAPI ship : originalShipList) {
-                getBattleRecord(ship.getId()).originalCaptain = ship.getCaptain();
+                BattleRecord br =  getBattleRecord(ship.getId());
+                br.originalCaptain = Util.getCaptain(ship);
+
+                float   crewSafetyMult = ship.getStats().getCrewLossMult().getMult(),
+                        outmatchedMult = Util.getShipStrength(ship, true) / strengthOfStrongestEnemyShip;
+
+                crewSafetyMult = 1 + (crewSafetyMult - 1) * ModPlugin.LOYALTY_LOSS_MULT_FROM_CREW_SAFETY;
+                outmatchedMult = 1 + (outmatchedMult - 1) * ModPlugin.LOYALTY_LOSS_MULT_FROM_RELATIVE_STRENGTH;
+
+                br.loyaltyLossMult = crewSafetyMult * outmatchedMult;
             }
         }
     }
@@ -103,7 +113,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     ? ModPlugin.PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS
                     : ModPlugin.PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS);
 
-            rep.progress(shipXp, rc);
+            rep.progress(shipXp, rc, null);
 
             if(rc.hasAnyChanges()) rc.apply(true);
         }
@@ -163,6 +173,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 Global.getLogger(CampaignScript.class).info("Famous ship force recovered");
             }
 
+            strengthOfStrongestEnemyShip = 0;
             textPanel = null;
             context = null;
             famousRecoverableShip = null;
@@ -214,8 +225,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             for (FleetMemberAPI ship : originalShipList) {
                 if (!battleRecords.containsKey(ship.getId())
-                        || ship.isMothballed()
-                        || !currentShipSet.contains(ship.getId())) {
+                        || ship.isMothballed()) {
 
                     continue;
                 }
@@ -226,9 +236,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 RepChange rc = new RepChange(ship, br, deployedShips.contains(ship), disabledShips.contains(ship),
                         shipsDeployedInProperBattle.contains(ship));
                 float xpForShip = xpEarned;
+                boolean shipWasLost = !currentShipSet.contains(ship.getId());
 
 
-                if(rc.foughtInBattle) {
+
+                if(shipWasLost) {
+                    rc.damageTakenFraction = Float.MAX_VALUE; // This lets the battle report know the ship was lost
+                    xpEarned = 0;
+                } else if(rc.foughtInBattle) {
                     float xpMultPerCaptainLevel = br.originalCaptain.isPlayer()
                             ? ModPlugin.XP_MULT_PER_PLAYER_CAPTAIN_LEVEL
                             : ModPlugin.XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
@@ -243,10 +258,12 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                             : ModPlugin.XP_MULT_FOR_RESERVED_COMBAT_SHIPS;
                 }
 
-                rep.progress(xpForShip, rc);
+                if(!shipWasLost) rep.progress(xpForShip, rc, br);
+
                 rep.getStory().update(rc, report.getEnemyFaction());
                 report.addChange(rc);
-                rc.apply(false);
+
+                if(!shipWasLost) rc.apply(false);
             }
 
             if(report.changes.size() > 0) {
@@ -297,6 +314,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                     for (FleetMemberAPI ship : combined.getFleetData().getMembersListCopy()) {
                         ship.getVariant().addPermaMod(Reputation.ENEMY_HULLMOD_ID);
+
+                        float strength = Util.getShipStrength(ship, false);
+
+                        if(strength > strengthOfStrongestEnemyShip) strengthOfStrongestEnemyShip = strength;
                     }
                 }
 

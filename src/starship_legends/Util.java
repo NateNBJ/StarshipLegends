@@ -45,6 +45,16 @@ public class Util {
         vowels.add("u");
     }
 
+    public static PersonAPI getCaptain(FleetMemberAPI ship) {
+        PersonAPI cap = ship.getCaptain();
+
+        if((cap == null || cap.isDefault()) && (ship.getVariant().getHullMods().contains("neural_interface") || ship.getVariant().getHullMods().contains("neural_integrator"))) {
+            return Global.getSector().getPlayerPerson();
+        } else return cap;
+    }
+    public static String getCaptainId(PersonAPI captain) {
+        return captain.getAICoreId() != null ? captain.getAICoreId() : captain.getId();
+    }
     public static FleetMemberAPI findPlayerShip(String id) {
         for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
             if(ship.getId().equals(id)) return ship;
@@ -382,7 +392,10 @@ public class Util {
 
             strength = fp * (totalOP - detachedOP) / Math.max(1, totalOP);
         } else if(isPlayerShip) {
-            strength = fp * (1 + (fp - 5f) / 25f);
+            float dMods = DModManager.getNumDMods(ship.getVariant());
+            float dModMult = (float) Math.pow(0.9, dMods);
+
+            strength = fp * (1 + (fp - 5f) / 25f) * dModMult;
 
 //            Global.getLogger(ModPlugin.class).info(String.format("%20s strength: %3.1f = %3.1f",
 //                    ship.getHullId(), strength, fp * (1 + (fp - 5f) / 25f)));

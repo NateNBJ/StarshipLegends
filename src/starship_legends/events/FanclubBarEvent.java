@@ -177,7 +177,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 crewChange = 5 + random.nextInt(3) * 5;
                 creditChange = (int)(-crewChange * (0.5f + 0.5f * random.nextFloat()) * baseCrewCost);
 
-                return true;
+                return ship != null;
             }
         }
 
@@ -213,6 +213,10 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         if(purse.get() < -creditChange) {
             options.setEnabled(OptionId.ACCEPT, false);
             options.setTooltip(OptionId.ACCEPT, "You don't have enough credits");
+        } else if(subEvent == OptionId.SHIP_JOIN_OFFER
+                && playerFleet.getFleetData().getOfficersCopy().size() >= Global.getSector().getPlayerStats().getOfficerNumber().getModifiedInt()) {
+            options.setEnabled(OptionId.ACCEPT, false);
+            options.setTooltip(OptionId.ACCEPT, "Your roster of officers is already full");
         }
     }
     void reset() {
@@ -289,9 +293,11 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             done = false;
             captainShown = false;
 
+            if(ship == null || rep == null) subEvent = OptionId.INVALID;
+
             if(subEvent != OptionId.INVALID) {
                 if(captain == null || captain.isDefault() || captain.isPlayer()) {
-                    dialog.getVisualPanel().showFleetMemberInfo(ship);
+                    if(ship != null) dialog.getVisualPanel().showFleetMemberInfo(ship);
                 } else if(subEvent == OptionId.SHIP_JOIN_OFFER) {
                     person = captain;
                     dialog.getVisualPanel().showPersonInfo(person, true);

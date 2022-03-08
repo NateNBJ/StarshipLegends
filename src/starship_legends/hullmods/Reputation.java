@@ -112,7 +112,7 @@ public class Reputation extends BaseHullMod {
 
         RepRecord rep = RepRecord.get(ship);
 
-        applyEffects(rep, ship, ship.getHullSpec().getHullSize(), ship.getCaptain(), ship.getStats(),
+        applyEffects(rep, ship, ship.getHullSpec().getHullSize(), Util.getCaptain(ship), ship.getStats(),
                 ship.isFighterWing(), rep.getTier().getHullModID());
     }
     public static void applyEffects(RepRecord rep, FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {
@@ -397,7 +397,7 @@ public class Reputation extends BaseHullMod {
                             stats, false, id);
                 }
             } else {
-                applyEffects(ship, hullSize, ship.getCaptain(), stats, false, id);
+                applyEffects(ship, hullSize, Util.getCaptain(ship), stats, false, id);
 
                 if(ship.getOwner() != 0) {
                     // Try to prevent famous enemy ships from being randomly selected as recoverable, since they are
@@ -483,15 +483,18 @@ public class Reputation extends BaseHullMod {
             }
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-                if(fm.getCaptain() != null && !fm.getCaptain().isDefault()) {
-                    loyaltyEffectAdjustment = rep.getLoyalty(fm.getCaptain()).getTraitAdjustment();
-                    LoyaltyLevel ll = rep.getLoyalty(fm.getCaptain());
+                PersonAPI cap = Util.getCaptain(fm);
+                if(cap != null && !cap.isDefault()) {
+                    loyaltyEffectAdjustment = rep.getLoyalty(cap).getTraitAdjustment();
+                    LoyaltyLevel ll = rep.getLoyalty(cap);
                     Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
                             ? Misc.getNegativeHighlightColor()
                             : Misc.getHighlightColor();
-                    String message = "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
-                            + " is %s " + ll.getPreposition()
-                            + " its captain, " + fm.getCaptain().getNameString().trim();
+                    String message = requiresCrew
+                            ? "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
+                                + " is %s " + ll.getPreposition()
+                                + " its captain, " + cap.getNameString().trim()
+                            : "The ship's integration status is %s";
                     String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
 
                     if (ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
@@ -500,30 +503,38 @@ public class Reputation extends BaseHullMod {
 
                     if(ll.getMaxCrReduction() > 0) {
                         message += " The maximum CR and peak performance time of the ship will be reduced by %s while "
-                                + fm.getCaptain().getNameString() + " remains the captain.";
+                                + (requiresCrew
+                                    ? cap.getNameString() + " remains the captain."
+                                    : "the AI core controls the ship.");
                     }
 
                     if(ll == LoyaltyLevel.INSPIRED) {
-                        int daysLeft = RepRecord.getDaysOfInspirationRemaining(fm, fm.getCaptain());
+                        int daysLeft = RepRecord.getDaysOfInspirationRemaining(fm, cap);
+                        String firstPart = requiresCrew
+                                ? " The crew will remain inspired "
+                                : " Integration will remain amplified ";
 
                         message += daysLeft <= 0
-                                ? " The crew will remain inspired until the end of the next battle."
-                                : " The crew will remain inspired for at least another " + daysLeft + " days.";
+                                ? firstPart + "until the end of the next battle."
+                                : firstPart + "for at least another " + daysLeft + " days.";
                     }
 
-                    tooltip.beginImageWithText(fm.getCaptain().getPortraitSprite(), 64).addPara(message, 3, clr,
-                            ll.getName(), (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc(),
+                    tooltip.beginImageWithText(cap.getPortraitSprite(), 64).addPara(message, 3, clr,
+                            requiresCrew ? ll.getName() : ll.getAiIntegrationStatusName(),
+                            (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc(),
                             (int)ll.getMaxCrReduction() + "%");
 
                     if(showXp) {
-                        String xp = Util.getImpreciseNumberString(rep.getLoyaltyXp(fm.getCaptain()));
+                        String xp = Util.getImpreciseNumberString(rep.getLoyaltyXp(cap));
 
                         if(ll == LoyaltyLevel.INSPIRED || ll == LoyaltyLevel.FIERCELY_LOYAL) {
-                            tooltip.addPara("Progress to next inspiration: " + xp + " XP", 10, Misc.getGrayColor(),
+                            tooltip.addPara("Progress to next " + (requiresCrew ? "inspiration" : "amplification")
+                                            + ": " + xp + " XP", 10, Misc.getGrayColor(),
                                     Misc.getGrayColor());
                         } else {
                             String req = Util.getImpreciseNumberString(ll.getXpToImprove());
-                            tooltip.addPara("Progress to improved loyalty: " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
+                            tooltip.addPara("Progress to improved " + (requiresCrew ? "loyalty" : "integration")
+                                            + ": " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
                                     Misc.getGrayColor());
                         }
                     }
@@ -559,13 +570,19 @@ public class Reputation extends BaseHullMod {
                         if(e.getValue() == bestOpinion) trustedOfficers.add(e.getKey());
                     }
 
-                    for(String id : unfoundOfficers) rep.getCaptainLoyaltyLevels().remove(id);
+                    for(String id : unfoundOfficers) {
+                        if(!id.contains("_core")) {
+                            rep.getCaptainLoyaltyLevels().remove(id);
+                        }
+                    }
 
                     if(bestOpinion > 0 && !trustedOfficers.isEmpty()) {
                         LoyaltyLevel ll = LoyaltyLevel.values()[bestOpinion + ModPlugin.LOYALTY_LIMIT];
-                        String message = "The " + (requiresCrew ? "crew" : "AI persona") + " is %s " + ll.getPreposition()
-                                + " the following officers:" + fm.getCaptain().getNameString().trim();
-                        tooltip.addPara(message, 10, Misc.getHighlightColor(), ll.getName());
+                        String message = requiresCrew
+                                ? "The crew is %s " + ll.getPreposition() + " the following officers:"
+                                : "This ship has "+ Misc.getAOrAnFor(ll.getAiIntegrationStatusName())
+                                    + " %s integration status with:";
+                        tooltip.addPara(message, 10, Misc.getHighlightColor(), requiresCrew ? ll.getName() : ll.getAiIntegrationStatusName());
                         List<PersonAPI> captains = new LinkedList<>();
                         captains.add(Global.getSector().getPlayerPerson());
 
@@ -602,10 +619,10 @@ public class Reputation extends BaseHullMod {
             int rumoredTraitsToShow = Global.getSettings().isDevMode() ?
                     ModPlugin.RUMORED_TRAITS_SHOWN_IN_DEV_MODE : ModPlugin.RUMORED_TRAITS_SHOWN;
 
-            if(rumoredTraitsToShow > 0 && rep.getTraits().size() < ModPlugin.TRAIT_LIMIT) {
+            if(rumoredTraitsToShow > 0 && rep.getTraits().size() < Trait.getTraitLimit()) {
                 List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(fm, true);
                 int traitIndex = rep.getTraits().size();
-                int traitIndexOfLastRumoredTraitToShow = Math.min(ModPlugin.TRAIT_LIMIT, traitIndex + rumoredTraitsToShow - 1);
+                int traitIndexOfLastRumoredTraitToShow = Math.min(Trait.getTraitLimit(), traitIndex + rumoredTraitsToShow - 1);
 
                 tooltip.addPara("Rumored traits:", 10, Misc.getGrayColor(), Misc.getGrayColor());
 

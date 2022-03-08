@@ -109,12 +109,12 @@ public class RepRecord {
             if(rc.loyaltyLevel != 0) {
                 if (rc.loyaltyLevel > Float.MIN_VALUE + 100 && rc.loyaltyLevel <= lowestLoyalty) {
                     lowestLoyalty = rc.loyaltyLevel;
-                    mostHatedCaptain = rc.captain.getId();
+                    mostHatedCaptain = Util.getCaptainId(rc.captain);
                 }
 
                 if (rc.loyaltyLevel >= highestLoyalty) {
                     highestLoyalty = rc.loyaltyLevel;
-                    favoriteCaptain = rc.captain.getId();
+                    favoriteCaptain = Util.getCaptainId(rc.captain);
                 }
             }
         }
@@ -182,15 +182,15 @@ public class RepRecord {
                         + ship.getShipName() + ", explaining how it carried on " + (wasLost ? "for so long" : "admirably")
                         + " in spite of the battle scars it earned from being disabled and recovered "
                         + (timesDisabled > 6 ? "countless" : "several") + " times";
-                closingStatement = "ends with adulation for the value of persistence.";
+                closingStatement = "ends with adulation for the value of persistence";
             }
 
             if(mostHatedCaptain != null || favoriteCaptain != null) {
                 PersonAPI favCap = null, hatedCap = null;
 
                 for(OfficerDataAPI data : Global.getSector().getPlayerFleet().getFleetData().getOfficersCopy()) {
-                    if(data.getPerson().getId().equals(favoriteCaptain)) favCap = data.getPerson();
-                    if(data.getPerson().getId().equals(mostHatedCaptain)) hatedCap = data.getPerson();
+                    if(Util.getCaptainId(data.getPerson()).equals(favoriteCaptain)) favCap = data.getPerson();
+                    if(Util.getCaptainId(data.getPerson()).equals(mostHatedCaptain)) hatedCap = data.getPerson();
                 }
 
                 LoyaltyLevel llGood = LoyaltyLevel.fromInt(highestLoyalty - LOYALTY_LIMIT);
@@ -358,10 +358,10 @@ public class RepRecord {
         int negTraitRange = ModPlugin.MAX_INITIAL_NEGATIVE_TRAITS - ModPlugin.MIN_INITIAL_NEGATIVE_TRAITS;
         int negTraitsRemaining = ModPlugin.MIN_INITIAL_NEGATIVE_TRAITS
                 + (negTraitRange <= 0 ? 0 : rand.nextInt(negTraitRange));
-        boolean[] traitIsBad = new boolean[ModPlugin.TRAIT_LIMIT];
+        boolean[] traitIsBad = new boolean[Trait.getTraitLimit()];
 
-        for(int i = 0; i < ModPlugin.TRAIT_LIMIT; i += 2) {
-            int traitsRemaining = ModPlugin.TRAIT_LIMIT - i;
+        for(int i = 0; i < Trait.getTraitLimit(); i += 2) {
+            int traitsRemaining = Trait.getTraitLimit() - i;
 
             if(negTraitsRemaining <= 0) {
                 traitIsBad[i] = traitIsBad[i+1] = false;
@@ -397,7 +397,7 @@ public class RepRecord {
             badTraits = theme.createBadTraitPicker(rand);
         }
 
-        while(retVal.size() < ModPlugin.TRAIT_LIMIT) {
+        while(retVal.size() < Trait.getTraitLimit()) {
             WeightedRandomPicker<TraitType> picker = traitIsBad[retVal.size()] ? badTraits : goodTraits;
             WeightedRandomPicker<TraitType> opposite = traitIsBad[retVal.size()] ? goodTraits : badTraits;
 
@@ -425,7 +425,7 @@ public class RepRecord {
         List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(ship, allowCrewTraits);
         RepRecord rep = RepRecord.getOrCreate(ship);
 
-        for (int i = 0; i < ModPlugin.TRAIT_LIMIT && i < destinedTraits.size(); i++) {
+        for (int i = 0; i < Trait.getTraitLimit() && i < destinedTraits.size(); i++) {
             if (traitCount > 0) {
                 rep.getTraits().add(destinedTraits.get(i));
                 traitCount--;
@@ -538,7 +538,7 @@ public class RepRecord {
         this.themeKeyIsFactionId = themeKeyIsFactionId;
     }
 
-    public void progress(float xpEarned, RepChange rc) {
+    public void progress(float xpEarned, RepChange rc, CampaignScript.BattleRecord br) {
         int xpRequiredToLevelUp = RepRecord.getXpRequiredToLevelUp(rc.ship);
         float fameXpEarned = xpEarned * (1 + ModPlugin.FAME_BONUS_PER_PLAYER_LEVEL * Global.getSector().getPlayerStats().getLevel());
 
@@ -547,7 +547,7 @@ public class RepRecord {
         xp += fameXpEarned;
         rc.xpEarned = fameXpEarned;
 
-        if(getXp() >= xpRequiredToLevelUp && getTraits().size() < ModPlugin.TRAIT_LIMIT) {
+        if(getXp() >= xpRequiredToLevelUp && getTraits().size() < Trait.getTraitLimit()) {
             xp -= xpRequiredToLevelUp;
 
             List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(rc.ship, true);
@@ -571,9 +571,22 @@ public class RepRecord {
             }
 
             if(rc.disabled) {
-                rc.setLoyaltyChange(-ModPlugin.LOYALTY_LEVELS_LOST_WHEN_DISABLED);
+                float loyaltyLoss = ModPlugin.BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED
+                        * (br == null ? 1 : br.loyaltyLossMult);
+
+                loyaltyLoss = Math.max(loyaltyLoss, ModPlugin.MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED);
+                loyaltyLoss = Math.min(loyaltyLoss, ModPlugin.MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED);
+
+                int minLoss = (int)Math.floor(loyaltyLoss);
+                float extraLossChance = loyaltyLoss - minLoss;
+                int actualLoyaltyLoss = minLoss + (extraLossChance > Math.random() ? 1 : 0);
+
+                if(actualLoyaltyLoss > 0) {
+                    rc.setLoyaltyChange(-actualLoyaltyLoss);
+                    clearInspirationExpiration(rc.ship, rc.captain);
+                }
+
                 adjustLoyaltyXp(-loyaltyXp, rc.captain);
-                clearInspirationExpiration(rc.ship, rc.captain);
             } else if(ll == LoyaltyLevel.INSPIRED) {
                 if(getDaysOfInspirationRemaining(rc.ship, rc.captain) <= 0) {
                     rc.setLoyaltyChange(-1);
@@ -664,8 +677,9 @@ public class RepRecord {
         return captainLoyaltyLevels;
     }
     public int getLoyaltyXp(PersonAPI officer) {
-        if (officer == null || !captainLoyaltyXp.containsKey(officer.getId())) return 0;
-        else return captainLoyaltyXp.get(officer.getId());
+        String id = Util.getCaptainId(officer);
+        if (officer == null || !captainLoyaltyXp.containsKey(id)) return 0;
+        else return captainLoyaltyXp.get(id);
     }
     public void adjustLoyaltyXp(int xp, PersonAPI captain) {
         if(captain != null && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
@@ -677,23 +691,26 @@ public class RepRecord {
         }
     }
     public LoyaltyLevel getLoyalty(PersonAPI officer) {
+        String id = Util.getCaptainId(officer);
         if(officer == null || officer.isDefault()) return LoyaltyLevel.INDIFFERENT;
 
-        int index = captainLoyaltyLevels.containsKey(officer.getId())
-                ? captainLoyaltyLevels.get(officer.getId())
+        int index = captainLoyaltyLevels.containsKey(id)
+                ? captainLoyaltyLevels.get(id)
                 : 0;
         return LoyaltyLevel.fromInt(index);
     }
     public void adjustLoyalty(PersonAPI officer, int adjustment) {
-        int currentVal = captainLoyaltyLevels.containsKey(officer.getId()) ? captainLoyaltyLevels.get(officer.getId()) : 0;
+        String id = Util.getCaptainId(officer);
+        int currentVal = captainLoyaltyLevels.containsKey(id) ? captainLoyaltyLevels.get(id) : 0;
         int newVal = Math.max(Math.min(currentVal + adjustment, LOYALTY_LIMIT), -LOYALTY_LIMIT);
 
-        captainLoyaltyLevels.put(officer.getId(), newVal);
+        captainLoyaltyLevels.put(id, newVal);
     }
     public void setLoyalty(PersonAPI officer, int newOpinionLevel) {
+        String id = Util.getCaptainId(officer);
         int newVal = Math.max(Math.min(newOpinionLevel, LOYALTY_LIMIT), -LOYALTY_LIMIT);
 
-        captainLoyaltyLevels.put(officer.getId(), newVal);
+        captainLoyaltyLevels.put(id, newVal);
     }
     public List<Trait> getTraits() { return traits; }
     public Trait.Tier getTier() { return getTierFromTraitCount(traits.size()); }

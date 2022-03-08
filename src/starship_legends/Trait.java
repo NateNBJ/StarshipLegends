@@ -253,7 +253,10 @@ public class Trait implements Comparable<Trait> {
                         return false;
                     break;
                 case TraitType.Tags.CLOAK:
-                    if(shieldType != ShieldAPI.ShieldType.PHASE) return false;
+                    String defId = hull.getShipDefenseId().toLowerCase();
+                    if(shieldType != ShieldAPI.ShieldType.PHASE || !(defId.contains("phase") || defId.contains("cloak"))) {
+                        return false;
+                    }
                     break;
                 case TraitType.Tags.NO_AI:
                     if(hull.getMinCrew() <= 0) return false;

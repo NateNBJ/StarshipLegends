@@ -17,11 +17,12 @@ import java.util.*;
 public class BattleReport extends BaseIntelPlugin {
     public static Comparator<RepChange> CHANGE_RELEVANCE_COMPARATOR = new Comparator<RepChange>() {
         int getRelevance(RepChange rc) {
-            return (rc.hasAnyChanges() ? 10000000 : 0)
+            if(rc.damageTakenFraction == Float.MAX_VALUE) return (int)rc.ship.getHullSpec().getHitpoints();
+            else return (rc.hasAnyChanges() ? 10000000 : 0)
                     + (rc.foughtInBattle ? 1000000 : 0)
                     + (rc.deployed ? (rc.disabled ? 100000 : 500000 ) : 0)
                     + (rc.ship.getHullSpec().isCivilianNonCarrier() ? 0 : 50000)
-                    + rc.ship.getHullSpec().getHullSize().ordinal() * 10000
+                    + (rc.ship.getHullSpec().getHullSize().ordinal() * 10000)
                     + (int)(rc.damageDealtPercent * 1000)
                     + (int)rc.ship.getHullSpec().getHitpoints();
         }
@@ -185,7 +186,7 @@ public class BattleReport extends BaseIntelPlugin {
                         loyalty = "-";
 
                 Color
-                        statusColor = rc.disabled ? Misc.getNegativeHighlightColor() : (rc.foughtInBattle ? Misc.getTextColor() : Misc.getGrayColor()),
+                        statusColor = rc.disabled ? Misc.getHighlightColor() : (rc.foughtInBattle ? Misc.getTextColor() : Misc.getGrayColor()),
                         dealtColor = rc.damageDealtPercent == 0 ? Misc.getGrayColor() : Misc.getTextColor(),
                         loyaltyColor,
                         repColor = Misc.getGrayColor(),
@@ -204,7 +205,7 @@ public class BattleReport extends BaseIntelPlugin {
                 }
 
                 if(rc.damageTakenFraction == Float.MAX_VALUE) {
-                    status = "destroyed";
+                    status = "lost";
                     statusColor = Misc.getNegativeHighlightColor();
                     reputation = loyalty = "-";
                     mainColor = loyaltyColor = repColor = dealtColor = Misc.getGrayColor();
@@ -223,7 +224,11 @@ public class BattleReport extends BaseIntelPlugin {
                         else repColor = Misc.getTextColor();
                     }
 
-                    if(rc.captain != null && !rc.captain.isDefault()) loyalty = rc.getLoyaltyLevel().getName();
+                    if(rc.captain != null && !rc.captain.isDefault()) {
+                        loyalty = rc.ship.getMinCrew() > 0
+                            ? rc.getLoyaltyLevel().getName()
+                            : rc.getLoyaltyLevel().getAiIntegrationStatusName();
+                    }
                 }
 
                 ShipHullSpecAPI dHullParent = rc.ship.getHullSpec().getDParentHull();

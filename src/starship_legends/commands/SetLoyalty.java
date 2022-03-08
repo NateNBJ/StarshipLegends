@@ -36,7 +36,7 @@ public class SetLoyalty implements BaseCommand {
             }
 
             for(FleetMemberAPI ship : Util.getShipsMatchingDescription(args)) {
-                PersonAPI cap = ship.getCaptain();
+                PersonAPI cap = Util.getCaptain(ship);
 
                 if(cap == null || cap.isDefault()) {
                     Console.showMessage("The " + ship.getShipName() + " has no captain assigned");

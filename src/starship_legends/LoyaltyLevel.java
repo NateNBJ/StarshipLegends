@@ -12,12 +12,15 @@ public enum LoyaltyLevel {
         return LoyaltyLevel.values()[index];
     }
 
-    String name, preposition, traitAdjustDesc;
+    String name, preposition, traitAdjustDesc, nameAI;
     float crDecay, maxCrReduction;
     int traitAdjustment, xpToImprove;
 
     public String getName() {
         return name;
+    }
+    public String getAiIntegrationStatusName() {
+        return nameAI;
     }
     public String getPreposition() {
         return preposition;
@@ -45,6 +48,7 @@ public enum LoyaltyLevel {
 
     public void init(JSONObject o) throws JSONException {
         name = o.getString("name");
+        nameAI = o.getString("name_ai");
         preposition = o.getString("preposition");
         traitAdjustDesc = o.getString("trait_adjust_desc");
 

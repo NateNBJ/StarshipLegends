@@ -31,7 +31,6 @@ public class ModPlugin extends BaseModPlugin {
             SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 4;
-    public static final int TRAIT_LIMIT = 8;
     public static final double TIMESTAMP_TICKS_PER_DAY = 8.64E7D;
 
     static Saved<String> version = new Saved<>("version", "");
@@ -57,7 +56,9 @@ public class ModPlugin extends BaseModPlugin {
             TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = 1,
             MAX_INITIAL_NEGATIVE_TRAITS = 4,
             MIN_INITIAL_NEGATIVE_TRAITS = 1,
-            LOYALTY_LEVELS_LOST_WHEN_DISABLED = 2,
+            BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = 2,
+            MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = 2,
+            MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = 0,
             RUMORED_TRAITS_SHOWN = 2,
             RUMORED_TRAITS_SHOWN_IN_DEV_MODE = 8,
             TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5;
@@ -66,6 +67,10 @@ public class ModPlugin extends BaseModPlugin {
             ORIGINAL_MIN_BAR_EVENTS = 1,
             ORIGINAL_MAX_BAR_EVENTS = 3,
             ORIGINAL_BAR_EVENT_PROB_ONE_MORE = 0.5f,
+
+            LOYALTY_LOSS_MULT_FROM_CREW_SAFETY = 1.0f,
+            LOYALTY_LOSS_MULT_FROM_RELATIVE_STRENGTH = 1.0f,
+
 
             GLOBAL_EFFECT_MULT = 1,
             FLEET_TRAIT_EFFECT_MULT = 2,
@@ -244,23 +249,22 @@ public class ModPlugin extends BaseModPlugin {
                     log("An error occurred while removing enemy rep hullmods from player ships!");
                 }
 
-                // Remove irrelevant traits from existing notable ships
+                // Replace irrelevant traits from existing notable ships
                 try {
                     for (FleetMemberAPI ship : Reputation.getShipsOfNote()) {
                         if(!RepRecord.existsFor(ship)) continue;
 
                         RepRecord rep = RepRecord.get(ship);
-                        List<Trait> traitsToRemove = new LinkedList<>();
+                        List<Trait> destinedTraits = RepRecord.getDestinedTraitsForShip(ship, true);
 
-                        for(Trait t : rep.getTraits()) {
-                            if(!t.isRelevantFor(ship)) {
-                                traitsToRemove.add(t);
+                        for(int i = 0; i < rep.getTraits().size(); ++i) {
+                            Trait trait = rep.getTraits().get(i);
+
+                            if(!trait.isRelevantFor(ship)) {
+                                log("Removing " + trait.getName(true) + " from the " + ship.getShipName()
+                                        + " (" + ship.getHullId() + ") for not being relevant to the ship");
+                                rep.getTraits().get(i).typeID = destinedTraits.get(i).typeID;
                             }
-                        }
-
-                        for(Trait t : traitsToRemove) {
-                            log("Removing " + t.getName(true) + " from the " + ship.getShipName() + " (" + ship.getHullId() + ")");
-                            rep.getTraits().remove(t);
                         }
                     }
                 } catch (Exception e) {
@@ -394,7 +398,12 @@ public class ModPlugin extends BaseModPlugin {
             MIN_INITIAL_NEGATIVE_TRAITS = cfg.getInt("minInitialNegativeTraits");
             MIN_NEGATIVE_TRAITS = (float) cfg.getDouble("minNegativeTraits");
             LOYALTY_IMPROVEMENT_RATE_MULT = (float) cfg.getDouble("loyaltyImprovementRateMult");
-            LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("loyaltyLevelsLostWhenDisabled");
+            BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("baseLoyaltyLevelsLostWhenDisabled");
+            MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("maxLoyaltyLevelsLostWhenDisabled");
+            MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("minLoyaltyLevelsLostWhenDisabled");
+
+            LOYALTY_LOSS_MULT_FROM_CREW_SAFETY = (float) cfg.getDouble("loyaltyLossMultFromCrewSafety");
+            LOYALTY_LOSS_MULT_FROM_RELATIVE_STRENGTH = (float) cfg.getDouble("loyaltyLossMultFromRelativeStrength");
 
             XP_MULT_FLAT = (float) cfg.getDouble("xpMultFlat");
             XP_MULT_PER_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("xpMultPerPlayerCaptainLevel");
@@ -443,6 +452,11 @@ public class ModPlugin extends BaseModPlugin {
 
                     settings.setFloat("barEventProbOneMore", newProb);
                 }
+            }
+
+            // TODO - Make this public after more testing
+            if(cfg.has("traitPairsPerTier")) {
+                TRAITS_PER_TIER = 2 * cfg.getInt("traitPairsPerTier");
             }
 
             return settingsAreRead = true;
