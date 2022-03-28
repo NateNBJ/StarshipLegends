@@ -632,7 +632,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							faction = fleet.getFaction();
 							traitCount = 4;
 
-							if (fleet.getFleetPoints() > 50) traitCount += 2;
+							if (fleet.getFleetPoints() > 30) traitCount += 2;
 							if (fleet.getFleetPoints() > 300) traitCount += 2;
 
 							claimFleet(fleet);
@@ -659,13 +659,15 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								* (int) Math.floor(Math.pow(random.nextFloat(), 0.75f) * ModPlugin.LOYALTY_LIMIT);
 						rep.setLoyalty(commander, loyalty);
 
-						int sMods = Math.max(0, random.nextInt(3) - ship.getVariant().getSMods().size());
+						int sMods = Math.max(1, random.nextInt(3) - ship.getVariant().getSMods().size());
 
 						if (sMods > 0) {
 							List<HullModSpecAPI> mods = new ArrayList<>();
 
 							for (String id : ship.getVariant().getNonBuiltInHullmods()) {
-								mods.add(Global.getSettings().getHullModSpec(id));
+								HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+
+								if(!spec.hasTag(Tags.HULLMOD_NO_BUILD_IN)) mods.add(spec);
 							}
 
 							Collections.sort(mods, new Comparator<HullModSpecAPI>() {
@@ -768,13 +770,20 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							hisOrHer = commander.getGender() == FullName.Gender.MALE ? "his" : "her",
 							name = commander.getNameString().trim(),
 							location = fleet.isInCurrentLocation() ? "" : fleet.getContainingLocation().getName(),
-							locationDesc = fleet.isInCurrentLocation() ? "%s%sin this system. "
-									: "in the %s about %s light years from your current location. ",
+							locationDesc,
 							fleetDesc = faction.getId().equals(Factions.NEUTRAL) ? "a wanted fleet"
 									: Util.getWithAnOrA(bestFactionPrefix) + " " + fleet.getName().toLowerCase(),
 							distance = fleet.isInCurrentLocation() ? "" :
 									(int) Misc.getDistanceLY(fleet.getContainingLocation().getLocation(),
 											Global.getSector().getPlayerFleet().getContainingLocation().getLocation()) + "";
+
+					if(fleet.isInCurrentLocation()) {
+						locationDesc = "%s%sin this system. ";
+					} else if(faction.getId().equals(Factions.NEUTRAL)) {
+						locationDesc = "in the %s about %s light years away. This will help you pinpoint the location of the bounty target. ";
+					} else {
+						locationDesc = "in the %s about %s light years from your current location. ";
+					}
 
 					String[] words = fleetDesc.split(" ");
 					if (!APPROVED_FLEET_NAMES.contains(words[words.length - 1].toLowerCase())) {

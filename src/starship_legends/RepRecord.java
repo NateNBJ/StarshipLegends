@@ -469,9 +469,9 @@ public class RepRecord {
         if(PENDING_INSPIRATION_EXPIRATIONS.val.containsKey(ship.getId())) {
             Map<String, Long> inspirations = PENDING_INSPIRATION_EXPIRATIONS.val.get(ship.getId());
 
-            if(inspirations.containsKey(captain.getId())) {
+            if(inspirations.containsKey(Util.getCaptainId(captain))) {
                 long now = Global.getSector().getClock().getTimestamp();
-                long expiration = inspirations.get(captain.getId());
+                long expiration = inspirations.get(Util.getCaptainId(captain));
                 retVal = (int)((expiration - now) / ModPlugin.TIMESTAMP_TICKS_PER_DAY);
             }
         }
@@ -481,8 +481,9 @@ public class RepRecord {
     public static void clearInspirationExpiration(FleetMemberAPI ship, PersonAPI captain) {
         if(PENDING_INSPIRATION_EXPIRATIONS.val.containsKey(ship.getId())) {
             Map<String, Long> inspirations = PENDING_INSPIRATION_EXPIRATIONS.val.get(ship.getId());
+            String id = Util.getCaptainId(captain);
 
-            if(inspirations.containsKey(captain.getId())) inspirations.remove(captain.getId());
+            if(inspirations.containsKey(id)) inspirations.remove(id);
 
             if(inspirations.isEmpty()) PENDING_INSPIRATION_EXPIRATIONS.val.remove(ship.getId());
         }
@@ -612,7 +613,7 @@ public class RepRecord {
                         PENDING_INSPIRATION_EXPIRATIONS.val.put(rc.ship.getId(), inspirations);
                     }
 
-                    inspirations.put(rc.captain.getId(), expireTS);
+                    inspirations.put(Util.getCaptainId(rc.captain), expireTS);
 
                     rc.setLoyaltyChange(1);
                     adjustLoyaltyXp(-loyaltyXp, rc.captain);
@@ -683,7 +684,7 @@ public class RepRecord {
     }
     public void adjustLoyaltyXp(int xp, PersonAPI captain) {
         if(captain != null && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-            String id = captain.getId();
+            String id =Util.getCaptainId(captain);
             int currentVal = captainLoyaltyXp.containsKey(id) ? captainLoyaltyXp.get(id) : 0;
             int newVal = (int)(currentVal + xp);
 

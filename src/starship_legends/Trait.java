@@ -254,7 +254,8 @@ public class Trait implements Comparable<Trait> {
                     break;
                 case TraitType.Tags.CLOAK:
                     String defId = hull.getShipDefenseId().toLowerCase();
-                    if(shieldType != ShieldAPI.ShieldType.PHASE || !(defId.contains("phase") || defId.contains("cloak"))) {
+                    if(shieldType != ShieldAPI.ShieldType.PHASE
+                            || !(hull.isPhase() || defId.contains("phase") || defId.contains("cloak"))) {
                         return false;
                     }
                     break;

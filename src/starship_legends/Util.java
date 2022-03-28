@@ -47,8 +47,12 @@ public class Util {
 
     public static PersonAPI getCaptain(FleetMemberAPI ship) {
         PersonAPI cap = ship.getCaptain();
+        Collection<String> mods = ship.getVariant().getHullMods();
 
-        if((cap == null || cap.isDefault()) && (ship.getVariant().getHullMods().contains("neural_interface") || ship.getVariant().getHullMods().contains("neural_integrator"))) {
+        if((cap == null || cap.isDefault())
+                && (mods.contains("neural_interface") || mods.contains("neural_integrator"))
+                && Global.getSector().getPlayerFleet().getFlagship().getVariant().getHullMods().contains("neural_interface")) {
+
             return Global.getSector().getPlayerPerson();
         } else return cap;
     }

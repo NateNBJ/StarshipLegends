@@ -244,14 +244,20 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                     rc.damageTakenFraction = Float.MAX_VALUE; // This lets the battle report know the ship was lost
                     xpEarned = 0;
                 } else if(rc.foughtInBattle) {
-                    float xpMultPerCaptainLevel = br.originalCaptain.isPlayer()
-                            ? ModPlugin.XP_MULT_PER_PLAYER_CAPTAIN_LEVEL
-                            : ModPlugin.XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
+                    float xpMultForCaptainLevel = 1;
+
+                    if(br.originalCaptain != null && !br.originalCaptain.isDefault()) {
+                        float xpMultPerCaptainLevel = br.originalCaptain.isPlayer()
+                                ? ModPlugin.XP_MULT_PER_PLAYER_CAPTAIN_LEVEL
+                                : ModPlugin.XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL;
+
+                        xpMultForCaptainLevel = xpMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
+                    }
 
                     xpForShip *= ModPlugin.XP_MULT_FLAT
                             + ModPlugin.XP_MULT_PER_FLEET_POINT * ship.getHullSpec().getFleetPoints()
                             + ModPlugin.XP_MULT_PER_DAMAGE_DEALT_PERCENT * br.damageDealt * 100f
-                            + xpMultPerCaptainLevel * br.originalCaptain.getStats().getLevel();
+                            + xpMultForCaptainLevel;
                 } else {
                     xpForShip *= ship.getHullSpec().isCivilianNonCarrier()
                             ? ModPlugin.XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS

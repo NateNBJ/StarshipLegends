@@ -477,6 +477,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             Color g = Misc.getGrayColor();
             Color h = Misc.getHighlightColor();
 
+            if(random == null) random = new Random(seed);
+
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {
                     int maxCrewCost = (int)Math.max(2, ship.getHullSpec().getMinCrew() * 0.05f);

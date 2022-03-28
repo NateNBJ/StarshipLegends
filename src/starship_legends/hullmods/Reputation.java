@@ -598,7 +598,7 @@ public class Reputation extends BaseHullMod {
                         for (int i = 0; i < captains.size(); i++) {
                             PersonAPI captain = captains.get(i);
 
-                            if(trustedOfficers.contains(captain.getId())) {
+                            if(trustedOfficers.contains(Util.getCaptainId(captain))) {
                                 tooltip.beginImageWithText(captain.getPortraitSprite(), 24)
                                     .addPara(captain.getNameString().trim(), 3);
                                 tooltip.addImageWithText(i + 1 == captains.size() ? 10 : 3);

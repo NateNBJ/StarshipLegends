@@ -108,13 +108,13 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.INDEPENDENT, FleetTypes.PATROL_SMALL, true);
                 temp.getFleetData().addFleetMember(ship);
                 DefaultFleetInflaterParams params = new DefaultFleetInflaterParams();
-                params.allWeapons = true;
+                params.allWeapons = true; // TODO
                 params.factionId = faction.getId();
                 params.quality = 1;
                 DefaultFleetInflater inflater = new DefaultFleetInflater(params);
                 inflater.inflate(temp);
                 int sMods = Math.max(0, random.nextInt(3) - ship.getVariant().getSMods().size());
-                int dMods = random.nextInt(3);
+                int dMods = random.nextInt(3) + (ship.getVariant().isDHull() ? 1 : 0);
                 //List<String> sModsToReAdd = new LinkedList<>();
 
                 if (sMods > 0) {
