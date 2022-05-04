@@ -270,6 +270,27 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     + getHeOrShe() + " explains.";
         }
     }
+    void showLoyaltyCostWarning() {
+        Color g = Misc.getGrayColor();
+        Color h = Misc.getHighlightColor();
+
+        LoyaltyLevel currLoyalty = rep.getLoyalty(captain);
+        LoyaltyLevel newLoyalty = LoyaltyLevel.fromInt(currLoyalty.getIndex() - loyaltyCost);
+        String currLoyaltyStr = (requiresCrew ? currLoyalty.getName() : currLoyalty.getAiIntegrationStatusName());
+        String newLoyaltyStr = (requiresCrew ? newLoyalty.getName() : newLoyalty.getAiIntegrationStatusName());
+        String consumeSuppliesString = "", supplyCostStr = "";
+        String loyaltyCostString = requiresCrew
+                ? "Agreeing to this will %s the loyalty of the crew from %s to %s"
+                : "Agreeing to this will %s the integration status of the AI core from %s to %s";
+
+        if(supplyCost > 0) {
+            consumeSuppliesString = " and consume %s supplies";
+            supplyCostStr = "" + supplyCost;
+        }
+
+        text.addPara(loyaltyCostString+ consumeSuppliesString, g, h, "reduce",
+                currLoyaltyStr.toLowerCase(), newLoyaltyStr.toLowerCase(), supplyCostStr);
+    }
     void doApproveActions() {
         CargoAPI cargo = Global.getSector().getPlayerFleet().getCargo();
 
@@ -571,8 +592,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     text.addPara("%s " + trait.getDescription(), g, h, trait.getName(requiresCrew));
 
                     if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
-                        if(supplyCost == 0) text.addPara("Agreeing to this will %s the loyalty of the crew", g, h, "reduce");
-                        else text.addPara("Agreeing to this will %s the loyalty of the crew and consume %s supplies", g, h, "reduce", "" + supplyCost);
+                        showLoyaltyCostWarning();
                     } else {
                         if(supplyCost != 0) text.addPara("Agreeing to this will consume %s supplies", g, h, "" + supplyCost);
                     }
@@ -585,23 +605,25 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     break;
                 }
                 case REMOVE_DMOD: {
-                    int maxCrewCost = (int)Math.max(2, ship.getHullSpec().getMinCrew() * 0.05f);
+                    int maxCrewCost = requiresCrew ? (int)Math.max(2, ship.getHullSpec().getMinCrew() * 0.05f) : 0;
                     String meOrYou = captain.isPlayer() ? "you" : "me";
+                    String catchStr = requiresCrew
+                            ? "the labor it would require is dangerous and toilsome. We might lose "
+                                + "as many as %s crew, and they're sure to resent " + meOrYou + " for the order"
+                            : "the process will interfere with the integration of the AI core";
 
-                    if(crewCost == 0) crewCost = random.nextInt(maxCrewCost + 1);
+                    if(requiresCrew && crewCost == 0) crewCost = random.nextInt(maxCrewCost + 1);
 
                     text.addPara(personDesc + " mentions a ship mechanic " + getHeOrShe() + " met recently who described "
-                            + "a way to fix the " + ship.getShipName() + "'s %s. \"I was skeptical at first, but my "
+                            + "a way to fix the " + ship.getShipName() + "'s %s. \"I was skeptical at first, but my"
                             + (ship.getMinCrew() >= 100 ? "chief" : "") + " engineers assured me it would work. The "
-                            + "only catch is that the labor it would require is dangerous and toilsome. We might lose "
-                            + "as many as %s crew, and they're sure to resent " + meOrYou + " for the order. I thought it might "
-                            + "be worth considering anyway.\"",
+                            + "only catch is that " + catchStr + ". I thought it might be worth considering anyway.\"",
                             Misc.getTextColor(), Misc.getHighlightColor(), dmod.getDisplayName().toLowerCase(),
                             maxCrewCost + "");
 
                     if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
                         text.setFontSmallInsignia();
-                        text.addPara("Agreeing to this will reduce the loyalty of the crew", Misc.getGrayColor());
+                        showLoyaltyCostWarning();
                         text.setFontInsignia();
                     }
 

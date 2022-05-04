@@ -495,7 +495,7 @@ public class RepRecord {
         if(!SHIP_ORIGINS.val.containsKey(ship.getId())) {
             if(detail == null) {
                 LocationAPI location = Global.getSector().getCurrentLocation();
-                detail = location.isHyperspace() ? "hyperspace" : "the " + location.getName() + " star system";
+                detail = location.isHyperspace() ? "hyperspace" : "the " + location.getName();
             }
 
             SHIP_ORIGINS.val.put(ship.getId(), new Origin(type, detail));

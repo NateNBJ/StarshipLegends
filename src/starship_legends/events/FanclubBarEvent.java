@@ -108,7 +108,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.INDEPENDENT, FleetTypes.PATROL_SMALL, true);
                 temp.getFleetData().addFleetMember(ship);
                 DefaultFleetInflaterParams params = new DefaultFleetInflaterParams();
-                params.allWeapons = true; // TODO
+                params.allWeapons = true; // TODO - test behavior of false
                 params.factionId = faction.getId();
                 params.quality = 1;
                 DefaultFleetInflater inflater = new DefaultFleetInflater(params);
@@ -157,6 +157,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             case CREW_JOIN_OFFER: {
                 for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
                     if(ship != null
+                            && ship.getMinCrew() > 0
                             && RepRecord.isShipNotable(ship)
                             && ship.getCaptain() != null
                             && !ship.getCaptain().isDefault()) {
@@ -217,6 +218,8 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 && playerFleet.getFleetData().getOfficersCopy().size() >= Global.getSector().getPlayerStats().getOfficerNumber().getModifiedInt()) {
             options.setEnabled(OptionId.ACCEPT, false);
             options.setTooltip(OptionId.ACCEPT, "Your roster of officers is already full");
+        } else if(creditChange != 0) {
+            options.setTooltip(OptionId.ACCEPT, "Agreeing to the offer will cost " + Misc.getDGSCredits(-creditChange));
         }
     }
     void reset() {
