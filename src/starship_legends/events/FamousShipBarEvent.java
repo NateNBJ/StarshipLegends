@@ -135,7 +135,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 
 	CampaignFleetAPI playerFleet;
-	boolean isPlayerShipStory = false, isDerelictMission = false;
+	boolean isPlayerShipStory = false, isDerelictMission = false, isShipDerelictLostByPlayer = false;
 	String flagshipType = null;
 
 	FleetMemberAPI ship = null;
@@ -419,23 +419,63 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				if (!Integration.isFamousDerelictEventAvailableAtMarket(market)) isDerelictMission = false;
 
 				if (isDerelictMission) {
-					String variantID = chooseDerelictVariant(market, random);
+					DerelictShipEntityPlugin.DerelictShipData params = null;
+					WeightedRandomPicker<FleetMemberAPI> lostShips = null;
 
-					if (variantID == null) return;
+					if(random.nextFloat() < 0.4f) {
+						Set<String> idsOfOwnedShips = Util.getIdsOfShipsOwnedByPlayer();
 
-					DerelictShipEntityPlugin.DerelictShipData params = DerelictShipEntityPlugin.createVariant(variantID, this.random, 0);
+						lostShips = new WeightedRandomPicker<>(random);
 
-					wreckData = params.ship;
-					wreckData.sModProb = random.nextFloat();
-					ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
-					pickShipName(ship, random);
+						for (FleetMemberAPI fm : Reputation.getShipsOfNote()) {
+							RepRecord rep = RepRecord.get(fm);
+
+							if (!idsOfOwnedShips.contains(fm.getId()) && rep != null) {
+								if (rep.getTier().ordinal() >= Trait.Tier.Famous.ordinal() && rep.getXp() > 0) {
+									lostShips.add(fm);
+								}
+							}
+						}
+					}
+
+					if (lostShips != null && !lostShips.isEmpty()) {
+						isShipDerelictLostByPlayer = true;
+						ship = lostShips.pick();
+						params = DerelictShipEntityPlugin.createVariant(ship.getVariant().getOriginalVariant(), this.random, 0);
+
+						wreckData = params.ship;
+						wreckData.sModProb = 0;
+						timeScale = FamousDerelictIntel.TimeScale.Months;
+						allowCrew = true;
+
+						// This is to prevent the same unwanted ships from appearing in this event repeatedly
+						// Also prevents the same ship from being chosen while its own recovery mission is active
+						// The ship will be added back to the list once it is recovered
+						Reputation.removeShipOfNote(ship);
+					}
+
+					if(params == null || ship == null) {
+						isShipDerelictLostByPlayer = false;
+
+						String variantID = chooseDerelictVariant(market, random);
+
+						if (variantID == null) return;
+
+						params = DerelictShipEntityPlugin.createVariant(variantID, this.random, 0);
+
+						wreckData = params.ship;
+						wreckData.sModProb = random.nextFloat();
+						ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
+						pickShipName(ship, random);
+						timeScale = FamousDerelictIntel.TimeScale.chooseTimeScale(random);
+						traitCount = timeScale.chooseTraitCount(random);
+						allowCrew = random.nextFloat() <= timeScale.survivorChance;
+					}
+
 					params.ship.shipName = ship.getShipName();
-					timeScale = FamousDerelictIntel.TimeScale.chooseTimeScale(random);
-
+					params.ship.variant = ship.getVariant();
 					orbitedBody = chooseOrbitedBody(random);
-					traitCount = timeScale.chooseTraitCount(random);
 					granularity = timeScale.chooseLocationGranularity(random);
-					allowCrew = random.nextFloat() <= timeScale.survivorChance;
 					rivalSalvageFleet = random.nextFloat() <= timeScale.salvagerChance && granularity != CONSTELATION;
 					cost = random.nextInt(rivalSalvageFleet ? 4 : 6) * ship.getHullSpec().getBaseValue() * 0.03f;
 					ambushFleetFP = ModPlugin.FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET
@@ -543,19 +583,28 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						flagshipType = "Remote";
 						List<MarketAPI> eligibleMarkets = new LinkedList<>();
 
-						for (StarSystemAPI system : Global.getSector().getStarSystems()) {
-							if (!system.hasTag("theme_core_populated") || system == Global.getSector().getCurrentLocation()
-									|| system.hasTag("theme_hidden") || system.hasTag("hidden") || system.hasTag("sun_sl_hidden"))
+						for (MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
+							StarSystemAPI system = m.getStarSystem();
+
+							if (system == null
+									|| !system.hasTag("theme_core_populated")
+									|| system == Global.getSector().getCurrentLocation()
+									|| system.hasTag("theme_hidden")
+									|| system.hasTag("hidden")
+									|| system.hasTag("sun_sl_hidden"))
 								continue;
 
-							for (MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
-								if (!m.isHidden() && m.getFaction() != null && FactionConfig.get(m.getFaction()) != null
- 										&& FactionConfig.get(m.getFaction()).isFamousFlagshipAllowedInFleets()) {
+							if (!m.isHidden() && m.getFaction() != null && FactionConfig.get(m.getFaction()) != null
+									&& FactionConfig.get(m.getFaction()).isFamousFlagshipAllowedInFleets()) {
 
-									eligibleMarkets.add(m);
-								}
+								eligibleMarkets.add(m);
 							}
 						}
+
+						// Event generation has failed. Instead of displaying an error, the inconsequential story prose
+						// will be displayed
+						if(eligibleFleets.isEmpty()) return;
+
 
 						final int MAX_ATTEMPTS = 5;
 
@@ -647,7 +696,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 				if (ship != null) {
 					if (isDerelictMission) {
-						rep = new RepRecord(ship);
+						rep = RepRecord.getOrCreate(ship);
 						ship.setOwner(1);
 						CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.NEUTRAL, FleetTypes.PATROL_SMALL, true);
 						temp.getFleetData().addFleetMember(ship);
@@ -687,8 +736,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						}
 					}
 
-					RepRecord.addDestinedTraitsToShip(ship, allowCrew, traitCount);
-					rep.applyToShip(ship);
+					if(!isShipDerelictLostByPlayer) {
+						RepRecord.addDestinedTraitsToShip(ship, allowCrew, traitCount);
+						rep.applyToShip(ship);
+					}
 				}
 			}
 		} catch (Exception e) {
@@ -848,16 +899,32 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							break;
 					}
 
-					text.addPara("You join the sparse group of people near the storyteller as " + getHeOrShe() + " begins " +
-									"a gruesome and gratuitously detailed description of the destruction of a " + lossRecency +" %s with a " +
-									"name you think you may have heard before: the %s. After yet more " +
-									"dismemberment and carnage, " + getHeOrShe() + " reveals that the ship is still in one piece " +
-									shapeDesc + ". Supposedly, it's drifting lifelessly somewhere in the %s constellation %s later. " +
-									"After making a few queries on your TriPad, you determine that this is, in fact, " +
-									"quite plausible. You also learn " +
-									"that the ship is known for the following traits:", Misc.getTextColor(),
-							Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
-							shape, getConstellationString(), timeScale.getName().toLowerCase());
+					if(isShipDerelictLostByPlayer) {
+						text.addPara("You join the sparse group of people near the storyteller as " + getHeOrShe() +
+										" describes the destruction of an all-too familiar %s: the %s. Strangely, " +
+										"many of the details don't match your recollection of parting with it, " +
+										"and you begin to suspect that the story is not, in fact, about the ship you once owned. " +
+										"As you continue to listen, however, you realize that, through a series of unlikely " +
+										"events, the ship was eventually recovered by someone else. It was they who lost " +
+										" the " + ship.getShipName() + " to the battle the storyteller is describing. " +
+										"Your old ship is purportedly still in one piece " + shapeDesc +
+										". Supposedly, it is now drifting through the void somewhere in the %s constellation. " +
+										"After making a few queries on your TriPad, you determine that this is, in fact, " +
+										"quite plausible. You recall that the ship was known for the following traits:",
+								Misc.getTextColor(), Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
+								shape, getConstellationString());
+					} else {
+						text.addPara("You join the sparse group of people near the storyteller as " + getHeOrShe() + " begins " +
+										"a gruesome and gratuitously detailed description of the destruction of a " + lossRecency + " %s with a " +
+										"name you think you may have heard before: the %s. After yet more " +
+										"dismemberment and carnage, " + getHeOrShe() + " reveals that the ship is still in one piece " +
+										shapeDesc + ". Supposedly, it's drifting lifelessly somewhere in the %s constellation %s later. " +
+										"After making a few queries on your TriPad, you determine that this is, in fact, " +
+										"quite plausible. You also learn " +
+										"that the ship is known for the following traits:", Misc.getTextColor(),
+								Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
+								shape, getConstellationString(), timeScale.getName().toLowerCase());
+					}
 
 					Util.showTraits(text, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
 

@@ -26,7 +26,7 @@ public class BaseShipBarEvent extends BaseBarEventWithPerson {
         this.ship = ship;
         this.rep = RepRecord.get(ship);
         this.captain = ship.getCaptain();
-        this.requiresCrew = ship.getMinCrew() > 0;
+        this.requiresCrew = Util.isShipCrewed(ship);
     }
     void showShip() {
         //Global.getSector().getCampaignUI().showCoreUITab(CoreUITabId.REFIT, ship);

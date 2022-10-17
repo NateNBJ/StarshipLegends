@@ -225,7 +225,7 @@ public class BattleReport extends BaseIntelPlugin {
                     }
 
                     if(rc.captain != null && !rc.captain.isDefault()) {
-                        loyalty = rc.ship.getMinCrew() > 0
+                        loyalty = Util.isShipCrewed(rc.ship)
                             ? rc.getLoyaltyLevel().getName()
                             : rc.getLoyaltyLevel().getAiIntegrationStatusName();
                     }

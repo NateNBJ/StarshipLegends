@@ -79,6 +79,7 @@ public class SalvageFamousDerelictDialogPlugin implements InteractionDialogPlugi
                                 float cr = (float) Math.random() * (maxCR - minCR) + minCR;
                                 member.getRepairTracker().setCR(cr);
 
+                                RepRecord.updateRepHullMod(member);
                                 playerFleet.getFleetData().addFleetMember(member);
                             }
 

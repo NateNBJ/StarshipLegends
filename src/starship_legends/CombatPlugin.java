@@ -25,11 +25,16 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
     void disableRandom(ShipAPI ship) {
         List<ShipEngineControllerAPI.ShipEngineAPI> engines = ship.getEngineController().getShipEngines();
         List<WeaponAPI> weapons = ship.getUsableWeapons();
+        float total = engines.size() + weapons.size();
 
-        if(!ship.getUsableWeapons().isEmpty() && rand.nextBoolean() && weapons.size() > 0) {
-            weapons.get(rand.nextInt(weapons.size())).disable();
-        } else if(!ship.getEngineController().isFlamedOut() && engines.size() > 0) {
-            engines.get(rand.nextInt(engines.size())).disable();
+        final int APROX_MAX_SLOTS = 30;
+
+        if(rand.nextInt(APROX_MAX_SLOTS) < total) { // Prevent excessive disabling for ships with few mounts/engines
+            if (!ship.getUsableWeapons().isEmpty() && rand.nextBoolean() && weapons.size() > 0) {
+                weapons.get(rand.nextInt(weapons.size())).disable();
+            } else if (!ship.getEngineController().isFlamedOut() && engines.size() > 0) {
+                engines.get(rand.nextInt(engines.size())).disable();
+            }
         }
     }
 
@@ -42,7 +47,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             if(engine == null) return;
 
-            if(!engine.isPaused() && rand.nextFloat() <= amount) { // Should happen about once per second, on average
+            if(!engine.isPaused() && rand.nextFloat() * 2 <= amount) { // Should happen about once per second, on average
                 for(ShipAPI ship : engine.getShips()) {
                     if(ship.isFighter()) continue;
 

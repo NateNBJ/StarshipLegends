@@ -123,7 +123,8 @@ public class Reputation extends BaseHullMod {
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
                 LoyaltyLevel ll = rep.getLoyalty(captain);
-                loyaltyEffectAdjustment = ll.getTraitAdjustment();
+                boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
+                loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : ll.getTraitAdjustment();
                 stats.getCRLossPerSecondPercent().modifyPercent(id, ll.getCrDecayMult());
                 if(ll.getMaxCrReduction() > 0) {
                     stats.getPeakCRDuration().modifyPercent(id, -ll.getMaxCrReduction());
@@ -457,7 +458,7 @@ public class Reputation extends BaseHullMod {
             Trait.Tier previousTier = Trait.Tier.UNKNOWN;
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
-            boolean requiresCrew = fm.getMinCrew() > 0 || fm.isMothballed();
+            boolean requiresCrew = Util.isShipCrewed(fm);
             boolean showXp = Global.getSettings().isDevMode()
                     ? ModPlugin.SHOW_SHIP_XP_IN_DEV_MODE
                     : ModPlugin.SHOW_SHIP_XP;
@@ -489,62 +490,79 @@ public class Reputation extends BaseHullMod {
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
                 PersonAPI cap = Util.getCaptain(fm);
+
                 if(cap != null && !cap.isDefault()) {
-                    loyaltyEffectAdjustment = rep.getLoyalty(cap).getTraitAdjustment();
                     LoyaltyLevel ll = rep.getLoyalty(cap);
                     Color clr = ll.ordinal() < LoyaltyLevel.INDIFFERENT.ordinal()
                             ? Misc.getNegativeHighlightColor()
                             : Misc.getHighlightColor();
-                    String message = requiresCrew
-                            ? "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
+
+                    if(cap.isAICore() && !Misc.isUnremovable(cap)) {
+                        tooltip.beginImageWithText(cap.getPortraitSprite(), 64).addPara(
+                                "The AI core does not affect the performance of the " + fm.getShipName()
+                                + " because it is not fully integrated.", 3);
+                        tooltip.addImageWithText(8);
+                    } else {
+                        loyaltyEffectAdjustment = ll.getTraitAdjustment();
+
+                        String message = requiresCrew
+                                ? "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
                                 + " is %s " + ll.getPreposition()
                                 + " its captain, " + cap.getNameString().trim()
-                            : "The ship's integration status is %s";
-                    String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
+                                : "The ship's integration status is %s";
+                        String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
+                        String finalValue = "";
+                        String decay = "";
 
-                    if (ll.getCrDecayMult() == 0 && ll.getTraitAdjustment() == 0) message += ".";
-                    else if (ll.getTraitAdjustment() == 0) message += ", " + upOrDown + " CR decay rate by %s.";
-                    else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
+                        if(ll.getCrDecayMult() != 0) decay = (int) Math.abs(ll.getCrDecayMult()) + "%";
 
-                    if(ll.getMaxCrReduction() > 0) {
-                        message += " The maximum CR and peak performance time of the ship will be reduced by %s while "
-                                + (requiresCrew
-                                    ? cap.getNameString() + " remains the captain."
-                                    : "the AI core controls the ship.");
-                    }
+                        // Extra format keys are added in order to skip them for the sake of values that might come later
+                        if (ll.getCrDecayMult() == 0 && loyaltyEffectAdjustment == 0) message += "%s%s.";
+                        else if (loyaltyEffectAdjustment == 0) message += ", " + upOrDown + " CR decay rate by %s%s.";
+                        else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
-                    if(ll == LoyaltyLevel.INSPIRED) {
-                        int daysLeft = RepRecord.getDaysOfInspirationRemaining(fm, cap);
-                        String firstPart = requiresCrew
-                                ? " The crew will remain inspired "
-                                : " Integration will remain amplified ";
 
-                        message += daysLeft <= 0
-                                ? firstPart + "until the end of the next battle."
-                                : firstPart + "for at least another " + daysLeft + " days.";
-                    }
-
-                    tooltip.beginImageWithText(cap.getPortraitSprite(), 64).addPara(message, 3, clr,
-                            requiresCrew ? ll.getName() : ll.getAiIntegrationStatusName(),
-                            (int) Math.abs(ll.getCrDecayMult()) + "%", ll.getTraitAdjustDesc(),
-                            (int)ll.getMaxCrReduction() + "%");
-
-                    if(showXp) {
-                        String xp = Util.getImpreciseNumberString(rep.getLoyaltyXp(cap));
-
-                        if(ll == LoyaltyLevel.INSPIRED || ll == LoyaltyLevel.FIERCELY_LOYAL) {
-                            tooltip.addPara("Progress to next " + (requiresCrew ? "inspiration" : "amplification")
-                                            + ": " + xp + " XP", 10, Misc.getGrayColor(),
-                                    Misc.getGrayColor());
-                        } else {
-                            String req = Util.getImpreciseNumberString(ll.getXpToImprove());
-                            tooltip.addPara("Progress to improved " + (requiresCrew ? "loyalty" : "integration")
-                                            + ": " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
-                                    Misc.getGrayColor());
+                        if (ll.getMaxCrReduction() > 0) {
+                            message += " The maximum CR and peak performance time of the ship will be reduced by %s"
+                                    + (requiresCrew ? " while " + cap.getHeOrShe() + " remains the captain." : ".");
+                            finalValue = (int) ll.getMaxCrReduction() + "%";
+                        } else if(ll.getFameGainBonus() > 0 && !rep.hasMaximumTraits()) {
+                            message += " The ship also gains fame %s faster.";
+                            finalValue = (int) ll.getFameGainBonus() + "%";
                         }
-                    }
 
-                    tooltip.addImageWithText(8);
+                        if (ll == LoyaltyLevel.INSPIRED) {
+                            int daysLeft = RepRecord.getDaysOfInspirationRemaining(fm, cap);
+                            String firstPart = requiresCrew
+                                    ? " The crew will remain inspired "
+                                    : " Integration will remain amplified ";
+
+                            message += daysLeft <= 0
+                                    ? firstPart + "until the end of the next battle."
+                                    : firstPart + "for at least another " + daysLeft + " days.";
+                        }
+
+                        tooltip.beginImageWithText(cap.getPortraitSprite(), 64).addPara(message, 3, clr,
+                                requiresCrew ? ll.getName() : ll.getAiIntegrationStatusName(), decay,
+                                ll.getTraitAdjustDesc(), finalValue);
+
+                        if (showXp) {
+                            String xp = Util.getImpreciseNumberString(rep.getLoyaltyXp(cap));
+
+                            if (ll == LoyaltyLevel.INSPIRED || ll == LoyaltyLevel.FIERCELY_LOYAL) {
+                                tooltip.addPara("Progress to next " + (requiresCrew ? "inspiration" : "amplification")
+                                                + ": " + xp + " XP", 10, Misc.getGrayColor(),
+                                        Misc.getGrayColor());
+                            } else {
+                                String req = Util.getImpreciseNumberString(ll.getXpToImprove());
+                                tooltip.addPara("Progress to improved " + (requiresCrew ? "loyalty" : "integration")
+                                                + ": " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
+                                        Misc.getGrayColor());
+                            }
+                        }
+
+                        tooltip.addImageWithText(8);
+                    }
                 } else if(!rep.getCaptainLoyaltyLevels().isEmpty()) {
                     int bestOpinion = 0;
                     Set<String> trustedOfficers = new HashSet<>();
@@ -637,6 +655,23 @@ public class Reputation extends BaseHullMod {
                             requiresCrew, hullSize, false, false);
                     traitIndex += 1;
                 }
+            }
+
+            if(RepRecord.shipHasChronicler(fm)) {
+                int daysLeft = RepRecord.getDaysOfChroniclerRemaining(fm);
+                String timeLeft, effectStr = ship.getHullSpec().isCivilianNonCarrier()
+                        ? (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS) + "%"
+                        : (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS) + "%";
+                String nextOrOther = daysLeft <= 0 ? "for a %s." : "for at least the next %s.";
+
+                if(daysLeft <= 0) timeLeft = "short time";
+                else if(daysLeft == 1) timeLeft = "day or so";
+                else if(daysLeft > 60) timeLeft = (daysLeft / 30) + " months";
+                else timeLeft = daysLeft + " days";
+
+                tooltip.addPara("A chronicler is recording and publishing stories involving this ship, increasing " +
+                        "reputation growth by %s " + nextOrOther, 10, Misc.getGrayColor(), Misc.getHighlightColor(),
+                        effectStr, timeLeft);
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }

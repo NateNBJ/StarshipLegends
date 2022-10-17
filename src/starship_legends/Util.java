@@ -11,14 +11,13 @@ import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.campaign.econ.SubmarketAPI;
 import com.fs.starfarer.api.characters.MutableCharacterStatsAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
-import com.fs.starfarer.api.combat.ShipAPI;
-import com.fs.starfarer.api.combat.ShipHullSpecAPI;
-import com.fs.starfarer.api.combat.ShipVariantAPI;
-import com.fs.starfarer.api.combat.WeaponAPI;
+import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.DModManager;
+import com.fs.starfarer.api.impl.campaign.ids.HullMods;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
+import com.fs.starfarer.api.util.Misc;
 import org.lazywizard.console.Console;
 import starship_legends.events.FamousDerelictIntel;
 import starship_legends.events.FamousFlagshipIntel;
@@ -75,6 +74,25 @@ public class Util {
         }
 
         return null;
+    }
+    public static Set<String> getIdsOfShipsOwnedByPlayer() {
+        Set<String> retVal = new HashSet<>();
+
+        for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            retVal.add(ship.getId());
+        }
+
+        for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+            SubmarketAPI storage = market.getSubmarket("storage");
+
+            if(storage == null || storage.getCargo() == null || storage.getCargo().getMothballedShips() == null) continue;
+
+            for(FleetMemberAPI ship : storage.getCargo().getMothballedShips().getMembersListCopy()) {
+                retVal.add(ship.getId());
+            }
+        }
+
+        return retVal;
     }
     public static MarketAPI getStorageLocationOfShip(String id) {
         for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
@@ -323,7 +341,8 @@ public class Util {
         int loyaltyEffectAdjustment = 0;
 
         if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-            loyaltyEffectAdjustment = rep.getLoyalty(captain).getTraitAdjustment();
+            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
+            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
         }
 
         for(Trait trait : rep.getTraits()) {
@@ -428,5 +447,34 @@ public class Util {
         }
 
         return strength;
+    }
+    public static Random getUniqueShipRng(FleetMemberAPI ship) {
+        String seed = "";
+
+        for(int i = ship.getId().length() - 1; i >= 0; --i) {
+            seed += ship.getId().charAt(i);
+        }
+
+        return new Random(seed.hashCode());
+    }
+    public static boolean isPhaseShip(FleetMemberAPI ship) {
+        ShipHullSpecAPI hull = ship.getHullSpec();
+        String defId = hull.getShipDefenseId();
+
+        if(defId == null || defId.isEmpty()) return false;
+
+        defId = defId.toLowerCase();
+
+        if(hull.getShieldType() != ShieldAPI.ShieldType.PHASE
+                || !(hull.isPhase() || defId.contains("phase") || defId.contains("cloak"))) {
+            return false;
+        }
+
+        return true;
+    }
+    public static boolean isShipCrewed(FleetMemberAPI ship) {
+        return ship.isMothballed()
+                ? (ship.getHullSpec().getMinCrew() > 0 && !ship.getVariant().hasHullMod(HullMods.AUTOMATED))
+                : (ship.getMinCrew() > 0);
     }
 }

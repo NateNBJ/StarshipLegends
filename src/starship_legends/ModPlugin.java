@@ -96,12 +96,16 @@ public class ModPlugin extends BaseModPlugin {
             PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = 0,
             PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = 0,
 
+            FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS = 1,
+            FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS = 5,
+
             AVERAGE_ADDITIONAL_BAR_EVENTS = 0,
 
             TRAIT_UPGRADE_BAR_EVENT_CHANCE = 1f,
             TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = 2f,
             REPAIR_DMOD_BAR_EVENT_CHANCE = 0.5f,
-            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = 1.5f,
+            CHRONICLER_JOINS_BAR_EVENT_CHANCE = 1.0f,
+            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = 1.0f,
             BUY_SHIP_OFFER_BAR_EVENT_CHANCE = 1f,
             JOIN_WITH_SHIP_BAR_EVENT_CHANCE = 0.5f,
             HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = 1f,
@@ -390,6 +394,10 @@ public class ModPlugin extends BaseModPlugin {
             ENABLE_OFFICER_LOYALTY_SYSTEM = cfg.getBoolean("enableOfficerLoyaltySystem");
             COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
             SHOW_NEW_TRAIT_NOTIFICATIONS = cfg.getBoolean("showNewTraitNotifications");
+            SHOW_SHIP_XP = cfg.getBoolean("showShipXp");
+            SHOW_SHIP_XP_IN_DEV_MODE = cfg.getBoolean("showShipXpInDevMode");
+            RUMORED_TRAITS_SHOWN = cfg.getInt("rumoredTraitsShown");
+            RUMORED_TRAITS_SHOWN_IN_DEV_MODE = cfg.getInt("rumoredTraitsShownInDevMode");
 
             GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
             FLEET_TRAIT_EFFECT_MULT = (float) cfg.getDouble("fleetTraitEffectMult");
@@ -397,6 +405,7 @@ public class ModPlugin extends BaseModPlugin {
             MAX_INITIAL_NEGATIVE_TRAITS = cfg.getInt("maxInitialNegativeTraits");
             MIN_INITIAL_NEGATIVE_TRAITS = cfg.getInt("minInitialNegativeTraits");
             MIN_NEGATIVE_TRAITS = (float) cfg.getDouble("minNegativeTraits");
+            TRAITS_PER_TIER = 2 * Math.max(1, cfg.getInt("traitPairsPerTier"));
             LOYALTY_IMPROVEMENT_RATE_MULT = (float) cfg.getDouble("loyaltyImprovementRateMult");
             BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("baseLoyaltyLevelsLostWhenDisabled");
             MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("maxLoyaltyLevelsLostWhenDisabled");
@@ -431,6 +440,7 @@ public class ModPlugin extends BaseModPlugin {
             TRAIT_UPGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitUpgrade");
             TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitSidegrade");
             REPAIR_DMOD_BAR_EVENT_CHANCE = (float) eventChances.getDouble("repairDmod");
+            CHRONICLER_JOINS_BAR_EVENT_CHANCE = (float) eventChances.getDouble("chroniclerJoins");
             LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = (float) eventChances.getDouble("loyalCrewJoins");
             BUY_SHIP_OFFER_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToBuyFamousShip");
             JOIN_WITH_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToJoinWithShip");
@@ -442,6 +452,9 @@ public class ModPlugin extends BaseModPlugin {
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
             AVERAGE_ADDITIONAL_BAR_EVENTS = (float) cfg.getDouble("averageAdditionalBarEvents");
 
+            FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS = (float) cfg.getDouble("fameBonusFromChroniclersForCombatShips");
+            FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("fameBonusFromChroniclersForCivilianShips");
+
             if(AVERAGE_ADDITIONAL_BAR_EVENTS > 0 && !REMOVE_ALL_DATA_AND_FEATURES) {
                 SettingsAPI settings = Global.getSettings();
                 settings.setFloat("maxBarEvents", (float) (ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
@@ -452,11 +465,6 @@ public class ModPlugin extends BaseModPlugin {
 
                     settings.setFloat("barEventProbOneMore", newProb);
                 }
-            }
-
-            // TODO - Make this public after more testing
-            if(cfg.has("traitPairsPerTier")) {
-                TRAITS_PER_TIER = 2 * cfg.getInt("traitPairsPerTier");
             }
 
             return settingsAreRead = true;

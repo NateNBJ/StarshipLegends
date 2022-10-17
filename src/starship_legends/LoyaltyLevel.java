@@ -13,7 +13,7 @@ public enum LoyaltyLevel {
     }
 
     String name, preposition, traitAdjustDesc, nameAI;
-    float crDecay, maxCrReduction;
+    float crDecay, maxCrReduction, fameGainBonus;
     int traitAdjustment, xpToImprove;
 
     public String getName() {
@@ -32,6 +32,7 @@ public enum LoyaltyLevel {
         return crDecay;
     }
     public float getMaxCrReduction() { return maxCrReduction; }
+    public float getFameGainBonus() { return fameGainBonus; }
     public int getXpToImprove() {
         return xpToImprove;
     }
@@ -40,10 +41,10 @@ public enum LoyaltyLevel {
     public boolean isAtWorst() { return getIndex() == -ModPlugin.LOYALTY_LIMIT; }
     public int getIndex() { return ordinal() - ModPlugin.LOYALTY_LIMIT; }
     public LoyaltyLevel getOneBetter() {
-        return isAtBest() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() + 1);
+        return isAtBest() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() - ModPlugin.LOYALTY_LIMIT + 1);
     }
     public LoyaltyLevel getOneWorse() {
-        return isAtWorst() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() - 1);
+        return isAtWorst() || this == UNKNOWN ? UNKNOWN : LoyaltyLevel.fromInt(ordinal() - ModPlugin.LOYALTY_LIMIT - 1);
     }
 
     public void init(JSONObject o) throws JSONException {
@@ -55,6 +56,7 @@ public enum LoyaltyLevel {
         crDecay = (float) o.getDouble("cr_decay");
         xpToImprove = o.getInt("xp_to_improve");
         maxCrReduction = (float) o.getDouble("max_cr_reduction");
+        fameGainBonus = (float) o.getDouble("fame_gain_bonus");
 
         traitAdjustment = o.getInt("trait_adjustment");
     }

@@ -1,6 +1,8 @@
 package starship_legends;
 
 import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.TextPanelAPI;
+import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShieldAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
@@ -164,6 +166,21 @@ public class Trait implements Comparable<Trait> {
         else return (effectSign * getType().getBaseBonus() > 0 ? "increases " : "decreases ") + getType().getEffectDescription();
     }
 
+    public String getDescription(Tier tier, int loyaltyEffectAdjustment, ShipAPI.HullSize size) {
+
+        if(typeID.equals("phase_mad") || typeID.equals("cursed")) {
+            return getDescription();
+        } else {
+            float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT,
+                    getEffect(tier, loyaltyEffectAdjustment, size));
+            String effectStr = Misc.getRoundedValueMaxOneAfterDecimal(Math.abs(effect))
+                    + (getTags().contains(TraitType.Tags.FLAT_EFFECT) ? "" : "%%");
+
+            return (effectSign * getType().getBaseBonus() > 0 ? "increases " : "decreases ")
+                    + getType().getEffectDescription() + " by " + effectStr;
+        }
+    }
+
     public String getParentheticalDescription() {
         return (effectSign * getType().getBaseBonus() > 0 ? "(+" : "(-") + getType().getEffectDescription() + ")";
     }
@@ -193,6 +210,77 @@ public class Trait implements Comparable<Trait> {
                     * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
             tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
                     1, getHighlightColor(), getEffectValueString(effect));
+        }
+    }
+    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
+        addParagraphTo(textPanel, tier, loyaltyEffectAdjustment, requiresCrew, hullSize, useBullet, isFleetTrait, "");
+    }
+    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait, String prefix) {
+        String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
+
+        if(tier == Tier.Rumored) {
+            textPanel.addPara(bullet + prefix + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+                    Misc.getGrayColor(), getHighlightColor(),
+                    getEffectValueString(getEffectSign() * getType().getBaseBonus() * 0.0000001f));
+        } else {
+            float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
+                    * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
+            textPanel.addPara(bullet + prefix + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+                    getHighlightColor(), getEffectValueString(effect));
+        }
+    }
+    public void addComparisonParagraphsTo(TextPanelAPI textPanel, FleetMemberAPI ship, Trait traitToCompare) {
+        RepRecord rep = RepRecord.get(ship);
+        PersonAPI captain = ship.getCaptain();
+        boolean requiresCrew = Util.isShipCrewed(ship);
+        ShipAPI.HullSize size = ship.getHullSpec().getHullSize();
+        int traitsLeft = rep.getTraits().size();
+        int loyaltyEffectAdjustment = 0;
+
+        if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
+            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
+            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
+        }
+
+        for(Trait trait : rep.getTraits()) {
+            if (traitsLeft <= 0) break;
+
+            Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
+
+            if(this.equals(trait)) {
+                textPanel.addPara("%s currently " + trait.getDescription(tier, loyaltyEffectAdjustment, size),
+                        Misc.getGrayColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
+
+                textPanel.addPara("%s would " + traitToCompare.getDescription(tier, loyaltyEffectAdjustment, size).replace("ses ", "se "),
+                        Misc.getGrayColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+            }
+        }
+    }
+    public void addComparisonParagraphsTo(TooltipMakerAPI info, FleetMemberAPI ship, Trait traitToCompare) {
+        RepRecord rep = RepRecord.get(ship);
+        PersonAPI captain = ship.getCaptain();
+        boolean requiresCrew = Util.isShipCrewed(ship);
+        ShipAPI.HullSize size = ship.getHullSpec().getHullSize();
+        int traitsLeft = rep.getTraits().size();
+        int loyaltyEffectAdjustment = 0;
+
+        if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
+            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
+            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
+        }
+
+        for(Trait trait : rep.getTraits()) {
+            if (traitsLeft <= 0) break;
+
+            Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
+
+            if(this.equals(trait)) {
+                info.addPara("%s currently " + trait.getDescription(tier, loyaltyEffectAdjustment, size),
+                        3, Misc.getGrayColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
+
+                info.addPara("%s would " + traitToCompare.getDescription(tier, loyaltyEffectAdjustment, size).replace("ses ", "se "),
+                        3, Misc.getGrayColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+            }
         }
     }
 
@@ -253,16 +341,7 @@ public class Trait implements Comparable<Trait> {
                         return false;
                     break;
                 case TraitType.Tags.CLOAK:
-                    String defId = hull.getShipDefenseId();
-
-                    if(defId == null || defId.isEmpty()) return false;
-
-                    defId = defId.toLowerCase();
-
-                    if(shieldType != ShieldAPI.ShieldType.PHASE
-                            || !(hull.isPhase() || defId.contains("phase") || defId.contains("cloak"))) {
-                        return false;
-                    }
+                    if(!Util.isPhaseShip(ship)) return false;
                     break;
                 case TraitType.Tags.NO_AI:
                     if(hull.getMinCrew() <= 0) return false;
@@ -333,6 +412,7 @@ public class Trait implements Comparable<Trait> {
 
         return true;
     }
+
 
     public boolean isBonus() { return effectSign > 0; }
 

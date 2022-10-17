@@ -4,9 +4,12 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
+import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.DModManager;
 import com.fs.starfarer.api.impl.campaign.ids.Commodities;
+import com.fs.starfarer.api.impl.campaign.ids.HullMods;
 import com.fs.starfarer.api.impl.campaign.ids.Ranks;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
@@ -27,6 +30,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         FLIP_TRAIT,
         REMOVE_DMOD,
         SIDEGRADE_TRAIT,
+        CHRONICLE_OFFER,
+        PICK_ALTERNATE,
         SHOW_SHIP,
         INVALID,
         ACCEPT,
@@ -35,6 +40,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
     public static float getChanceOfAnyCrewEvent() {
         return ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE
+                + ModPlugin.CHRONICLER_JOINS_BAR_EVENT_CHANCE
                 + ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE
                 + ModPlugin.REPAIR_DMOD_BAR_EVENT_CHANCE;
     }
@@ -46,6 +52,10 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
     Trait trait = null, replacementTrait = null;
     HullModSpecAPI dmod = null;
     boolean crewTraitMismatch = false;
+
+    int chronicleMonths = 0;
+    List<FleetMemberAPI> chronicleAlternates = new ArrayList<>();
+    String alternateShipTypeDesc, chroniclerDesc, shortChroniclerDesc = "the chronicler";
 
     boolean isShipViableForEvent(FleetMemberAPI ship, LoyaltyLevel loyaltyRequired) {
         return ship != null
@@ -149,6 +159,26 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
                 break;
             }
+            case CHRONICLE_OFFER: {
+                for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
+                    RepRecord rr = RepRecord.get(ship);
+                    boolean shipIsLegalHere = Util.isShipCrewed(ship)
+                            || ( market.isPlayerOwned() || !market.getFaction().isIllegal(Commodities.AI_CORES));
+
+                    if(isShipViableForEvent(ship, null) && !rr.hasMaximumTraits() && shipIsLegalHere) {
+                        picker.add(ship, (float)Math.pow(rr.getTier().ordinal(), 2));
+                    }
+                }
+
+                chronicleMonths = 4 + 4 * random.nextInt(4);
+                chronicleAlternates.clear();
+
+                while (!picker.isEmpty()) {
+                    setShip(picker.pickAndRemove());
+
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -200,6 +230,16 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 //                    (crewCost > 0 ? crewCost : supplyCost) + "", supplyCost + "");
 //        }
     }
+    void addChroniclerOptions() {
+        options.addOption("Allow them to chronicle the " + ship.getShipName(), OptionId.ACCEPT);
+
+        if(!chronicleAlternates.isEmpty()) {
+            options.addOption("Convince them to chronicle a different " + alternateShipTypeDesc + " for half the duration", OptionId.PICK_ALTERNATE);
+        }
+
+        options.addOption("Decline the offer for now", OptionId.LEAVE);
+        options.setShortcut(FamousShipBarEvent.OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
+    }
     void reset() {
         super.reset();
         crewCost = supplyCost = loyaltyCost = 0;
@@ -209,7 +249,11 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         crewTraitMismatch = false;
     }
     void chooseStrings() {
-        if (ship.getMinCrew() <= 0) officerTypeStr = "AI maintenance and monitoring team";
+        if (!Util.isShipCrewed(ship)) personDesc = "The lead AI specialist";
+        else if (captain.isPlayer()) personDesc = "Your second-in-command";
+        else personDesc = "The ship's captain";
+
+        if (!Util.isShipCrewed(ship)) officerTypeStr = "AI maintenance and monitoring team";
         else if (ship.getMinCrew() <= 30) officerTypeStr = "crew";
         else if (ship.getMinCrew() >= 300) officerTypeStr = "senior leadership";
         else officerTypeStr = "leadership";
@@ -219,9 +263,169 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             pref2 = trait.getDescPrefix(requiresCrew, pref1).toLowerCase();
         }
 
-        if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist";
-        else if (captain.isPlayer()) personDesc = "Your second-in-command";
-        else personDesc = "The ship's captain";
+        if(chronicleMonths > 0) {
+            chronicleAlternates.clear();
+
+            if(!Util.isShipCrewed(ship)) {
+                alternateShipTypeDesc = "autonomous ship";
+                chroniclerDesc = "an artificial intelligence researcher who is interested in publishing observations " +
+                        "of autonomous ships in practical settings. The researcher";
+                shortChroniclerDesc = "the researcher";
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    ShipHullSpecAPI spec = fm.getHullSpec();
+
+                    if(!Util.isShipCrewed(fm) && (spec.isCivilianNonCarrier() == ship.getHullSpec().isCivilianNonCarrier())) {
+                        chronicleAlternates.add(fm);
+                    }
+                }
+            } else if(Util.isPhaseShip(ship)) {
+                alternateShipTypeDesc = "phase ship";
+                chroniclerDesc = "a hyperspace physicist who would like to study the effects of phase rift tearing on " +
+                        "neural oscillations and publish their findings. The physicist";
+                shortChroniclerDesc = "the physicist";
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    if(Util.isPhaseShip(fm)) chronicleAlternates.add(fm);
+                }
+            } else if(ship.getHullSpec().isCivilianNonCarrier()) {
+                alternateShipTypeDesc = "auxiliary ship";
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    if(fm.getHullSpec().isCivilianNonCarrier()) chronicleAlternates.add(fm);
+                }
+
+                List<String> mods = ship.getHullSpec().getBuiltInMods();
+                String designation = ship.getHullSpec().getDesignation().toLowerCase();
+
+                if(mods.contains(HullMods.SURVEYING_EQUIPMENT)) {
+                    chroniclerDesc = "a self-styled \"planetary survivalist\" who wants to accompany the " +
+                            ship.getShipName() + "'s survey team during away missions and document their adventures. " +
+                            "The survivalist";
+                    shortChroniclerDesc = "the survivalist";
+                } else if(mods.contains("ground_support") || mods.contains("advanced_ground_support")) {
+                    chroniclerDesc = "an author of combat-action novels who wants to accompany your marines to " +
+                            "document a story based on actual events. The novelist";
+                    shortChroniclerDesc = "the novelist";
+                } else if(mods.contains("repair_gantry")) {
+                    chroniclerDesc = "an independent creator of holo-vid documentaries who would like to record the " +
+                            "hazards and struggles suffered by working-class spacers during salvage operations. " +
+                            "The documentary creator";
+                    shortChroniclerDesc = "the documentary creator";
+                } else if(designation.contains("tanker")) {
+                    chroniclerDesc = "someone who describes themselves as a hyperlight drifter who hitch-hikes across " +
+                            "the galaxy in search of exotic celestial phenomena to share with their network followers. " +
+                            "The drifter";
+                    shortChroniclerDesc = "the drifter";
+                } else {
+                    chroniclerDesc = "an independent creator of holo-vid documentaries who would like to record the " +
+                            "day to day lifestyle aboard one of your vessels that, preferably, would never see combat. " +
+                            "The documentary creator";
+                    shortChroniclerDesc = "the documentary creator";
+                }
+            } else if(random.nextBoolean()) {
+                ShipAPI.HullSize size = ship.getHullSpec().getHullSize();
+                alternateShipTypeDesc = size.toString().toLowerCase().replace("_", "");
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    if(fm.getHullSpec().getHullSize().equals(size) && !fm.getHullSpec().isCivilianNonCarrier()) {
+                        chronicleAlternates.add(fm);
+                    }
+                }
+
+                if(random.nextBoolean()) {
+                    switch (size) {
+                        case FRIGATE:
+                            chroniclerDesc = "a tabloid journalist known for writing dramatizations of fast-paced " +
+                                    "skirmishes between nimble frigates who is interested in flying with the crew of the " +
+                                    ship.getShipName() + " for a while. The journalist";
+                            shortChroniclerDesc = "the journalist";
+                            break;
+                        case DESTROYER:
+                            chroniclerDesc = "a tabloid journalist known for writing dramatized versions of brutal " +
+                                    "skirmishes between destroyers who is interested in flying with the crew of the " +
+                                    ship.getShipName() + " for a while. The journalist";
+                            shortChroniclerDesc = "the journalist";
+                            break;
+                        case CRUISER:
+                            chroniclerDesc = "a tactical analyst known for pioneering theories detailing unconventional " +
+                                    "applications for cruisers in battle, and has expressed interest in spending a while " +
+                                    "aboard the " + ship.getShipName() + " to gain some real-world experience. The analyst";
+                            shortChroniclerDesc = "the analyst";
+                            break;
+                        case CAPITAL_SHIP:
+                            chroniclerDesc = "a tactical analyst known for pioneering theories detailing unconventional " +
+                                    "applications for capital warships who has expressed interest in spending a while " +
+                                    "aboard the " + ship.getShipName() + " to gain some real-world experience. The analyst";
+                            shortChroniclerDesc = "the analyst";
+                            break;
+                    }
+                } else {
+                    switch (size) {
+                        case FRIGATE:
+                            chroniclerDesc = "a former fighter pilot who's made a name for themselves publishing " +
+                                    "commentary on the application of frigates in combat, and thinks they " +
+                                    "might be able to learn something new aboard the " + ship.getShipName() +
+                                    ". The former pilot";
+                            shortChroniclerDesc = "the former pilot";
+                            break;
+                        case DESTROYER:
+                            chroniclerDesc = "a former executive officer who's made a name for themselves publishing " +
+                                    "commentary on the application of destroyers in combat, and thinks they " +
+                                    "might be able to learn something new aboard the " + ship.getShipName() +
+                                    ". The former XO";
+                            shortChroniclerDesc = "the former XO";
+                            break;
+                        case CRUISER:
+                            chroniclerDesc = "a former warship captain who's made a name for themselves publishing " +
+                                    "commentary on the application of cruisers in combat, and thinks they " +
+                                    "might be able to learn something new aboard the " + ship.getShipName() +
+                                    ". The former captain";
+                            shortChroniclerDesc = "the former captain";
+                            break;
+                        case CAPITAL_SHIP:
+                            chroniclerDesc = "a retired fleet commander who's made a name for themselves publishing " +
+                                    "commentary on the application of capital ships in combat, and thinks they " +
+                                    "might be able to learn something new aboard the " + ship.getShipName() +
+                                    ". The former commander";
+                            shortChroniclerDesc = "the former commander";
+                            break;
+                    }
+                }
+            } else {
+                alternateShipTypeDesc = "warship";
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    if(!fm.getHullSpec().isCivilianNonCarrier()) chronicleAlternates.add(fm);
+                }
+
+                if(market.isPlayerOwned()) {
+                    if(random.nextBoolean()) {
+                        chroniclerDesc = "a local of the colony who wants to witness your fleet's battles firsthand, " +
+                                "and boasts an impressive network following. The colonist";
+                        shortChroniclerDesc = "the colonist";
+                    } else {
+                        chroniclerDesc = "an independent journalist who is eager to peddle propaganda " +
+                                "for the sake of " + market.getFaction().getDisplayNameLongWithArticle() +
+                                ". The propagandist";
+                        shortChroniclerDesc = "the propagandist";
+                    }
+
+                } else if(market.getFaction().equals(Misc.getCommissionFaction())) {
+                    chroniclerDesc = "a war correspondent who is interested in reporting from the perspective of an " +
+                            "independent war fleet fighting on behalf of " +
+                            market.getFaction().getDisplayNameLongWithArticle() + ", such as your own. The correspondent";
+                    shortChroniclerDesc = "the correspondent";
+                } else {
+                    chroniclerDesc = "a spacer who's made a name for themselves by collecting and publishing " +
+                            "first-hand accounts of warship combat, and would like to travel with the crew of the " +
+                            ship.getShipName() + " for a while. The spacer";
+                    shortChroniclerDesc = "the spacer";
+                }
+            }
+
+            chronicleAlternates.remove(ship);
+        }
     }
     String getSidegradeProse(boolean requireFormality) {
         String officerType, planPhrase;
@@ -254,13 +458,13 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         if(ship.getMinCrew() < 10) officerType = "XO";
 
         if(requireFormality) {
-            if (ship.getMinCrew() <= 0) personDesc = "The lead AI specialist for the ";
+            if (!Util.isShipCrewed(ship)) personDesc = "The lead AI specialist for the ";
             else if (captain.isPlayer()) personDesc = "Your second-in-command aboard the ";
             else personDesc = "The captain of the ";
 
             return personDesc + ship.getShipName() + " submitted an approval request on behalf of their " + officerType
                     + ", who " + planPhrase + " that would result in the ship" + knownForMaybe + pref1
-                    + " %s %s rather than" + pref2 + " %s %s.";
+                    + " %s rather than" + pref2 + " %s.";
         } else {
             return "After a while, " + personDesc.toLowerCase() + " leans forward, seeming to become more sober. "
                     + "\"My " + officerType + " " + planPhrase + " that would result in the "
@@ -280,7 +484,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         String newLoyaltyStr = (requiresCrew ? newLoyalty.getName() : newLoyalty.getAiIntegrationStatusName());
         String consumeSuppliesString = "", supplyCostStr = "";
         String loyaltyCostString = requiresCrew
-                ? "Agreeing to this will %s the loyalty of the crew from %s to %s"
+                ? "Agreeing to this will %s the standing of the crew from %s to %s"
                 : "Agreeing to this will %s the integration status of the AI core from %s to %s";
 
         if(supplyCost > 0) {
@@ -315,6 +519,10 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         if(loyaltyCost > 0 && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             rep.adjustLoyalty(captain, -loyaltyCost);
         }
+
+        if(chronicleMonths > 0) {
+            RepRecord.addChroniclerDays(ship, chronicleMonths * 30);
+        }
     }
     void showApproveText(TextPanelAPI text) {
         if(trait != null && replacementTrait != null) {
@@ -341,14 +549,37 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
         if(loyaltyCost > 0 && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             LoyaltyLevel ll = rep.getLoyalty(captain);
-            String str = ll.getName();
+            String str = (requiresCrew ? ll.getName() : ll.getAiIntegrationStatusName());
 
             text.setFontSmallInsignia();
-            text.addParagraph("The crew of the " + ship.getShipName() + " is now merely " + str + " "
-                            + ll.getPreposition() + " " + captain.getNameString(),
-                    Misc.getNegativeHighlightColor());
+
+            if(requiresCrew) {
+                text.addParagraph("The crew of the " + ship.getShipName() + " is now merely " + str + " "
+                                + ll.getPreposition() + " " + captain.getNameString(),
+                        Misc.getNegativeHighlightColor());
+            } else {
+                text.addParagraph("The AI integration status of the " + ship.getShipName() + " is now merely " + str,
+                        Misc.getNegativeHighlightColor());
+            }
+
             text.highlightInLastPara(Misc.getHighlightColor(), str);
             text.setFontInsignia();
+        }
+
+        if(chronicleMonths > 0) {
+            String aboardOrStudying = Util.isShipCrewed(ship) ? "aboard" : "studying",
+                    timeframe = chronicleMonths + " months",
+                    effectStr = ship.getHullSpec().isCivilianNonCarrier()
+                        ? (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS) + "%"
+                        : (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS) + "%";;
+
+            text.addPara("You agree to allow " + shortChroniclerDesc + " to spend at least %s "
+                    + aboardOrStudying + " the " + ship.getShipName() + ", chronicling various aspects of its travels. " +
+                    "This will increase the rate at which the ship's reputation grows by %s for the duration.",
+                    Misc.getTextColor(), Misc.getHighlightColor(), timeframe, effectStr);
+
+            text.addPara("You excuse yourself while one of your officers describes the various non-disclosure " +
+                    "and network traffic limitations " + shortChroniclerDesc + " will be subjected to.");
         }
     }
     void createSmallDescriptionForIntel(RepSuggestionPopupEvent event, TooltipMakerAPI info, float width, float height) {
@@ -364,20 +595,21 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             info.addImage(getPerson().getPortraitSprite(), width, 128, opad);
         }
 
-        info.addPara(getSidegradeProse(true), opad, new Color[]{ h, g, h, g },
+        info.addPara(getSidegradeProse(true), opad, new Color[]{ h, h },
                 replacementTrait.getLowerCaseName(requiresCrew),
-                replacementTrait.getParentheticalDescription(),
-                trait.getLowerCaseName(requiresCrew),
-                trait.getParentheticalDescription());
+                trait.getLowerCaseName(requiresCrew));
         info.addShipList(1, 1, 64, Color.WHITE, shipList, opad);
-        info.addPara("The " + ship.getShipName() + " is known for these traits:", opad);
-        Util.showTraits(info, rep, captain, requiresCrew,
-                ship.getHullSpec().getHullSize());
+
+        trait.addComparisonParagraphsTo(info, ship, replacementTrait);
 
         if(event.approved) {
             info.addPara("You approved the suggestion, and the " + ship.getShipName() + " is now known for "
                             + pref1 + " %s instead of" + pref2 + " %s.", opad, tc, h,
                     replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
+        } else if(event.isEnding()) {
+            info.addPara("You rejected the suggestion. The " + ship.getShipName() + " will remain known for "
+                            + trait.getDescPrefix(requiresCrew).toLowerCase() + " %s.", opad, tc, h,
+                    trait.getLowerCaseName(requiresCrew));
         }
     }
     boolean prepareForIntel() {
@@ -386,7 +618,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
         if(subEvent == OptionId.INVALID) return false;
 
-        if(captain != null && !captain.isDefault() && !captain.isPlayer()) {
+        if(captain != null && !captain.isDefault() && !captain.isPlayer() && Util.isShipCrewed(ship)) {
             person = captain;
         }
 
@@ -425,6 +657,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             picker.add(OptionId.FLIP_TRAIT, ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE);
             picker.add(OptionId.SIDEGRADE_TRAIT, ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE);
             picker.add(OptionId.REMOVE_DMOD, ModPlugin.REPAIR_DMOD_BAR_EVENT_CHANCE);
+            picker.add(OptionId.CHRONICLE_OFFER, ModPlugin.CHRONICLER_JOINS_BAR_EVENT_CHANCE);
 
             while (!picker.isEmpty()) {
                 OptionId pick = picker.pickAndRemove();
@@ -464,7 +697,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             done = false;
 
             if(subEvent != OptionId.INVALID) {
-                if(captain == null || captain.isDefault() || captain.isPlayer()) {
+                if(captain == null || captain.isDefault() || captain.isPlayer() || !Util.isShipCrewed(ship)) {
                     dialog.getVisualPanel().showFleetMemberInfo(ship);
                 } else {
                     person = captain;
@@ -502,7 +735,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {
-                    int maxCrewCost = (int)Math.max(2, ship.getHullSpec().getMinCrew() * 0.05f);
+                    int maxCrewCost = requiresCrew ? (int)Math.max(2, ship.getHullSpec().getMinCrew() * 0.05f) : 0;
                     Set<String> tags = replacementTrait.getTags();
                     String evenTheCrewMaybe = requiresCrew && !trait.getTags().contains(TraitType.Tags.CREW)
                             ? ", even the crew" : "";
@@ -518,7 +751,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                                 + "that counteracts the effects. It would even heighten the crew's senses. I'm sure many "
                                 + "of the crew won't appreciate the benefits, given that it can cause discomfort. I'm "
                                 + "sure it won't take them too long to acclimate, however. Thoughts?\"";
-                    } else if(trait.getType().getId().equals("recovery_chance")) {
+                    } else if(requiresCrew && trait.getType().getId().equals("recovery_chance")) {
                         str += "It's superstitious nonsense, of course. Unfortunately, the effects are quite real. "
                                 + "The crew is quick to despair and give up during recovery operations due to their "
                                 + "misguided beliefs. I think we can turn that around with a properly executed "
@@ -580,10 +813,17 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                         if(supplyCost < 10) supplyAmountDesc = "paltry";
                         else if(supplyCost >= 30) supplyAmountDesc = "significant";
 
-                        str += ". Replacing the necessary parts would require a " + supplyAmountDesc + " amount of "
-                                + "supplies, but the real catch is that the work involved is so dangerous. The loyalty "
-                                + "of the ship's crew will surely suffer because of it, and we could lose as many as "
-                                + "%s personnel. It's not an easy call, but it's not mine to make. What do you think?\"";
+                        if(requiresCrew) {
+                            str += ". Replacing the necessary parts would require a " + supplyAmountDesc + " amount of "
+                                    + "supplies, but the real catch is that the work involved is so dangerous. The loyalty "
+                                    + "of the ship's crew will surely suffer because of it, and we could lose as many as "
+                                    + "%s personnel. It's not an easy call, but it's not mine to make. What do you think?\"";
+                        } else {
+                            str += ". Replacing the necessary parts would require a " + supplyAmountDesc + " amount of "
+                                    + "supplies, but the real catch is that the work involved is would disrupt the "
+                                    + "integration status of the AI. It's not an easy call, but it's not mine to make. "
+                                    + "What do you think?\"";
+                        }
                     }
 
                     text.addPara(str, Misc.getTextColor(), h, trait.getName(requiresCrew).toLowerCase(), maxCrewCost + "");
@@ -616,7 +856,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
                     text.addPara(personDesc + " mentions a ship mechanic " + getHeOrShe() + " met recently who described "
                             + "a way to fix the " + ship.getShipName() + "'s %s. \"I was skeptical at first, but my"
-                            + (ship.getMinCrew() >= 100 ? "chief" : "") + " engineers assured me it would work. The "
+                            + (ship.getMinCrew() >= 100 ? " chief" : "") + " engineer assured me it would work. The "
                             + "only catch is that " + catchStr + ". I thought it might be worth considering anyway.\"",
                             Misc.getTextColor(), Misc.getHighlightColor(), dmod.getDisplayName().toLowerCase(),
                             maxCrewCost + "");
@@ -635,13 +875,51 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                             replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
 
                     text.setFontSmallInsignia();
-                    text.addPara("%s " + replacementTrait.getDescription(), Misc.getGrayColor(), Misc.getHighlightColor(),
-                            replacementTrait.getName(requiresCrew));
-                    text.addPara("%s " + trait.getDescription(), Misc.getGrayColor(), Misc.getHighlightColor(),
-                            trait.getName(requiresCrew));
+                    trait.addComparisonParagraphsTo(text, ship, replacementTrait);
                     text.setFontInsignia();
 
                     addStandardOptions();
+                    break;
+                }
+                case CHRONICLE_OFFER: {
+                    text.addPara(personDesc + " introduces you to " + chroniclerDesc + " explains that they would " +
+                                    "like to remain with your fleet for about %s. They reassure you that they " +
+                                    "would comply with any information security protocols you require.",
+                            Misc.getTextColor(), h, chronicleMonths + " months");
+
+                    String fameBonus = ship.getHullSpec().isCivilianNonCarrier()
+                            ? (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS) + "%"
+                            : (int)(100 * ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS) + "%";
+                    String message = Util.isShipCrewed(ship)
+                            ? "With this person's connections, their presence aboard one of your " +
+                            alternateShipTypeDesc + "s would increase its reputation growth rate by %s"
+                            : "With this person's connections, any autonomous ship they study would grow in " +
+                            "reputation %s more quickly";
+
+                    text.setFontSmallInsignia();
+                    text.addPara(message, g, h, fameBonus);
+                    text.setFontInsignia();
+
+                    addChroniclerOptions();
+
+                    break;
+                }
+                case PICK_ALTERNATE: {
+                    dialog.showFleetMemberPickerDialog("Select craft to chronicle", "Ok", "Cancel",
+                            3, 7, 58f, true, false, chronicleAlternates,
+                            new FleetMemberPickerListener() {
+                                public void pickedFleetMembers(List<FleetMemberAPI> members) {
+                                    if(!members.isEmpty()) {
+                                        ship = members.get(0);
+                                        chronicleMonths /= 2;
+                                        optionSelected(null, OptionId.ACCEPT);
+                                    }
+                                }
+                                public void cancelledFleetMemberPicking() { }
+                            });
+
+                    addChroniclerOptions();
+
                     break;
                 }
                 case SHOW_SHIP: {

@@ -12,8 +12,6 @@ import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
-import com.fs.starfarer.api.impl.campaign.ids.Factions;
-import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.plugins.LevelupPlugin;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.events.FamousDerelictIntel;
@@ -106,6 +104,8 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
     }
     public static void growRepForPeacefulXp(long xp) {
         for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            if(ship.isMothballed()) continue;
+
             RepChange rc = new RepChange(ship);
             RepRecord rep = RepRecord.getOrCreate(ship);
 
@@ -121,58 +121,6 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
     static void reset() {
         try {
-            boolean forceRecoveryOfFamousShip = false;
-
-            if(context != null && famousRecoverableShip != null && context.didPlayerWinEncounterOutright()) {
-                for(FleetMemberAPI m : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-                    if(m.equals(famousRecoverableShip)) break;
-                }
-
-                forceRecoveryOfFamousShip = true;
-            }
-
-            if(forceRecoveryOfFamousShip) {
-                // Then no recovery option will be displayed at all...
-
-                CampaignFleetAPI playerFleet = Global.getSector().getPlayerFleet();
-
-                famousRecoverableShip.getRepairTracker().setMothballed(true);
-                Global.getSector().getCampaignUI().addMessage("The " + famousRecoverableShip.getShipName()
-                        + " has been recovered and added to your fleet.");
-
-                // Below ripped from FleetInteractionDialogPluginImpl RECOVERY_SELECT
-                if (famousRecoverableShip.getStatus().getNumStatuses() <= 1) {
-                    famousRecoverableShip.getStatus().repairDisabledABit();
-                }
-
-                float minHull = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_HULL_MIN, 0f);
-                float maxHull = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_HULL_MAX, 0f);
-                float minCR = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_CR_MIN, 0f);
-                float maxCR = playerFleet.getStats().getDynamic().getValue(Stats.RECOVERED_CR_MAX, 0f);
-
-                float hull = (float) Math.random() * (maxHull - minHull) + minHull;
-                if (hull < 0.01f) hull = 0.01f;
-                famousRecoverableShip.getStatus().setHullFraction(hull);
-
-                float cr = (float) Math.random() * (maxCR - minCR) + minCR;
-                famousRecoverableShip.getRepairTracker().setCR(cr);
-
-                playerFleet.getFleetData().addFleetMember(famousRecoverableShip);
-                if (context != null) {
-                    context.getBattle().getCombinedFor(playerFleet).getFleetData().addFleetMember(famousRecoverableShip);
-                    context.getBattle().getMemberSourceMap().put(famousRecoverableShip, playerFleet);
-                }
-
-                famousRecoverableShip.setFleetCommanderForStats(null, null);
-                famousRecoverableShip.setOwner(0);
-
-                if (!Misc.isUnremovable(famousRecoverableShip.getCaptain())) {
-                    famousRecoverableShip.setCaptain(Global.getFactory().createPerson());
-                    famousRecoverableShip.getCaptain().setFaction(Factions.PLAYER);
-                }
-                Global.getLogger(CampaignScript.class).info("Famous ship force recovered");
-            }
-
             strengthOfStrongestEnemyShip = 0;
             textPanel = null;
             context = null;
@@ -242,9 +190,9 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
                 if(shipWasLost) {
                     rc.damageTakenFraction = Float.MAX_VALUE; // This lets the battle report know the ship was lost
-                    xpEarned = 0;
+                    xpForShip = 0;
                 } else if(rc.foughtInBattle) {
-                    float xpMultForCaptainLevel = 1;
+                    float xpMultForCaptainLevel = 0;
 
                     if(br.originalCaptain != null && !br.originalCaptain.isDefault()) {
                         float xpMultPerCaptainLevel = br.originalCaptain.isPlayer()
@@ -450,7 +398,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 Set<FleetMemberAPI> recoverable = new HashSet<>();
                 // Below seems to give unreliable results, changing the outcome of previous decisions, resulting in jank
                 BattleAPI b = context.getBattle();
-                recoverable.addAll(context.getRecoverableShips(b, b.getPlayerCombined(), b.getNonPlayerCombined()));
+
+                if(b != null && b.getPlayerCombined() != null && b.getNonPlayerCombined() != null) {
+                    recoverable.addAll(context.getRecoverableShips(b, b.getPlayerCombined(), b.getNonPlayerCombined()));
+                }
+
                 recoverable.addAll(context.getStoryRecoverableShips());
 
                 if(!recoverable.contains(famousRecoverableShip)) {

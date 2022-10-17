@@ -200,6 +200,8 @@ public class FamousDerelictIntel extends FleetLogIntel {
 				Misc.makeLowRepImpact(fleet, "scav");
 				fleet.setFaction(Factions.PIRATES);
 				fleet.clearAssignments();
+				fleet.getMemoryWithoutUpdate().set(MemFlags.MEMORY_KEY_PURSUE_PLAYER, true);
+				fleet.getMemoryWithoutUpdate().set(MemFlags.MEMORY_KEY_MAKE_HOSTILE, true);
 				fleet.addAssignment(FleetAssignment.ORBIT_AGGRESSIVE, derelict,
 						MAX_DURATION - Global.getSector().getClock().getElapsedDaysSince(timestamp),
 						"preparing to recover the " + ship.getShipName());

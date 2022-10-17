@@ -30,7 +30,7 @@ public class RepChange {
         @Override
 
         public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
-            boolean requiresCrew = ship.getMinCrew() > 0;
+            boolean requiresCrew = Util.isShipCrewed(ship);
             ShipHullSpecAPI hull = rc.ship.getHullSpec().getBaseHull() == null
                     ? rc.ship.getHullSpec()
                     : rc.ship.getHullSpec().getBaseHull();
@@ -77,6 +77,7 @@ public class RepChange {
 
         if(RepRecord.isShipNotable(ship) && captain != null && !captain.isDefault()) {
             loyaltyLevel = RepRecord.get(ship).getLoyalty(captain).ordinal() + loyaltyChange;
+            loyaltyLevel = Math.max(Math.min(loyaltyLevel, LoyaltyLevel.INSPIRED.ordinal()), 0);
         }
     }
 
@@ -159,6 +160,7 @@ public class RepChange {
 
         int lines = 1;
         int PAD = 0;
+        boolean requiresCrew = Util.isShipCrewed(ship);
 
         tooltip.addPara(" " + ship.getShipName() + ":", PAD);
 //        RepRecord rep = RepRecord.getOrCreate(ship);
@@ -167,7 +169,6 @@ public class RepChange {
 //        tooltip.addImageWithText(0);
 
         if(hasNewTraitPair()) {
-            boolean requiresCrew = ship.getMinCrew() > 0;
             String
                     pref1 = trait1.getDescPrefix(requiresCrew).toLowerCase(),
                     pref2 = trait2.getDescPrefix(requiresCrew, pref1).toLowerCase();
@@ -196,9 +197,8 @@ public class RepChange {
         if(captainOpinionChange != 0 && captain != null && !captain.isDefault() && ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
             LoyaltyLevel ll = getLoyaltyLevel();
             int llSign = (int)Math.signum(ll.getIndex());
-            boolean requiresCrew = ship.getMinCrew() > 0;
             String highlight1 = requiresCrew
-                    ? captainOpinionChange < 0 ? "lost faith in" : "grown to trust"
+                    ? captainOpinionChange < 0 ? "lost faith in" : "gained trust in"
                     : captainOpinionChange < 0 ? "degraded" : "improved";
             String highlight2 = requiresCrew ? ll.getName().toLowerCase() : ll.getAiIntegrationStatusName().toLowerCase();
             String crewOrAI = requiresCrew ? "crew" : "ship's integration status";

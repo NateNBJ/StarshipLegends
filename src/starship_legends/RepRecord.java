@@ -10,6 +10,7 @@ import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
+import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import com.thoughtworks.xstream.XStream;
 import org.lazywizard.console.Console;
@@ -132,7 +133,7 @@ public class RepRecord {
                     lastNotableEvents = "",
                     loyaltyStatement = "",
                     closingStatement = "",
-                    crewOrAI = ship.getMinCrew() >= 0 ? "crew" : "AI persona";
+                    crewOrAI = Util.isShipCrewed(ship) ? "crew" : "AI persona";
 
             if(rel.isAtWorst(RepLevel.WELCOMING)) {
                 storyType = "an idealistic allegory";
@@ -158,7 +159,7 @@ public class RepRecord {
                                 + foughtAgainst.getDisplayNameWithArticle() + ", in which it "
                                 + getContributionToMostSignificantBattle();
                     } else {
-                        lastNotableEvents += "being disabled during hard-fought battle against "
+                        lastNotableEvents += "being disabled during a hard-fought battle against "
                                 + disabledAgainst.getDisplayNameWithArticle()
                                 + ". Much of the story involves a different battle, in which the " + ship.getShipName()
                                 + " " + getContributionToMostSignificantBattle() + " while facing off against "
@@ -185,7 +186,10 @@ public class RepRecord {
                 closingStatement = "ends with adulation for the value of persistence";
             }
 
-            if(mostHatedCaptain != null || favoriteCaptain != null) {
+            if(!Util.isShipCrewed(ship)) {
+                loyaltyStatement += "The fact that the ship is entirely autonomous is brought up frequently, which " +
+                        "seems to make many of the listeners rather uneasy. ";
+            } else if(mostHatedCaptain != null || favoriteCaptain != null) {
                 PersonAPI favCap = null, hatedCap = null;
 
                 for(OfficerDataAPI data : Global.getSector().getPlayerFleet().getFleetData().getOfficersCopy()) {
@@ -233,6 +237,8 @@ public class RepRecord {
             = new Saved<Map<String, RepRecord>>("reputationRecords", new HashMap<String, RepRecord>());
     static final Saved<Map<String, Map<String, Long>>> PENDING_INSPIRATION_EXPIRATIONS
             = new Saved<Map<String, Map<String, Long>>>("pendingInspirationExpirations", new HashMap<String, Map<String, Long>>());
+    static final Saved<Map<String, Long>> PENDING_CHRONICLER_EXPIRATIONS
+            = new Saved<Map<String, Long>>("pendingChroniclerExpirations", new HashMap<String, Long>());
     static final Saved<Map<String, Origin>> SHIP_ORIGINS = new Saved<Map<String, Origin>>("shipOrigins", new HashMap<String, Origin>());
     static final Saved<List<String>> QUEUED_STORIES = new Saved<List<String>>("queuedStories", new LinkedList<String>());
 
@@ -350,11 +356,12 @@ public class RepRecord {
     public static List<Trait> getDestinedTraitsForShip(FleetMemberAPI ship, boolean allowCrewTraits) {
         List<Trait> retVal = new ArrayList<>();
         ShipHullSpecAPI hull = ship.getHullSpec();
-        Random rand = new Random(ship.getId().hashCode());
+        Random rand = Util.getUniqueShipRng(ship);
         String themeKey = null;
         RepRecord rep = RepRecord.existsFor(ship) ? RepRecord.get(ship) : null;
         WeightedRandomPicker<TraitType> goodTraits = null;
         WeightedRandomPicker<TraitType> badTraits = null;
+        WeightedRandomPicker<TraitType> discardedTraits = new WeightedRandomPicker<>(rand);
         int negTraitRange = ModPlugin.MAX_INITIAL_NEGATIVE_TRAITS - ModPlugin.MIN_INITIAL_NEGATIVE_TRAITS;
         int negTraitsRemaining = ModPlugin.MIN_INITIAL_NEGATIVE_TRAITS
                 + (negTraitRange <= 0 ? 0 : rand.nextInt(negTraitRange));
@@ -377,7 +384,7 @@ public class RepRecord {
 
         if(rep != null) {
             if(rep.themeKey == null) {
-                Random rand2 = new Random(ship.getId().hashCode());
+                Random rand2 = Util.getUniqueShipRng(ship);
                 rep.themeKey = RepTheme.pickRandomTheme(rand2).getKey();
             }
 
@@ -392,7 +399,8 @@ public class RepRecord {
         }
 
         if(goodTraits == null || badTraits == null) {
-            RepTheme theme = themeKey == null ? RepTheme.pickRandomTheme(rand) : RepTheme.get(themeKey);
+            Random rand2 = Util.getUniqueShipRng(ship);
+            RepTheme theme = themeKey == null ? RepTheme.pickRandomTheme(rand2) : RepTheme.get(themeKey);
             goodTraits = theme.createGoodTraitPicker(rand);
             badTraits = theme.createBadTraitPicker(rand);
         }
@@ -414,9 +422,19 @@ public class RepRecord {
 
             opposite.remove(type);
 
-            if(traitIsRelevant && !skipMismatch && !shipAlreadyHasTraitOfType) {
-                retVal.add(trait);
+
+            if(traitIsRelevant && !shipAlreadyHasTraitOfType) {
+                if(skipMismatch) discardedTraits.add(type);
+                else  retVal.add(trait);
             }
+        }
+
+        // In cases where traitPairsPerTier is increased, it is possible to run out of traits due to
+        // combatLogisticsMismatch, so the loop below is necessary to re-add the discarded traits in such cases
+        while(retVal.size() < Trait.getTraitLimit() && !discardedTraits.isEmpty()) {
+            TraitType type = discardedTraits.pickAndRemove();
+            Trait trait = type.getTrait(traitIsBad[retVal.size()]);
+            retVal.add(trait);
         }
 
         return retVal;
@@ -488,6 +506,33 @@ public class RepRecord {
             if(inspirations.isEmpty()) PENDING_INSPIRATION_EXPIRATIONS.val.remove(ship.getId());
         }
     }
+    public static boolean shipHasChronicler(FleetMemberAPI ship) {
+        return PENDING_CHRONICLER_EXPIRATIONS.val.containsKey(ship.getId());
+    }
+    public static void addChroniclerDays(FleetMemberAPI ship, int days) {
+        long now = Global.getSector().getClock().getTimestamp();
+
+        if(shipHasChronicler(ship)) days += Math.max(0, getDaysOfChroniclerRemaining(ship));
+
+        PENDING_CHRONICLER_EXPIRATIONS.val.put(ship.getId(), (long)(now + days * ModPlugin.TIMESTAMP_TICKS_PER_DAY));
+    }
+    public static int getDaysOfChroniclerRemaining(FleetMemberAPI ship) {
+        int retVal = Integer.MIN_VALUE;
+
+        if(PENDING_CHRONICLER_EXPIRATIONS.val.containsKey(ship.getId())) {
+            long now = Global.getSector().getClock().getTimestamp();
+            long expiration = PENDING_CHRONICLER_EXPIRATIONS.val.get(ship.getId());
+            retVal = (int)((expiration - now) / ModPlugin.TIMESTAMP_TICKS_PER_DAY);
+
+        }
+
+        return retVal;
+    }
+    public static void clearChroniclerExpiration(FleetMemberAPI ship) {
+        if(PENDING_CHRONICLER_EXPIRATIONS.val.containsKey(ship.getId())) {
+            PENDING_CHRONICLER_EXPIRATIONS.val.remove(ship.getId());
+        }
+    }
     public static void setShipOrigin(FleetMemberAPI ship, Origin.Type type) {
         setShipOrigin(ship, type, null);
     }
@@ -505,7 +550,6 @@ public class RepRecord {
         return RepRecord.existsFor(ship) && RepRecord.get(ship).getTier().ordinal() >= minTier.ordinal();
     }
     public static List<String> getQueuedStories() { return QUEUED_STORIES.val; }
-
     public static void configureXStream(XStream x) {
         x.alias("sun_sl_rr", RepRecord.class);
         x.aliasAttribute(RepRecord.class, "story", "s");
@@ -516,6 +560,7 @@ public class RepRecord {
         x.aliasAttribute(RepRecord.class, "captainLoyaltyXp", "clxp");
         x.aliasAttribute(RepRecord.class, "xp", "xp");
     }
+
     private Story story = new Story();
     private boolean themeKeyIsFactionId = false;
     private String themeKey = null;
@@ -530,7 +575,7 @@ public class RepRecord {
         if(ship != null) INSTANCE_REGISTRY.val.put(ship.getId(), this);
 
         if(themeKey == null) {
-            Random rand = new Random(ship.getId().hashCode());
+            Random rand = Util.getUniqueShipRng(ship);
             this.themeKey = RepTheme.pickRandomTheme(rand).getKey();
         } else {
             this.themeKey = themeKey;
@@ -542,6 +587,18 @@ public class RepRecord {
     public void progress(float xpEarned, RepChange rc, CampaignScript.BattleRecord br) {
         int xpRequiredToLevelUp = RepRecord.getXpRequiredToLevelUp(rc.ship);
         float fameXpEarned = xpEarned * (1 + ModPlugin.FAME_BONUS_PER_PLAYER_LEVEL * Global.getSector().getPlayerStats().getLevel());
+        boolean officerIsApplicable = ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.captain != null
+                && !rc.captain.isDefault() && !getTraits().isEmpty() && (!rc.captain.isAICore() || Misc.isUnremovable(rc.captain));
+
+        if(officerIsApplicable) fameXpEarned *= 1 + getLoyalty(rc.captain).getFameGainBonus() / 100f;
+
+        if(PENDING_CHRONICLER_EXPIRATIONS.val.containsKey(rc.ship.getId())) {
+            fameXpEarned *= 1 + (rc.ship.getHullSpec().isCivilianNonCarrier()
+                    ? ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS
+                    : ModPlugin.FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS);
+
+            if(getDaysOfChroniclerRemaining(rc.ship) < 0) clearChroniclerExpiration(rc.ship);
+        }
 
         if(xp < 0) xp = 0;
 
@@ -559,9 +616,7 @@ public class RepRecord {
             }
         }
 
-        if (ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.deployed && rc.captain != null
-                && !rc.captain.isDefault() && !getTraits().isEmpty()) {
-
+        if (officerIsApplicable && rc.deployed) {
             LoyaltyLevel ll = getLoyalty(rc.captain);
             float loyaltyXpEarned = xpEarned * getLoyaltyRateMult(rc.captain);
             int loyaltyXp = 0;
@@ -768,8 +823,9 @@ public class RepRecord {
         return total <= 0 ? 0 : goodness / total;
     }
     public float getLoyaltyRateMult(PersonAPI captain) {
+        boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
-        int loyaltyEffectAdjustment = getLoyalty(captain).getTraitAdjustment();
+        int loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : getLoyalty(captain).getTraitAdjustment();
 
         for(Trait trait : getTraits()) {
             if (traitsLeft <= 0) break;

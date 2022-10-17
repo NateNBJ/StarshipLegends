@@ -128,7 +128,8 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
             ui.recreateIntelUI();
         } else if (buttonId == BUTTON_DISMISS) {
             setImportant(false);
-			endImmediately();
+			//endImmediately();
+            endAfterDelay();
 			ui.recreateIntelUI();
 		}
 	}

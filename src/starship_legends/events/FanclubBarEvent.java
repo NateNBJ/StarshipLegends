@@ -5,6 +5,7 @@ import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
+import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.DModManager;
@@ -84,11 +85,14 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 break;
             }
             case SHIP_JOIN_OFFER: {
-                String variantID = FamousShipBarEvent.chooseDerelictVariant(market, random);
+                do {
+                    String variantID = FamousShipBarEvent.chooseDerelictVariant(market, random);
 
-                if (variantID == null) return false;
+                    if (variantID == null) return false;
 
-                ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
+                    ship = Global.getFactory().createFleetMember(FleetMemberType.SHIP, variantID);
+                } while (ship.getHullSpec().isCivilianNonCarrier());
+
                 FamousShipBarEvent.pickShipName(ship, random);
 
                 FactionAPI faction = random.nextBoolean()
@@ -108,7 +112,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                 CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.INDEPENDENT, FleetTypes.PATROL_SMALL, true);
                 temp.getFleetData().addFleetMember(ship);
                 DefaultFleetInflaterParams params = new DefaultFleetInflaterParams();
-                params.allWeapons = true; // TODO - test behavior of false
+                params.allWeapons = random.nextBoolean();
                 params.factionId = faction.getId();
                 params.quality = 1;
                 DefaultFleetInflater inflater = new DefaultFleetInflater(params);
@@ -157,7 +161,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             case CREW_JOIN_OFFER: {
                 for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
                     if(ship != null
-                            && ship.getMinCrew() > 0
+                            && Util.isShipCrewed(ship)
                             && RepRecord.isShipNotable(ship)
                             && ship.getCaptain() != null
                             && !ship.getCaptain().isDefault()) {
@@ -318,6 +322,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         try {
             if (!(optionData instanceof FanclubBarEvent.OptionId)) return;
 
+            ShipHullSpecAPI hull = ship.getHullSpec();
             OptionPanelAPI options = dialog.getOptionPanel();
             TextPanelAPI text = dialog.getTextPanel();
             options.clearOptions();
@@ -349,8 +354,9 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             + shipNotInFleetMaybe
                             + "After a short bout of haggling, it becomes clear that " + getHeOrShe() + " would be "
                             + "willing to purchase the " + ship.getShipName()
-                            + (crewChange < 0 ? ", along with a skeleton crew of %s," : "") + " for %s. You think "
-                            + getHeOrShe() + " might be a little optimistic about what the ship is capable of.";
+                            + (crewChange < 0 ? ", along with the contracts for a skeleton crew of %s," : "")
+                            + " for %s. You think " + getHeOrShe() + " might be a little optimistic about what the "
+                            + "ship is capable of.";
                     String credits = Misc.getDGSCredits(creditChange);
 
                     text.addPara(str, Misc.getTextColor(), Misc.getHighlightColor(),
@@ -364,8 +370,9 @@ public class FanclubBarEvent extends BaseShipBarEvent {
 
                     String str = "A " + getManOrWoman() + " with a dignified bearing stands to greet you as you approach. \""
                             + Global.getSector().getPlayerPerson().getNameString() + "? Thought so. I've heard you're "
-                            + "not a bad person to work for. I command a " + ship.getHullSpec().getHullName()
-                            + " class " + ship.getHullSpec().getDesignation() + ". It's a fine ship, I'm a capable "
+                            + "not a bad person to work for. I command " + Misc.getAOrAnFor(hull.getHullName()) + " "
+                            + hull.getHullName()
+                            + " class " + hull.getDesignation() + ". It's a fine ship, I'm a capable "
                             + "captain, and my crew is loyal. We've been looking for work ever since our old fleet "
                             + "disbanded. We're asking %s. I'll send the details if you're interested.";
 
@@ -417,6 +424,52 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                     break;
                 }
                 case ACCEPT: {
+                    if(subEvent == OptionId.CREW_JOIN_OFFER && ship != null) {
+                        rep.adjustLoyaltyXp(100000, captain);
+                        text.addPara("The spacers celebrate with a bawdy clash of toasts and shouts when you tell "
+                                        + "them you could use a few more deckhands, and their spokesperson reassures "
+                                        + "you that you won't regret hiring them. When it becomes clear that they plan "
+                                        + "to celebrate for several more hours, you excuse yourself, explaining that "
+                                        + "you need to make arrangements for their onboarding with your quartermaster",
+                                Misc.getTextColor());
+                        text.addPara("The spacers have been assigned to the " + ship.getShipName()
+                                        + ", bringing the crew closer to becoming "
+                                        + rep.getLoyalty(captain).getOneBetter().getName().toLowerCase() + ".",
+                                Misc.getGrayColor());
+                    } else if(subEvent == OptionId.BUY_SHIP_OFFER) {
+                        text.addPara("The overdressed fleet commander smiles and raises " + getHisOrHer()
+                                        + " glass with a flourish. \"To our shared prosperity!\" " + getHeOrShe()
+                                        + " exclaims. " + Misc.ucFirst(getHeOrShe()) + " eagerly relates a story "
+                                        + getHeOrShe() + " heard about the " + ship.getShipName() + ", seeming to want "
+                                        + "to hear your version of events, but you call over your second in command to "
+                                        + "iron out the details of the transfer and explain that you are, "
+                                        + "unfortunately, quite busy.",
+                                Misc.getTextColor());
+                        
+                        if(marketWhereShipIsStored == null) {
+                            playerFleet.getFleetData().removeFleetMember(ship);
+                            text.addPara("The " + ship.getShipName() + " is no longer part of your fleet.",
+                                    Misc.getGrayColor());
+                        } else {
+                            marketWhereShipIsStored.getSubmarket("storage").getCargo().getMothballedShips().removeFleetMember(ship);
+                            text.addPara("The " + ship.getShipName() + " has been removed from your storage at "
+                                    + marketWhereShipIsStored.getName(), Misc.getGrayColor());
+                        }
+                    } else if(subEvent == OptionId.SHIP_JOIN_OFFER) {
+                        playerFleet.getFleetData().addFleetMember(ship);
+                        playerFleet.getFleetData().addOfficer(captain);
+                        text.addPara("After the initial arrangements have been made, your new captain nods sharply and"
+                                        + " shakes your hand. \"I'm confident that the " + ship.getShipName()
+                                        + " will be an asset to your fleet. Now, if you'll excuse me, I have much"
+                                        + " preparation to do.\"",
+                                Misc.getTextColor());
+                        text.addPara(captain.getNameString() + " and " + getHisOrHer()
+                                + " ship have joined your fleet.", Misc.getGrayColor());
+                        ship.getRepairTracker().setCR(0.7f);
+                        RepRecord.updateRepHullMod(ship);
+                        RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.Recruitment, market.getName());
+                    }
+
                     if (creditChange != 0) {
                         MutableValue purse = Global.getSector().getPlayerFleet().getCargo().getCredits();
 
@@ -439,31 +492,6 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             cargo.removeCrew(-crewChange);
                             AddRemoveCommodity.addCommodityLossText(Commodities.CREW, -crewChange, text);
                         }
-                    }
-
-                    if(subEvent == OptionId.CREW_JOIN_OFFER && ship != null) {
-                        rep.adjustLoyaltyXp(crewChange * 10000, captain);
-                        text.addPara("The spacers joined the " + ship.getShipName() + ", bringing the crew closer to "
-                                + " becoming " + rep.getLoyalty(captain).getOneBetter().getName().toLowerCase() + ".",
-                                Misc.getTextColor());
-                    } else if(subEvent == OptionId.BUY_SHIP_OFFER) {
-                        if(marketWhereShipIsStored == null) {
-                            playerFleet.getFleetData().removeFleetMember(ship);
-                            text.addPara("The " + ship.getShipName() + " is no longer part of your fleet.",
-                                    Misc.getTextColor());
-                        } else {
-                            marketWhereShipIsStored.getSubmarket("storage").getCargo().getMothballedShips().removeFleetMember(ship);
-                            text.addPara("The " + ship.getShipName() + " has been removed from your storage at "
-                                    + marketWhereShipIsStored.getName(), Misc.getTextColor());
-                        }
-                    } else if(subEvent == OptionId.SHIP_JOIN_OFFER) {
-                        playerFleet.getFleetData().addFleetMember(ship);
-                        playerFleet.getFleetData().addOfficer(captain);
-                        text.addPara(captain.getNameString() + " and " + getHisOrHer()
-                                + " ship are now part of your fleet.", Misc.getTextColor());
-                        ship.getRepairTracker().setCR(0.7f);
-                        RepRecord.updateRepHullMod(ship);
-                        RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.Recruitment, market.getName());
                     }
 
                     BarEventManager.getInstance().notifyWasInteractedWith(this);
