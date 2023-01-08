@@ -71,9 +71,7 @@ public class Integration {
     public static void registerTraitEffects(Map<String, TraitType.Effect> traitEffects) {
         if(traitEffects != null) {
             for (Map.Entry<String, TraitType.Effect> pair : traitEffects.entrySet()) {
-                if(pair.getKey() != null && pair.getValue() != null) {
-                    TraitType.EFFECT_REGISTRY.put(pair.getKey(), pair.getValue());
-                }
+                registerTraitEffect(pair.getKey(), pair.getValue());
             }
         }
     }
