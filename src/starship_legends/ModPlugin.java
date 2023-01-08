@@ -3,11 +3,15 @@ package starship_legends;
 import com.fs.starfarer.api.*;
 import com.fs.starfarer.api.campaign.*;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
+import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.fleets.FleetFactoryV3;
 import com.fs.starfarer.api.impl.campaign.fleets.FleetParamsV3;
+import com.fs.starfarer.api.impl.campaign.ids.Commodities;
+import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.impl.campaign.intel.bar.events.BarEventManager;
 import com.thoughtworks.xstream.XStream;
+import lunalib.lunaSettings.LunaSettings;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import starship_legends.events.FamousDerelictIntel;
@@ -23,21 +27,139 @@ import java.util.*;
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
     public static final String
-            TRAIT_LIST_PATH = "sun_sl/data/traits.csv",
+            TRAIT_LIST_PATH = "data/config/starship_legends/traits.csv",
             LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv",
-            REP_THEMES_PATH = "sun_sl/data/rep_themes/",
+            REP_TIER_LIST_PATH = "sun_sl/data/rep_tiers.csv",
+            REP_THEMES_PATH = "data/config/starship_legends/rep_themes/",
             REP_THEME_LIST_PATH = REP_THEMES_PATH + "rep_themes.csv",
             HULL_REGEN_SHIPS_PATH = "data/config/starship_legends/hull_regen_ships.csv",
             SETTINGS_PATH = "STARSHIP_LEGENDS_OPTIONS.ini";
     public static final int TIER_COUNT = 4;
     public static final int LOYALTY_LIMIT = 4;
     public static final double TIMESTAMP_TICKS_PER_DAY = 8.64E7D;
+    public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
 
     static Saved<String> version = new Saved<>("version", "");
-
     static boolean settingsAreRead = false, isNewGame = false;
 
-    public static final Map<String, Float> HULL_REGEN_SHIPS = new HashMap<>();
+    static final String LUNALIB_ID = "lunalib";
+    static JSONObject settingsCfg = null;
+    static <T> T get(String id, Class<T> type) throws Exception {
+        if(Global.getSettings().getModManager().isModEnabled(LUNALIB_ID)) {
+            if(type == Integer.class) return type.cast(LunaSettings.getInt(ModPlugin.ID, id));
+            if(type == Float.class) return type.cast(LunaSettings.getFloat(ModPlugin.ID, id));
+            if(type == Boolean.class) return type.cast(LunaSettings.getBoolean(ModPlugin.ID, id));
+            if(type == Double.class) return type.cast(LunaSettings.getDouble(ModPlugin.ID, id));
+            if(type == String.class) return type.cast(LunaSettings.getString(ModPlugin.ID, id));
+        } else {
+            if(settingsCfg == null) settingsCfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
+
+            if(type == Integer.class) return type.cast(settingsCfg.getInt(id));
+            if(type == Float.class) return type.cast((float) settingsCfg.getDouble(id));
+            if(type == Boolean.class) return type.cast(settingsCfg.getBoolean(id));
+            if(type == Double.class) return type.cast(settingsCfg.getDouble(id));
+            if(type == String.class) return type.cast(settingsCfg.getString(id));
+        }
+
+        throw new MissingResourceException("No setting found with id: " + id, type.getName(), id);
+    }
+    static int getInt(String id) throws Exception { return get(id, Integer.class); }
+    static double getDouble(String id) throws Exception { return get(id, Double.class); }
+    static float getFloat(String id) throws Exception { return get(id, Float.class); }
+    static boolean getBoolean(String id) throws Exception { return get(id, Boolean.class); }
+    static String getString(String id) throws Exception { return get(id, String.class); }
+    static boolean readSettings() {
+        try {
+            REMOVE_ALL_DATA_AND_FEATURES = getBoolean("removeAllDataAndFeatures");
+
+            ENABLE_OFFICER_LOYALTY_SYSTEM = getBoolean("enableOfficerLoyaltySystem");
+            COMPENSATE_FOR_EXPERIENCE_MULT = getBoolean("compensateForExperienceMult");
+            SHOW_NEW_TRAIT_NOTIFICATIONS = getBoolean("showNewTraitNotifications");
+            SHOW_SHIP_XP = getBoolean("showShipXp");
+            SHOW_SHIP_XP_IN_DEV_MODE = getBoolean("showShipXpInDevMode");
+            RUMORED_TRAITS_SHOWN = getInt("rumoredTraitsShown");
+            RUMORED_TRAITS_SHOWN_IN_DEV_MODE = getInt("rumoredTraitsShownInDevMode");
+
+            GLOBAL_EFFECT_MULT = getFloat("globalEffectMult");
+            FLEET_TRAIT_EFFECT_MULT = getFloat("fleetTraitEffectMult");
+
+            MAX_INITIAL_NEGATIVE_TRAITS = getInt("maxInitialNegativeTraits");
+            MIN_INITIAL_NEGATIVE_TRAITS = getInt("minInitialNegativeTraits");
+            MIN_NEGATIVE_TRAITS = getFloat("minNegativeTraits");
+            LOYALTY_IMPROVEMENT_RATE_MULT = getFloat("loyaltyImprovementRateMult");
+            BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("baseLoyaltyLevelsLostWhenDisabled");
+            MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("maxLoyaltyLevelsLostWhenDisabled");
+            MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("minLoyaltyLevelsLostWhenDisabled");
+
+            LOYALTY_LOSS_MULT_FROM_CREW_SAFETY = getFloat("loyaltyLossMultFromCrewSafety");
+            LOYALTY_LOSS_MULT_FROM_RELATIVE_STRENGTH = getFloat("loyaltyLossMultFromRelativeStrength");
+
+            XP_MULT_FLAT = getFloat("xpMultFlat");
+            XP_MULT_PER_PLAYER_CAPTAIN_LEVEL = getFloat("xpMultPerPlayerCaptainLevel");
+            XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = getFloat("xpMultPerNonPlayerCaptainLevel");
+            XP_MULT_PER_FLEET_POINT = getFloat("xpMultPerFleetPoint");
+            XP_MULT_PER_DAMAGE_DEALT_PERCENT = getFloat("xpMultPerDamageDealtPercent");
+
+            XP_MULT_FOR_RESERVED_COMBAT_SHIPS = getFloat("xpMultForReservedCombatShips");
+            XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS = getFloat("xpMultForReservedCivilianShips");
+            FAME_BONUS_PER_PLAYER_LEVEL = getFloat("fameBonusPerPlayerLevel");
+
+            CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS  = getFloat("chanceToIgnoreLogisticsTraitsOnCombatShips");
+            CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = getFloat("chanceToIgnoreCombatTraitsOnCivilianShips");
+
+            AVERAGE_FRACTION_OF_GOOD_TRAITS = getFloat("averageFractionOfGoodTraits");
+            TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = getInt("traitsForFleetsWithNoCommander");
+            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = getInt("traitsForFleetsWithMinLevelCommander");
+            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = getInt("traitsForFleetsWithMaxLevelCommander");
+            ALLOW_CUSTOM_COMMANDER_PRESETS = getBoolean("allowCustomCommanderPresets");
+
+            PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = getFloat("peacefulXpMultForCombatShips");
+            PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = getFloat("peacefulXpMultForCivilianShips");
+
+            AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS = getFloat("averageDaysBetweenTraitSidegradeSuggestions");
+            ONLY_SUGGEST_SIDEGRADES_FOR_SHIPS_WITH_OFFICER = getBoolean("onlySuggestSidegradesForShipsWithOfficer");
+            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
+            AVERAGE_ADDITIONAL_BAR_EVENTS = getFloat("averageAdditionalBarEvents");
+
+            FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS = getFloat("fameBonusFromChroniclersForCombatShips");
+            FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS = getFloat("fameBonusFromChroniclersForCivilianShips");
+
+            settingsCfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
+            settingsCfg = settingsCfg.getJSONObject("barEventChanceMultipliers");
+
+            TRAIT_UPGRADE_BAR_EVENT_CHANCE = getFloat("traitUpgrade");
+            TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = getFloat("traitSidegrade");
+            REPAIR_DMOD_BAR_EVENT_CHANCE = getFloat("repairDmod");
+            CHRONICLER_JOINS_BAR_EVENT_CHANCE = getFloat("chroniclerJoins");
+            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = getFloat("loyalCrewJoins");
+            BUY_SHIP_OFFER_BAR_EVENT_CHANCE = getFloat("captainOffersToBuyFamousShip");
+            JOIN_WITH_SHIP_BAR_EVENT_CHANCE = getFloat("captainOffersToJoinWithShip");
+            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = getFloat("famousFlagshipIntel");
+            FAMOUS_DERELICT_BAR_EVENT_CHANCE = getFloat("famousDerelictIntel");
+            HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = getFloat("hearLegendOfOwnShip");
+
+            if(AVERAGE_ADDITIONAL_BAR_EVENTS > 0 && !REMOVE_ALL_DATA_AND_FEATURES) {
+                SettingsAPI settings = Global.getSettings();
+                settings.setFloat("maxBarEvents", (float) (ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
+
+                if (ORIGINAL_BAR_EVENT_PROB_ONE_MORE > 0 && ORIGINAL_BAR_EVENT_PROB_ONE_MORE < 1) {
+                    float newProb = ORIGINAL_BAR_EVENT_PROB_ONE_MORE + (1 - ORIGINAL_BAR_EVENT_PROB_ONE_MORE)
+                            * (AVERAGE_ADDITIONAL_BAR_EVENTS / (AVERAGE_ADDITIONAL_BAR_EVENTS + 1));
+
+                    settings.setFloat("barEventProbOneMore", newProb);
+                }
+            }
+
+        } catch (Exception e) {
+            settingsCfg = null;
+
+            return reportCrash(e);
+        }
+
+        settingsCfg = null;
+
+        return true;
+    }
 
     public static boolean
             ENABLE_OFFICER_LOYALTY_SYSTEM = true,
@@ -47,6 +169,7 @@ public class ModPlugin extends BaseModPlugin {
             ALLOW_CUSTOM_COMMANDER_PRESETS = true,
             SHOW_SHIP_XP = false,
             SHOW_SHIP_XP_IN_DEV_MODE = true,
+            ONLY_SUGGEST_SIDEGRADES_FOR_SHIPS_WITH_OFFICER = false,
             FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = false;
 
     public static int
@@ -148,6 +271,12 @@ public class ModPlugin extends BaseModPlugin {
         }
     }
 
+    void removeScripts() {
+        Global.getSector().removeTransientScript(script);
+        Global.getSector().removeListener(script);
+        Util.removeRepHullmodFromAutoFitGoalVariants();
+    }
+
     @Override
     public void onApplicationLoad() throws Exception {
         String message = "";
@@ -174,14 +303,14 @@ public class ModPlugin extends BaseModPlugin {
         }
 
         if(!message.isEmpty()) throw new Exception(message);
+
+        createTraitEffects();
     }
 
     @Override
     public void beforeGameSave() {
         Saved.updatePersistentData();
-        Global.getSector().removeTransientScript(script);
-        Global.getSector().removeListener(script);
-        Util.removeRepHullmodFromAutoFitGoalVariants();
+        removeScripts();
     }
 
     @Override
@@ -194,6 +323,8 @@ public class ModPlugin extends BaseModPlugin {
     @Override
     public void onGameLoad(boolean newGame) {
         try {
+            removeScripts();
+
             Reputation.moduleMap.clear();
 
             Global.getSector().addTransientScript(script = new CampaignScript());
@@ -315,6 +446,8 @@ public class ModPlugin extends BaseModPlugin {
                     log("An error occurred while removing duplicate traits!");
                 }
             }
+
+            LunaSettingsChangedListener.addToManagerIfNeeded();
         } catch (Exception e) { reportCrash(e); }
     }
 
@@ -343,20 +476,23 @@ public class ModPlugin extends BaseModPlugin {
 
         return lastSavedVersion.isOlderThan(currentVersion, true);
     }
-
     public static boolean settingsHaveBeenRead() { return settingsAreRead; }
-
     public static boolean readSettingsIfNecessary(boolean forceRefresh) {
         try {
             if(forceRefresh) settingsAreRead = false;
 
             if(settingsAreRead) return true;
 
-            JSONArray jsonArray = Global.getSettings().loadCSV(TRAIT_LIST_PATH);
+            JSONArray jsonArray = Global.getSettings().getMergedSpreadsheetDataForMod("id", TRAIT_LIST_PATH, ID);
             for (int i = 0; i < jsonArray.length(); i++) new TraitType(jsonArray.getJSONObject(i));
 
             jsonArray = Global.getSettings().loadCSV(LOYALTY_LEVEL_LIST_PATH);
             for (int i = 0; i < jsonArray.length(); i++) LoyaltyLevel.values()[i].init(jsonArray.getJSONObject(i));
+
+            jsonArray = Global.getSettings().loadCSV(REP_TIER_LIST_PATH);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                Trait.Tier.values()[i + 2].init(jsonArray.getJSONObject(i));
+            }
 
             jsonArray = Global.getSettings().getMergedSpreadsheetDataForMod("hull_id", HULL_REGEN_SHIPS_PATH, ID);
             for (int i = 0; i < jsonArray.length(); i++) {
@@ -376,6 +512,8 @@ public class ModPlugin extends BaseModPlugin {
 
             JSONObject cfg = Global.getSettings().getMergedJSONForMod(SETTINGS_PATH, ID);
 
+            TRAITS_PER_TIER = 2 * Math.max(1, cfg.getInt("traitPairsPerTier"));
+
             FactionConfig.readDerelictChanceMultipliers(cfg.getJSONArray("famousDerelictChanceMultipliersByShipStrength"));
 
             if(FactionConfig.hasNotBeenRead()) {
@@ -384,95 +522,408 @@ public class ModPlugin extends BaseModPlugin {
                 }
             }
 
-            Trait.Tier.Notable.init(cfg);
-            Trait.Tier.Wellknown.init(cfg);
-            Trait.Tier.Famous.init(cfg);
-            Trait.Tier.Legendary.init(cfg);
-
-            REMOVE_ALL_DATA_AND_FEATURES = cfg.getBoolean("removeAllDataAndFeatures");
-
-            ENABLE_OFFICER_LOYALTY_SYSTEM = cfg.getBoolean("enableOfficerLoyaltySystem");
-            COMPENSATE_FOR_EXPERIENCE_MULT = cfg.getBoolean("compensateForExperienceMult");
-            SHOW_NEW_TRAIT_NOTIFICATIONS = cfg.getBoolean("showNewTraitNotifications");
-            SHOW_SHIP_XP = cfg.getBoolean("showShipXp");
-            SHOW_SHIP_XP_IN_DEV_MODE = cfg.getBoolean("showShipXpInDevMode");
-            RUMORED_TRAITS_SHOWN = cfg.getInt("rumoredTraitsShown");
-            RUMORED_TRAITS_SHOWN_IN_DEV_MODE = cfg.getInt("rumoredTraitsShownInDevMode");
-
-            GLOBAL_EFFECT_MULT = (float) cfg.getDouble("globalEffectMult");
-            FLEET_TRAIT_EFFECT_MULT = (float) cfg.getDouble("fleetTraitEffectMult");
-
-            MAX_INITIAL_NEGATIVE_TRAITS = cfg.getInt("maxInitialNegativeTraits");
-            MIN_INITIAL_NEGATIVE_TRAITS = cfg.getInt("minInitialNegativeTraits");
-            MIN_NEGATIVE_TRAITS = (float) cfg.getDouble("minNegativeTraits");
-            TRAITS_PER_TIER = 2 * Math.max(1, cfg.getInt("traitPairsPerTier"));
-            LOYALTY_IMPROVEMENT_RATE_MULT = (float) cfg.getDouble("loyaltyImprovementRateMult");
-            BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("baseLoyaltyLevelsLostWhenDisabled");
-            MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("maxLoyaltyLevelsLostWhenDisabled");
-            MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = cfg.getInt("minLoyaltyLevelsLostWhenDisabled");
-
-            LOYALTY_LOSS_MULT_FROM_CREW_SAFETY = (float) cfg.getDouble("loyaltyLossMultFromCrewSafety");
-            LOYALTY_LOSS_MULT_FROM_RELATIVE_STRENGTH = (float) cfg.getDouble("loyaltyLossMultFromRelativeStrength");
-
-            XP_MULT_FLAT = (float) cfg.getDouble("xpMultFlat");
-            XP_MULT_PER_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("xpMultPerPlayerCaptainLevel");
-            XP_MULT_PER_NON_PLAYER_CAPTAIN_LEVEL = (float) cfg.getDouble("xpMultPerNonPlayerCaptainLevel");
-            XP_MULT_PER_FLEET_POINT = (float) cfg.getDouble("xpMultPerFleetPoint");
-            XP_MULT_PER_DAMAGE_DEALT_PERCENT = (float) cfg.getDouble("xpMultPerDamageDealtPercent");
-
-            XP_MULT_FOR_RESERVED_COMBAT_SHIPS = (float) cfg.getDouble("xpMultForReservedCombatShips");
-            XP_MULT_FOR_RESERVED_CIVILIAN_SHIPS = (float) cfg.getDouble("xpMultForReservedCivilianShips");
-            FAME_BONUS_PER_PLAYER_LEVEL = (float) cfg.getDouble("fameBonusPerPlayerLevel");
-
-            CHANCE_TO_IGNORE_LOGISTICS_TRAITS_ON_COMBAT_SHIPS  = (float) cfg.getDouble("chanceToIgnoreLogisticsTraitsOnCombatShips");
-            CHANCE_TO_IGNORE_COMBAT_TRAITS_ON_CIVILIAN_SHIPS = (float) cfg.getDouble("chanceToIgnoreCombatTraitsOnCivilianShips");
-
-            AVERAGE_FRACTION_OF_GOOD_TRAITS = (float) cfg.getDouble("averageFractionOfGoodTraits");
-            TRAITS_FOR_FLEETS_WITH_NO_COMMANDER = cfg.getInt("traitsForFleetsWithNoCommander");
-            TRAITS_FOR_FLEETS_WITH_MIN_LEVEL_COMMANDER = cfg.getInt("traitsForFleetsWithMinLevelCommander");
-            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = cfg.getInt("traitsForFleetsWithMaxLevelCommander");
-            ALLOW_CUSTOM_COMMANDER_PRESETS = cfg.getBoolean("allowCustomCommanderPresets");
-
-            PEACEFUL_XP_MULT_FOR_COMBAT_SHIPS = (float) cfg.getDouble("peacefulXpMultForCombatShips");
-            PEACEFUL_XP_MULT_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("peacefulXpMultForCivilianShips");
-
-            JSONObject eventChances = cfg.getJSONObject("barEventChanceMultipliers");
-            TRAIT_UPGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitUpgrade");
-            TRAIT_SIDEGRADE_BAR_EVENT_CHANCE = (float) eventChances.getDouble("traitSidegrade");
-            REPAIR_DMOD_BAR_EVENT_CHANCE = (float) eventChances.getDouble("repairDmod");
-            CHRONICLER_JOINS_BAR_EVENT_CHANCE = (float) eventChances.getDouble("chroniclerJoins");
-            LOYAL_CREW_JOINS_BAR_EVENT_CHANCE = (float) eventChances.getDouble("loyalCrewJoins");
-            BUY_SHIP_OFFER_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToBuyFamousShip");
-            JOIN_WITH_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("captainOffersToJoinWithShip");
-            FAMOUS_FLAGSHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("famousFlagshipIntel");
-            FAMOUS_DERELICT_BAR_EVENT_CHANCE = (float) eventChances.getDouble("famousDerelictIntel");
-            HEAR_LEGEND_OF_OWN_SHIP_BAR_EVENT_CHANCE = (float) eventChances.getDouble("hearLegendOfOwnShip");
-
-            AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS = (float) cfg.getDouble("averageDaysBetweenTraitSidegradeSuggestions");
-            FAMOUS_DERELICT_MAY_BE_GUARDED_BY_REMNANT_FLEET = cfg.getBoolean("famousDerelictMayBeGuardedByRemnantFleet");
-            AVERAGE_ADDITIONAL_BAR_EVENTS = (float) cfg.getDouble("averageAdditionalBarEvents");
-
-            FAME_BONUS_FROM_CHRONICLERS_FOR_COMBAT_SHIPS = (float) cfg.getDouble("fameBonusFromChroniclersForCombatShips");
-            FAME_BONUS_FROM_CHRONICLERS_FOR_CIVILIAN_SHIPS = (float) cfg.getDouble("fameBonusFromChroniclersForCivilianShips");
-
-            if(AVERAGE_ADDITIONAL_BAR_EVENTS > 0 && !REMOVE_ALL_DATA_AND_FEATURES) {
-                SettingsAPI settings = Global.getSettings();
-                settings.setFloat("maxBarEvents", (float) (ORIGINAL_MAX_BAR_EVENTS + Math.ceil(AVERAGE_ADDITIONAL_BAR_EVENTS)));
-
-                if (ORIGINAL_BAR_EVENT_PROB_ONE_MORE > 0 && ORIGINAL_BAR_EVENT_PROB_ONE_MORE < 1) {
-                    float newProb = ORIGINAL_BAR_EVENT_PROB_ONE_MORE + (1 - ORIGINAL_BAR_EVENT_PROB_ONE_MORE)
-                            * (AVERAGE_ADDITIONAL_BAR_EVENTS / (AVERAGE_ADDITIONAL_BAR_EVENTS + 1));
-
-                    settings.setFloat("barEventProbOneMore", newProb);
-                }
-            }
-
-            return settingsAreRead = true;
+            return settingsAreRead = readSettings();
         } catch (Exception e) {
             return settingsAreRead = reportCrash(e);
         }
     }
+    public static void createTraitEffects() {
+        Integration.registerTraitEffect("fighter_damage", new TraitType.Effect() {
+            @Override
+            public boolean isAppliedToFighters() { return true; }
 
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticWeaponDamageMult().modifyPercent(id, effectPercent);
+                stats.getEnergyWeaponDamageMult().modifyPercent(id, effectPercent);
+                stats.getMissileWeaponDamageMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("fighter_speed", new TraitType.Effect() {
+            @Override
+            public boolean isAppliedToFighters() { return true; }
+
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getAcceleration().modifyPercent(id, effectPercent);
+                stats.getMaxSpeed().modifyPercent(id, effectPercent);
+                stats.getTurnAcceleration().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("fighter_durability", new TraitType.Effect() {
+            @Override
+            public boolean isAppliedToFighters() { return true; }
+
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getHullDamageTakenMult().modifyPercent(id, -effectPercent);
+                stats.getShieldDamageTakenMult().modifyPercent(id, -effectPercent);
+                stats.getArmorDamageTakenMult().modifyPercent(id, -effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("ammo_regen", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticAmmoRegenMult().modifyPercent(id, effectPercent);
+                stats.getEnergyAmmoRegenMult().modifyPercent(id, effectPercent);
+                stats.getMissileAmmoRegenMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("ammo_capacity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticAmmoBonus().modifyPercent(id, effectPercent);
+                stats.getEnergyAmmoBonus().modifyPercent(id, effectPercent);
+                stats.getMissileAmmoBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("system_cooldown", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSystemCooldownBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("system_regen_rate", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSystemRegenBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("ballistics_rof", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticRoFMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("energy_cost", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getEnergyWeaponFluxCostMod().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("pd_range", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getNonBeamPDWeaponRangeBonus().modifyPercent(id, effectPercent);
+                stats.getBeamPDWeaponRangeBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("pd_damage", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDamageToMissiles().modifyPercent(id, effectPercent);
+                stats.getDamageToFighters().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("dmod_integrity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                int dmods = 0;
+                for(String modId : ship.getVariant().getPermaMods()) {
+                if(Global.getSettings().getHullModSpec(modId).hasTag("dmod")) dmods++;
+                }
+
+                stats.getHullBonus().modifyPercent(id, effectPercent * dmods);
+            }
+        });
+        Integration.registerTraitEffect("missile_guidance", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getMissileGuidance().modifyPercent(id, effectPercent);
+                stats.getMissileAccelerationBonus().modifyPercent(id, effectPercent);
+                stats.getMissileMaxSpeedBonus().modifyPercent(id, effectPercent);
+                stats.getMissileTurnAccelerationBonus().modifyPercent(id, effectPercent);
+                stats.getMissileMaxTurnRateBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("missile_reload", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getMissileRoFMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("cursed", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                CombatPlugin.CURSED.put(ship.getId(), effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("phase_mad", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                CombatPlugin.PHASEMAD.put(ship.getId(), effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("dmod_effect", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getStat(Stats.DMOD_EFFECT_MULT).modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("survey", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.getSurveyCostReductionId(Commodities.SUPPLIES)).modifyFlat(id, -effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("blockade_runner", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getZeroFluxSpeedBoost().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("drive_stabilizer", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSensorProfile().modifyFlat(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("command_support", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.COMMAND_POINT_RATE_FLAT).modifyFlat(id, effectPercent * 0.01f);
+            }
+        });
+        Integration.registerTraitEffect("nav_support", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.COORDINATED_MANEUVERS_FLAT).modifyFlat(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("ecm_support", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.ELECTRONIC_WARFARE_FLAT).modifyFlat(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("cr_cap", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                Trait trait = TraitType.get("cr_cap").getTrait(effectPercent < 0);
+                String traitName = trait.getName(Util.isShipCrewed(ship));
+                stats.getMaxCombatReadiness().modifyFlat(id, effectPercent * 0.01f, traitName);
+            }
+        });
+        Integration.registerTraitEffect("cr_recovery", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBaseCRRecoveryRatePercentPerDay().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("damage", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticWeaponDamageMult().modifyPercent(id, effectPercent);
+                stats.getEnergyWeaponDamageMult().modifyPercent(id, effectPercent);
+                stats.getMissileWeaponDamageMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("malfunction", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getCriticalMalfunctionChance().modifyPercent(id, effectPercent);
+                stats.getEngineMalfunctionChance().modifyPercent(id, effectPercent);
+                stats.getShieldMalfunctionChance().modifyPercent(id, effectPercent);
+                stats.getWeaponMalfunctionChance().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("mount_durability", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getWeaponHealthBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("engine_durability", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getEngineHealthBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("crew_casualties", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getCrewLossMult().modifyPercent(id, effectPercent);
+                stats.getDynamic().getStat(Stats.FIGHTER_CREW_LOSS_MULT).modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("recovery_chance", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.INDIVIDUAL_SHIP_RECOVERY_MOD).modifyPercent(id, effectPercent);
+                stats.getBreakProb().modifyPercent(id, -effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("maneuverability", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getAcceleration().modifyPercent(id, effectPercent);
+                stats.getDeceleration().modifyPercent(id, effectPercent);
+                stats.getTurnAcceleration().modifyPercent(id, effectPercent);
+                stats.getMaxTurnRate().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("hull_integrity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getHullBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("shield_strength", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getShieldDamageTakenMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("armor_strength", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getArmorBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("engine_power", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getMaxSpeed().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("emp_resistance", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getEmpDamageTakenMult().modifyPercent(id, -effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("shield_stability", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getShieldUpkeepMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("peak_cr_time", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getPeakCRDuration().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("overload_time", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getOverloadTimeMod().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("flux_capacity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getFluxCapacity().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("flux_dissipation", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getFluxDissipation().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("sensor_strength", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSensorStrength().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("sensor_profile", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSensorProfile().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("refit_time", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getFighterRefitTimeMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("salvage", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getDynamic().getMod(Stats.SALVAGE_VALUE_MULT_MOD).modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("cargo_capacity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getCargoMod().modifyFlat(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("fuel_efficiency", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getFuelUseMod().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("fuel_capacity", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getFuelMod().modifyFlat(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("supply_upkeep", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getSuppliesPerMonth().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("phase_cost", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getPhaseCloakActivationCostBonus().modifyPercent(id, effectPercent);
+                stats.getPhaseCloakUpkeepCostBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("phase_cooldown", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getPhaseCloakCooldownBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("range", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getBallisticWeaponRangeBonus().modifyPercent(id, effectPercent);
+                stats.getEnergyWeaponRangeBonus().modifyPercent(id, effectPercent);
+                stats.getMissileWeaponRangeBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("repair", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getCombatEngineRepairTimeMult().modifyPercent(id, -effectPercent);
+                stats.getCombatWeaponRepairTimeMult().modifyPercent(id, -effectPercent);
+                stats.getRepairRatePercentPerDay().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("weapon_stability", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getRecoilPerShotMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("turret_rotation", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getWeaponTurnRateBonus().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("vent_rate", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getVentRateMult().modifyPercent(id, effectPercent);
+            }
+        });
+        Integration.registerTraitEffect("shield_raise_rate", new TraitType.Effect() {
+            @Override
+            public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                stats.getShieldUnfoldRateMult().modifyPercent(id, effectPercent);
+            }
+        });
+    }
     public static CampaignFleetAPI createFleetSafely(FleetParamsV3 params) {
         try {
             return FleetFactoryV3.createFleet(params);
@@ -483,7 +934,6 @@ public class ModPlugin extends BaseModPlugin {
 
         return null;
     }
-
     public static boolean reportCrash(Exception exception) {
         return reportCrash(exception, true);
     }

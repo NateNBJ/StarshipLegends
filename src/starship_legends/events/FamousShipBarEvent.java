@@ -51,6 +51,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		BOGUS_STORY,
 		ACCEPT,
 		DOUBLE_DOWN,
+		CONTINUE,
 		LEAVE,
 	}
 
@@ -89,6 +90,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 		for(int i = 0; i < 50; ++i) {
 			String hullID = cfg.chooseDerelictHullType(random);
+			// TODO better way to get variants?
 			List<String> variantIDs = Global.getSettings().getHullIdToVariantListMap().get(hullID);
 
 			if(variantIDs.size() <= 0) continue;
@@ -194,6 +196,13 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			try {
 				String nl = System.lineSeparator() + "    ";
 
+				String constellation = "ERROR", isNamedConstellation = "ERROR", isBoardable = "ERROR", noModules = "ERROR";
+
+				try { constellation = "" + (derelict == null ? null : derelict.getConstellation()); } catch (Exception e) {}
+				try { isNamedConstellation = "" + (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1); } catch (Exception e) {}
+				try { isBoardable = "" + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE); } catch (Exception e) {}
+				try { noModules = "" + ship.getVariant().getModuleSlots().isEmpty(); } catch (Exception e) {}
+
 				Global.getLogger(this.getClass()).error("Invalid derelict mission generated!"
 						+ nl + "rep: " + rep
 						+ nl + "ship: " + ship
@@ -202,10 +211,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						+ nl + "wreckData: " + wreckData
 						+ nl + "timeScale: " + timeScale
 						+ nl + "granularity: " + granularity
-						+ nl + "constellation: " + (derelict == null ? null : derelict.getConstellation())
-						+ nl + "named constellation: " + (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
-						+ nl + "ship is boardable: " + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
-						+ nl + "ship has no modules: " + ship.getVariant().getModuleSlots().isEmpty()
+						+ nl + "constellation: " + constellation
+						+ nl + "named constellation: " + isNamedConstellation
+						+ nl + "ship is boardable: " + isBoardable
+						+ nl + "ship has no modules: " + noModules
 				);
 			} catch (Exception e) {
 				ModPlugin.reportCrash(e, false);
@@ -225,6 +234,11 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			try {
 				String nl = System.lineSeparator() + "    ";
 
+				String isBoardable = "ERROR", noModules = "ERROR";
+
+				try { isBoardable = "" + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE); } catch (Exception e) {}
+				try { noModules = "" + ship.getVariant().getModuleSlots().isEmpty(); } catch (Exception e) {}
+
 				Global.getLogger(this.getClass()).error("Invalid flagship mission generated!"
 						+ nl + "type: " + flagshipType
 						+ nl + "rep: " + rep
@@ -234,8 +248,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						+ nl + "commander: " + commander
 						+ nl + "fleetHasValidAssignment: " + (fleet == null ? false : fleetHasValidAssignment(fleet))
 						+ nl + "fleetNotDespawning: " + (fleet == null ? false : !fleet.isDespawning())
-						+ nl + "ship is boardable: " + !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE)
-						+ nl + "ship has no modules: " + ship.getVariant().getModuleSlots().isEmpty()
+						+ nl + "ship is boardable: " + isBoardable
+						+ nl + "ship has no modules: " + noModules
 				);
 			} catch (Exception e) {
 				ModPlugin.reportCrash(e, false);
@@ -247,7 +261,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected void createIntel() {
 		if(random == null) random = new Random(seed + market.getId().hashCode());
-
 
 		BaseIntelPlugin intel;
 
@@ -270,8 +283,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 
 		intel.setImportant(true);
-		Global.getSector().getIntelManager().addIntel(intel);
-		endEvent();
+
+		Global.getSector().getIntelManager().addIntel(intel, false, text);
 	}
 	protected SectorEntityToken chooseOrbitedBody(Random random) {
 		float sectorInnerRadius = Global.getSettings().getFloat("sectorHeight") * 0.5f;
@@ -334,6 +347,18 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		newFleetWasCreated = true;
 	}
 	protected void showMap() {
+
+
+		SectorEntityToken dest = null;// intel.getMapLocation(null);
+
+		if(dest != null) {
+			Set<String> tags = new LinkedHashSet<>();
+			tags.add(Tags.INTEL_ACCEPTED);
+
+			dialog.getVisualPanel().showMapMarker(dest, "Location: " + dest.getName(),
+					getMarket().getFaction().getBaseUIColor(),
+					true, rep.getTier().getIcon(), "TODO TEST text?", tags);
+		}
 
 		// Too much trouble for too little benefit in only a few cases
 		if(false && isDerelictMission) {
@@ -1034,22 +1059,23 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						AddRemoveCommodity.addCreditsLossText((int) cost, text);
 					}
 
-					createIntel();
-					done = noContinue = true;
-					break;
-				}
-				case DOUBLE_DOWN: {
-					if (cost > 0) {
-						purse.subtract(cost * 2);
-						AddRemoveCommodity.addCreditsLossText((int) cost * 2, text);
-					}
-
-					rivalOriginIsKnown = true;
+					text.addPara("You record what you've learned in the hope of eventually making use of the information.");
 
 					showMap();
 					createIntel();
-					done = noContinue = true;
+
+					options.addOption("Continue", OptionId.CONTINUE);
 					break;
+				}
+				case DOUBLE_DOWN: {
+					cost *= 2;
+					rivalOriginIsKnown = true;
+					optionSelected(null, OptionId.ACCEPT);
+					break;
+				}
+				case CONTINUE: {
+					endEvent();
+					optionSelected(null, OptionId.LEAVE);
 				}
 				case LEAVE: {
 					if (newFleetWasCreated && fleet != null && fleet.getContainingLocation() != null) {

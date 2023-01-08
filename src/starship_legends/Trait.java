@@ -3,10 +3,7 @@ package starship_legends;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.TextPanelAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
-import com.fs.starfarer.api.combat.ShieldAPI;
-import com.fs.starfarer.api.combat.ShipAPI;
-import com.fs.starfarer.api.combat.ShipHullSpecAPI;
-import com.fs.starfarer.api.combat.ShipSystemSpecAPI;
+import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
@@ -31,6 +28,7 @@ public class Trait implements Comparable<Trait> {
 
         int xpRequired = 1;
         float effectMultiplier = 0;
+        String name = "ERROR", crewedFlavorText = "ERROR", aiFlavorText = "ERROR";
 
         public int getXpRequired() { return xpRequired; }
         public float getEffectMultiplier() {
@@ -41,58 +39,60 @@ public class Trait implements Comparable<Trait> {
         }
         public String getIconPath() { return "sun_sl/graphics/hullmods/" + name().toLowerCase() + ".png";}
         public String getDisplayName() {
-            return this == Wellknown ? "Well-known" : name();
+            return name;
         }
         public String getFlavorText(boolean shipRequiresCrew) {
-            if (shipRequiresCrew) {
-                switch (this) {
-                    case Notable:
-                        return "The %s and its crew have a history together which has led the crew to attribute" +
-                                " certain characteristics to the ship. Sometimes this reputation is warranted based on the" +
-                                " physical properties of the ship, but often, the superstitions and culture among its crew" +
-                                " are enough to influence its performance.";
-                    case Wellknown:
-                        return "Your fleet members tell stories" +
-                                " about the exploits and misadventures of the %s and its crew, giving it a certain reputation." +
-                                " Sometimes this reputation is warranted based on the physical properties of the ship, but" +
-                                " often, the superstitions and culture among its crew are enough to influence its performance.";
-                    case Famous:
-                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its crew," +
-                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
-                                " earned is warranted based on its physical properties, but often, the" +
-                                " superstitions and culture among its crew are enough to influence its performance.";
-                    case Legendary:
-                        return "Even planet-bound children tell" +
-                                " stories of the exploits and misadventures of the %s and its crew. Sometimes the reputation" +
-                                " the ship has earned is warranted based on its physical properties, but often, the" +
-                                " superstitions and culture among its crew are enough to influence its performance.";
-                }
-            } else {
-                switch (this) {
-                    case Notable:
-                        return "Your officers have informed you that the %s has displayed uncommon traits for a ship" +
-                                " of its class. The AI persona controlling it has started showing a few quirks of its own," +
-                                " for better or worse. Your AI specialist assures you that it's nothing to worry about.";
-                    case Wellknown:
-                        return "Members of your fleet often tell stories which include the %s and its AI persona," +
-                                " giving it a certain reputation. Sometimes this reputation is warranted based on the" +
-                                " physical properties of the ship, but it seems the AI persona has also integrated" +
-                                " thoroughly enough with the ship to affect its performance.";
-                    case Famous:
-                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its AI Persona," +
-                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
-                                " earned is warranted based on its physical properties, but it seems the AI persona has" +
-                                " also integrated thoroughly enough with the ship to affect its performance.";
-                    case Legendary:
-                        return "Even planet-bound children tell stories of the exploits and misadventures of the %s," +
-                                " and the AI persona in control of it is often a prominent character in these stories." +
-                                " Sometimes the reputation the ship has earned is warranted based on its physical" +
-                                " properties, but it seems the AI persona has also integrated thoroughly enough with" +
-                                " the ship to affect its performance.";
-                }
-            }
+            return shipRequiresCrew ? crewedFlavorText : aiFlavorText;
 
-            return "ERROR: UNKNOWN TRAIT TIER FLAVOR TEXT";
+//            if (shipRequiresCrew) {
+//                switch (this) {
+//                    case Notable:
+//                        return "The %s and its crew have a history together which has led the crew to attribute" +
+//                                " certain characteristics to the ship. Sometimes this reputation is warranted based on the" +
+//                                " physical properties of the ship, but often, the superstitions and culture among its crew" +
+//                                " are enough to influence its performance.";
+//                    case Wellknown:
+//                        return "Your fleet members tell stories" +
+//                                " about the exploits and misadventures of the %s and its crew, giving it a certain reputation." +
+//                                " Sometimes this reputation is warranted based on the physical properties of the ship, but" +
+//                                " often, the superstitions and culture among its crew are enough to influence its performance.";
+//                    case Famous:
+//                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its crew," +
+//                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
+//                                " earned is warranted based on its physical properties, but often, the" +
+//                                " superstitions and culture among its crew are enough to influence its performance.";
+//                    case Legendary:
+//                        return "Even planet-bound children tell" +
+//                                " stories of the exploits and misadventures of the %s and its crew. Sometimes the reputation" +
+//                                " the ship has earned is warranted based on its physical properties, but often, the" +
+//                                " superstitions and culture among its crew are enough to influence its performance.";
+//                }
+//            } else {
+//                switch (this) {
+//                    case Notable:
+//                        return "Your officers have informed you that the %s has displayed uncommon traits for a ship" +
+//                                " of its class. The AI persona controlling it has started showing a few quirks of its own," +
+//                                " for better or worse. Your AI specialist assures you that it's nothing to worry about.";
+//                    case Wellknown:
+//                        return "Members of your fleet often tell stories which include the %s and its AI persona," +
+//                                " giving it a certain reputation. Sometimes this reputation is warranted based on the" +
+//                                " physical properties of the ship, but it seems the AI persona has also integrated" +
+//                                " thoroughly enough with the ship to affect its performance.";
+//                    case Famous:
+//                        return "Officers, crewmen, and everyday spacers have often heard of the %s and its AI Persona," +
+//                                " sharing stories of exploits and misadventure. Sometimes the reputation the ship has" +
+//                                " earned is warranted based on its physical properties, but it seems the AI persona has" +
+//                                " also integrated thoroughly enough with the ship to affect its performance.";
+//                    case Legendary:
+//                        return "Even planet-bound children tell stories of the exploits and misadventures of the %s," +
+//                                " and the AI persona in control of it is often a prominent character in these stories." +
+//                                " Sometimes the reputation the ship has earned is warranted based on its physical" +
+//                                " properties, but it seems the AI persona has also integrated thoroughly enough with" +
+//                                " the ship to affect its performance.";
+//                }
+//            }
+//
+//            return "ERROR: UNKNOWN TRAIT TIER FLAVOR TEXT";
         }
         public String getIcon() {
             return Global.getSettings().getSpriteName("starship_legends", name().toLowerCase());
@@ -102,9 +102,11 @@ public class Trait implements Comparable<Trait> {
         }
 
         public void init(JSONObject cfg) throws JSONException {
-            JSONObject o = cfg.getJSONObject(name().toLowerCase());
-            xpRequired = (int) o.getDouble("xpRequiredOnAverage");
-            effectMultiplier = (float) o.getDouble("effectMult");
+            xpRequired = (int) cfg.getDouble("xpRequiredOnAverage");
+            effectMultiplier = (float) cfg.getDouble("effectMult");
+            name = cfg.getString("name");
+            crewedFlavorText = cfg.getString("crewedFlavorText");
+            aiFlavorText = cfg.getString("aiFlavorText");
 
             if(xpRequired <= 0) xpRequired = Integer.MAX_VALUE;
         }
@@ -136,19 +138,15 @@ public class Trait implements Comparable<Trait> {
     }
 
     public TraitType getType() { return TraitType.get(typeID); }
-
     public String getName(boolean requiresCrew) {
         return getType().getName(effectSign < 0, requiresCrew);
     }
-
     public String getLowerCaseName(boolean requiresCrew) {
         return getType().getName(effectSign < 0, requiresCrew).toLowerCase().replace("ai persona", "AI persona");
     }
-
     public String getDescPrefix(boolean requiresCrew) {
         return getType().getDescriptionPrefix(effectSign < 0, requiresCrew);
     }
-
     public String getDescPrefix(boolean requiresCrew, String previousPrefix) {
         String retVal = getType().getDescriptionPrefix(effectSign < 0, requiresCrew).toLowerCase();
         String firstWordOfPrev = previousPrefix.split(" ")[0].toLowerCase();
@@ -159,13 +157,11 @@ public class Trait implements Comparable<Trait> {
 
         return retVal;
     }
-
     public String getDescription() {
         if(typeID.equals("phase_mad")) return "causes spontaneous malfunctions while phased";
         else if(typeID.equals("cursed")) return "causes spontaneous malfunctions";
         else return (effectSign * getType().getBaseBonus() > 0 ? "increases " : "decreases ") + getType().getEffectDescription();
     }
-
     public String getDescription(Tier tier, int loyaltyEffectAdjustment, ShipAPI.HullSize size) {
 
         if(typeID.equals("phase_mad") || typeID.equals("cursed")) {
@@ -180,16 +176,13 @@ public class Trait implements Comparable<Trait> {
                     + getType().getEffectDescription() + " by " + effectStr;
         }
     }
-
     public String getParentheticalDescription() {
         return (effectSign * getType().getBaseBonus() > 0 ? "(+" : "(-") + getType().getEffectDescription() + ")";
     }
-
     public String getEffectValueString(float percent) {
         return (percent >= 0 ? "+" : "-") + Misc.getRoundedValueMaxOneAfterDecimal(Math.abs(percent))
                 + (getTags().contains(TraitType.Tags.FLAT_EFFECT) ? "" : "%");
     }
-
     public Color getHighlightColor() {
         switch (effectSign) {
             case 1: return Misc.getHighlightColor();
@@ -197,7 +190,6 @@ public class Trait implements Comparable<Trait> {
             default: return null;
         }
     }
-
     public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
 
@@ -283,27 +275,25 @@ public class Trait implements Comparable<Trait> {
             }
         }
     }
-
     public String getTypeId() {
         return getType().getId();
     }
-
     public Set<String> getTags() {
         return getType().getTags();
     }
-
     public int getEffectSign() { return effectSign; }
-
     public float getEffect(Tier tier, int loyaltyEffectAdjustment, ShipAPI.HullSize hullSize) {
-        float baseBonus = (getType().getBaseBonus()
-                * ((getTags().contains(TraitType.Tags.FLAT_EFFECT) || (getTags().contains(TraitType.Tags.FLAT_PERCENT)))
-                        ? Reputation.getFlatEffectMult(hullSize) : 1));
-        return (baseBonus * effectSign * tier.getEffectMultiplier() + baseBonus * loyaltyEffectAdjustment)
-                * ModPlugin.GLOBAL_EFFECT_MULT;
+        float baseBonus = getType().getBaseBonus();
+
+        if(getTags().contains(TraitType.Tags.FLAT_EFFECT) || getTags().contains(TraitType.Tags.FLAT_PERCENT)) {
+            baseBonus *= Reputation.getFlatEffectMult(hullSize);
+        }
+
+        float effect = baseBonus * effectSign * tier.getEffectMultiplier() + baseBonus * loyaltyEffectAdjustment;
+
+        return Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, effect * ModPlugin.GLOBAL_EFFECT_MULT);
     }
-
     public boolean isRelevantFor(FleetMemberAPI ship) { return isRelevantFor(ship, true); }
-
     public boolean isRelevantFor(FleetMemberAPI ship, boolean allowCrewTrait) {
         if(ship == null || ship.getHullSpec() == null) return false;
 
@@ -412,11 +402,21 @@ public class Trait implements Comparable<Trait> {
 
         return true;
     }
-
-
     public boolean isBonus() { return effectSign > 0; }
-
     public boolean isMalus() { return effectSign < 0; }
+    public void applyEffect(MutableShipStatsAPI stats, FleetMemberAPI ship, boolean isFighter, String id, float effectPercent) {
+        if(TraitType.EFFECT_REGISTRY.containsKey(getTypeId())) {
+            try {
+                TraitType.Effect effect = TraitType.EFFECT_REGISTRY.get(getTypeId());
+
+                if((isFighter == effect.isAppliedToFighters())) {
+                    effect.apply(stats, ship, id, effectPercent);
+                }
+            } catch (Exception e) {
+                ModPlugin.reportCrash(e, false);
+            }
+        }
+    }
 
     @Override
     public String toString() {

@@ -70,8 +70,12 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             + ship.getVariant().getSMods().size() * 0.2f;
 
                     if(repMult * qualMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
+                        float wouldBeBonusXp = Misc.getBonusXPForScuttling(ship)[1];
+
                         crewChange = (int) -ship.getMinCrew();
-                        creditChange = (int)(crewChange * baseCrewCost + ship.getBaseBuyValue() * repMult * qualMult);
+                        creditChange = (int)(crewChange * baseCrewCost
+                                + ship.getBaseBuyValue() * repMult * qualMult
+                                + wouldBeBonusXp * 0.2f);
 
                         if(!playerFleet.getFleetData().getMembersListCopy().contains(ship)) {
                             marketWhereShipIsStored = Util.getStorageLocationOfShip(ship.getId());

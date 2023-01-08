@@ -1,5 +1,7 @@
 package starship_legends;
 
+import com.fs.starfarer.api.combat.MutableShipStatsAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -7,6 +9,10 @@ import org.json.JSONObject;
 import java.util.*;
 
 public class TraitType {
+    public static abstract class Effect {
+        public boolean isAppliedToFighters() { return false; }
+        public abstract void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent);
+    }
     public static class Tags {
         public static final String
                 SUPERSTITION = "superstition",
@@ -36,7 +42,8 @@ public class TraitType {
     private static final WeightedRandomPicker<TraitType>
             PICKER = new WeightedRandomPicker<>(),
             DISABLED_PICKER = new WeightedRandomPicker<>();
-    private static final Map<String, TraitType> INSTANCE_REGISTRY = new HashMap<>();
+    static final Map<String, TraitType> INSTANCE_REGISTRY = new HashMap<>();
+    static final Map<String, Effect> EFFECT_REGISTRY = new HashMap<>();
 
     public static TraitType get(String id) {
         if(!INSTANCE_REGISTRY.containsKey(id)) throw new IllegalArgumentException("No TraitType exists with the id " + id);
@@ -46,6 +53,7 @@ public class TraitType {
         return (forDisabledShips ? DISABLED_PICKER : PICKER).clone();
     }
     public static List<TraitType> getAll() { return new ArrayList<>(INSTANCE_REGISTRY.values()); }
+
 
     private String id, desc, bonusName, malusName, bonusDesc, malusDesc,
             bonusNameAI, malusNameAI, bonusDescAI, malusDescAI;

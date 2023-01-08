@@ -171,10 +171,10 @@ public class RepChange {
         if(hasNewTraitPair()) {
             String
                     pref1 = trait1.getDescPrefix(requiresCrew).toLowerCase(),
-                    pref2 = trait2.getDescPrefix(requiresCrew, pref1).toLowerCase();
+                    pref2 = "and" + trait2.getDescPrefix(requiresCrew, pref1).toLowerCase();
 
             // Leave the double space below. Otherwise the highlight color to the left of "and" will sometimes bleed over to it for some reason...
-            tooltip.addPara(BaseIntelPlugin.BULLET + "Now known for %s %s %s  and%s %s %s", PAD,
+            tooltip.addPara(BaseIntelPlugin.BULLET + "Now known for %s %s %s %s %s %s", PAD,
                 new Color[]{
                         Misc.getTextColor(),
                         trait1.effectSign > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),

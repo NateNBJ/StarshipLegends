@@ -444,38 +444,35 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 ((FamousDerelictIntel)i).updateFleetActions();
             }
 
-            if(!Global.getSector().isPaused()) {
-                if(ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS > 0) {
-                    long ts = Global.getSector().getClock().getTimestamp();
-                    boolean incrementTS = false;
+            if(!Global.getSector().isPaused() && ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS > 0) {
+                long ts = Global.getSector().getClock().getTimestamp();
+                boolean incrementTS = false;
 
-                    if(ts >= timestampOfNextTraitSuggestion.val) {
-                        float traitsInFleet = 0;
-                        float minTraitsToGuaranteeEvent = 50;
-                        boolean suggestionAlreadyExists = RepSuggestionPopupEvent.getActiveSuggestion() != null;
-                        Random rand = new Random(ts);
+                if(ts >= timestampOfNextTraitSuggestion.val) {
+                    float traitsInFleet = 0;
+                    float minTraitsToGuaranteeEvent = 50;
+                    Random rand = new Random(ts);
 
-                        for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
-                            traitsInFleet += RepRecord.isShipNotable(ship) ? RepRecord.get(ship).getTraits().size() : 0;
-                        }
-
-                        if(!suggestionAlreadyExists && traitsInFleet / minTraitsToGuaranteeEvent > rand.nextFloat()) {
-                            RepSuggestionPopupEvent intel = new RepSuggestionPopupEvent();
-
-                            if (intel.isValid()) Global.getSector().getIntelManager().addIntel(intel);
-                        }
-
-                        incrementTS = true;
-                    } else if(timestampOfNextTraitSuggestion.val.equals(Long.MAX_VALUE)) {
-                        incrementTS = true;
+                    for (FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                        traitsInFleet += RepRecord.isShipNotable(ship) ? RepRecord.get(ship).getTraits().size() : 0;
                     }
 
-                    if(incrementTS) {
-                        Random rand = new Random(ts);
-                        timestampOfNextTraitSuggestion.val = ts + (long)(ModPlugin.TIMESTAMP_TICKS_PER_DAY
-                                * (1 + ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS)
-                                * (rand.nextDouble() + 0.5));
+                    if(traitsInFleet / minTraitsToGuaranteeEvent > rand.nextFloat()) {
+                        RepSuggestionPopupEvent intel = new RepSuggestionPopupEvent();
+
+                        if (intel.isValid()) Global.getSector().getIntelManager().addIntel(intel);
                     }
+
+                    incrementTS = true;
+                } else if(timestampOfNextTraitSuggestion.val.equals(Long.MAX_VALUE)) {
+                    incrementTS = true;
+                }
+
+                if(incrementTS) {
+                    Random rand = new Random(ts);
+                    timestampOfNextTraitSuggestion.val = ts + (long)(ModPlugin.TIMESTAMP_TICKS_PER_DAY
+                            * (1 + ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS)
+                            * (rand.nextDouble() + 0.5));
                 }
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }

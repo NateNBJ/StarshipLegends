@@ -288,7 +288,7 @@ public class RepRecord {
         else return Trait.Tier.UNKNOWN;
     }
     public static void updateRepHullMod(FleetMemberAPI ship) {
-        if(!RepRecord.isShipNotable(ship)) return;
+        if(!RepRecord.existsFor(ship)) return;
 
         Trait.Tier tier = RepRecord.get(ship).getTier();
         ShipVariantAPI v;
@@ -296,6 +296,7 @@ public class RepRecord {
         if(tier == Trait.Tier.UNKNOWN) {
             Reputation.removeShipOfNote(ship);
             Util.removeRepHullmodFromVariant(ship.getVariant());
+            ship.updateStats();
             return;
         }
 
@@ -628,7 +629,8 @@ public class RepRecord {
 
             if(rc.disabled) {
                 float loyaltyLoss = ModPlugin.BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED
-                        * (br == null ? 1 : br.loyaltyLossMult);
+                        * (br == null ? 1 : br.loyaltyLossMult)
+                        * getLoyaltyLossChanceMult(rc.captain);
 
                 loyaltyLoss = Math.max(loyaltyLoss, ModPlugin.MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED);
                 loyaltyLoss = Math.min(loyaltyLoss, ModPlugin.MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED);
@@ -830,11 +832,30 @@ public class RepRecord {
         for(Trait trait : getTraits()) {
             if (traitsLeft <= 0) break;
 
-            traitsLeft--;
-
-            if(trait.getType().equals("loyalty")) {
-                return 1 + trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft--), loyaltyEffectAdjustment, null) * 0.01f;
+            if(trait.getType().getId().equals("loyalty")) {
+                float percent = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft), loyaltyEffectAdjustment, null);
+                return 1 + percent * 0.01f;
             }
+
+            traitsLeft--;
+        }
+
+        return 1;
+    }
+    public float getLoyaltyLossChanceMult(PersonAPI captain) {
+        boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
+        int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
+        int loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : getLoyalty(captain).getTraitAdjustment();
+
+        for(Trait trait : getTraits()) {
+            if (traitsLeft <= 0) break;
+
+            if(trait.getType().getId().equals("loyalty_loss") || trait.getType().getId().equals("loyalty_loss_rugged")) {
+                float percent = trait.getEffect(RepRecord.getTierFromTraitCount(traitsLeft), loyaltyEffectAdjustment, null);
+                return 1 + percent * 0.01f;
+            }
+
+            traitsLeft--;
         }
 
         return 1;

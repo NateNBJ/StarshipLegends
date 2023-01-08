@@ -106,8 +106,8 @@ public class BattleReport extends BaseIntelPlugin {
             String factionName = enemyFaction.isShowInIntelTab()
                     ? Misc.ucFirst(enemyFaction.getDisplayName())
                     : "undesignated OpFor";
-            info.addPara("Battle against %s", 0f, tc, enemyFaction.getColor(), factionName);
-        } else info.addPara("Battle report", 0f,tc);
+            info.addPara("Battle against %s", 0f, Misc.getTextColor(), enemyFaction.getColor(), factionName);
+        } else info.addPara("Battle report", 0f, Misc.getTextColor());
 
         bullet(info);
 

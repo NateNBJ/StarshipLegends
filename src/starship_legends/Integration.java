@@ -1,6 +1,7 @@
 package starship_legends;
 
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
+import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 
 import java.util.HashMap;
@@ -43,5 +44,37 @@ public class Integration {
     }
     public static void transferReputation(FleetMemberAPI from, FleetMemberAPI to) {
         RepRecord.transfer(from, to);
+    }
+    public static void registerTraitEffect(final String traitID) {
+        registerTraitEffect(traitID, false);
+    }
+    public static void registerTraitEffect(final String traitID, final boolean appliesToFighters) {
+        if(traitID != null && !traitID.isEmpty()) {
+            registerTraitEffect(traitID, new TraitType.Effect() {
+                @Override
+                public boolean isAppliedToFighters() {
+                    return appliesToFighters;
+                }
+
+                @Override
+                public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
+                    stats.getDynamic().getStat(traitID).modifyPercent(id, effectPercent);
+                }
+            });
+        }
+    }
+    public static void registerTraitEffect(String traitID, TraitType.Effect effect) {
+        if(traitID != null && !traitID.isEmpty() && effect != null) {
+            TraitType.EFFECT_REGISTRY.put(traitID, effect);
+        }
+    }
+    public static void registerTraitEffects(Map<String, TraitType.Effect> traitEffects) {
+        if(traitEffects != null) {
+            for (Map.Entry<String, TraitType.Effect> pair : traitEffects.entrySet()) {
+                if(pair.getKey() != null && pair.getValue() != null) {
+                    TraitType.EFFECT_REGISTRY.put(pair.getKey(), pair.getValue());
+                }
+            }
+        }
     }
 }

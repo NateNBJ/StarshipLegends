@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.comm.IntelInfoPlugin;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.ButtonAPI;
@@ -15,6 +16,7 @@ import org.lwjgl.input.Keyboard;
 import starship_legends.ModPlugin;
 
 import java.awt.*;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -24,14 +26,18 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
     public static String BUTTON_DISMISS = "button_delete";
     public static float DURATION = 120f;
 
-    public static RepSuggestionPopupEvent getActiveSuggestion() {
+    public static Set<FleetMemberAPI> getShipsWithActiveSuggestions() {
         List<IntelInfoPlugin> intels = Global.getSector().getIntelManager().getIntel(RepSuggestionPopupEvent.class);
+        Set<FleetMemberAPI> retVal = new HashSet<>();
 
         for(IntelInfoPlugin intel : intels) {
-            if(!intel.isEnding() && !intel.isEnded()) return (RepSuggestionPopupEvent)intel;
+            if(!intel.isEnding() && !intel.isEnded()) {
+                FleetMemberAPI ship = ((RepSuggestionPopupEvent)intel).barEvent.ship;
+                retVal.add(ship);
+            }
         }
 
-        return null;
+        return retVal;
     }
 
     OwnCrewBarEvent barEvent;

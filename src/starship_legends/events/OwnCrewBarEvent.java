@@ -132,11 +132,15 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 break;
             }
             case SIDEGRADE_TRAIT: {
-                FleetMemberAPI shipWithPreexistingSuggestion = RepSuggestionPopupEvent.getActiveSuggestion() == null
-                        ? null : RepSuggestionPopupEvent.getActiveSuggestion().barEvent.ship;
+                Set<FleetMemberAPI> shipsWithPreexistingSuggestions = RepSuggestionPopupEvent.getShipsWithActiveSuggestions();
 
                 for (FleetMemberAPI ship : playerFleet.getFleetData().getMembersListCopy()) {
-                    if(isShipViableForEvent(ship, null) && ship != shipWithPreexistingSuggestion) {
+                    boolean hasCaptain = ship.getCaptain() != null && !ship.getCaptain().isDefault();
+
+                    if((hasCaptain || !ModPlugin.ONLY_SUGGEST_SIDEGRADES_FOR_SHIPS_WITH_OFFICER)
+                            && isShipViableForEvent(ship, null)
+                            && !shipsWithPreexistingSuggestions.contains(ship)) {
+
                         picker.add(ship, RepRecord.get(ship).getTraits().size()
                                 * (ship.getHullSpec().isCivilianNonCarrier() ? 0.5f : 1));
                     }
@@ -592,7 +596,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         shipList.add(ship);
 
         if(captain != null && !captain.isDefault() && !captain.isPlayer()) {
-            info.addImage(getPerson().getPortraitSprite(), width, 128, opad);
+            info.addImage(captain.getPortraitSprite(), width, 128, opad);
         }
 
         info.addPara(getSidegradeProse(true), opad, new Color[]{ h, h },
