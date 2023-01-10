@@ -447,7 +447,9 @@ public class ModPlugin extends BaseModPlugin {
                 }
             }
 
-            LunaSettingsChangedListener.addToManagerIfNeeded();
+            if(Global.getSettings().getModManager().isModEnabled(LUNALIB_ID)) {
+                LunaSettingsChangedListener.addToManagerIfNeeded();
+            }
         } catch (Exception e) { reportCrash(e); }
     }
 
