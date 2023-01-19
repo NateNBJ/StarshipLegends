@@ -224,7 +224,7 @@ public class BattleReport extends BaseIntelPlugin {
                         else repColor = Misc.getTextColor();
                     }
 
-                    if(rc.captain != null && !rc.captain.isDefault()) {
+                    if(rc.captain != null && !rc.captain.isDefault() && !(rc.captain.isAICore() && !Misc.isUnremovable(rc.captain))) {
                         loyalty = Util.isShipCrewed(rc.ship)
                             ? rc.getLoyaltyLevel().getName()
                             : rc.getLoyaltyLevel().getAiIntegrationStatusName();
