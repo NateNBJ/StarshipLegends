@@ -267,11 +267,12 @@ public class Trait implements Comparable<Trait> {
             Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
             if(this.equals(trait)) {
+//                info.setBulletedListMode(BaseIntelPlugin.BULLET);
                 info.addPara("%s currently " + trait.getDescription(tier, loyaltyEffectAdjustment, size),
-                        3, Misc.getGrayColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
-
+                        10, Misc.getTextColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
                 info.addPara("%s would " + traitToCompare.getDescription(tier, loyaltyEffectAdjustment, size).replace("ses ", "se "),
-                        3, Misc.getGrayColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+                        10, Misc.getTextColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+//                info.setBulletedListMode(null);
             }
         }
     }

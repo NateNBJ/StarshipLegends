@@ -15,6 +15,7 @@ import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.DModManager;
 import com.fs.starfarer.api.impl.campaign.ids.HullMods;
+import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.loading.WeaponSlotAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
@@ -77,12 +78,19 @@ public class Util {
     }
     public static Set<String> getIdsOfShipsOwnedByPlayer() {
         Set<String> retVal = new HashSet<>();
+        Set<MarketAPI> markets = new HashSet<>();
 
         for(FleetMemberAPI ship : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
             retVal.add(ship.getId());
         }
 
-        for(MarketAPI market : Global.getSector().getEconomy().getMarketsCopy()) {
+        markets.addAll(Global.getSector().getEconomy().getMarketsCopy());
+
+        for(SectorEntityToken entity : Global.getSector().getCustomEntitiesWithTag(Tags.STATION)) {
+            if(entity.getMarket() != null) markets.add(entity.getMarket());
+        }
+
+        for(MarketAPI market : markets) {
             SubmarketAPI storage = market.getSubmarket("storage");
 
             if(storage == null || storage.getCargo() == null || storage.getCargo().getMothballedShips() == null) continue;
@@ -91,6 +99,8 @@ public class Util {
                 retVal.add(ship.getId());
             }
         }
+
+        // runcode Console.showMessage(starship_legends.Util.getIdsOfShipsOwnedByPlayer().size());
 
         return retVal;
     }

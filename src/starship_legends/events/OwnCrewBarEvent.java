@@ -604,8 +604,6 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 trait.getLowerCaseName(requiresCrew));
         info.addShipList(1, 1, 64, Color.WHITE, shipList, opad);
 
-        trait.addComparisonParagraphsTo(info, ship, replacementTrait);
-
         if(event.approved) {
             info.addPara("You approved the suggestion, and the " + ship.getShipName() + " is now known for "
                             + pref1 + " %s instead of" + pref2 + " %s.", opad, tc, h,
@@ -614,6 +612,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             info.addPara("You rejected the suggestion. The " + ship.getShipName() + " will remain known for "
                             + trait.getDescPrefix(requiresCrew).toLowerCase() + " %s.", opad, tc, h,
                     trait.getLowerCaseName(requiresCrew));
+        } else {
+            trait.addComparisonParagraphsTo(info, ship, replacementTrait);
         }
     }
     boolean prepareForIntel() {

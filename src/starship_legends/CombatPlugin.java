@@ -177,7 +177,7 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
                 if(ModPlugin.HULL_REGEN_SHIPS.containsKey(target.getHullId())) {
                     damageFraction *= ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId());
-                    Global.getLogger(CampaignScript.class).info("damage reduced to " + ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId()) + " for " + target.getHullId());
+                    //Global.getLogger(CampaignScript.class).info("damage reduced to " + ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId()) + " for " + target.getHullId());
                 }
 
                 CampaignScript.recordDamageSustained(targetID, damageFraction);

@@ -461,7 +461,7 @@ public class RepRecord {
                 : theme.createGoodTraitPicker(rand);
 
         if(rep != null) {
-            if (rep.hasMaximumTraits()) return null;
+//            if (rep.hasMaximumTraits()) return null;
 
             for (Trait trait : rep.getTraits()) picker.remove(trait.getType());
         }
