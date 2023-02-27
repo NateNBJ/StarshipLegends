@@ -117,6 +117,21 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
 
             }
 
+//            if(Global.getSettings().getModManager().isModEnabled("RealisticCombat")) {
+//                DamageReportManagerV1 damageData = DamageReportManagerV1.getDamageReportManager();
+//
+//                for (DamageReportV1 e : damageData.getDamageReports()) {
+//                    if(e.getSource() instanceof ShipAPI && e.getTarget() instanceof ShipAPI) {
+//                        FleetMemberAPI src = ((ShipAPI)e.getSource()).getFleetMember();
+//                        FleetMemberAPI tgt = ((ShipAPI)e.getTarget()).getFleetMember();
+//
+//                        if(src == null || tgt == null) continue;
+//
+//                        Global.getCombatEngine().getDamageData().getDealtBy(src).addHullDamage(tgt, e.getHullDamage());
+//                    }
+//                }
+//            }
+
             if (!damageHasBeenLogged && (engine.isCombatOver() || engine.isEnemyInFullRetreat())) {
                 compileDamageDealt();
 
@@ -124,7 +139,65 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
             }
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
-
+//    void compileDamageDealtByRealisticCombat() {
+//        DamageReportManagerV1 damageData = DamageReportManagerV1.getDamageReportManager();
+//
+//        if(damageData == null || damageData.getDamageReports() == null) return;
+//
+//        for (DamageReportV1 e : damageData.getDamageReports()) {
+//            if(!(e.getSource() instanceof FleetMemberAPI && e.getTarget() instanceof FleetMemberAPI)) continue;
+//
+//            String sourceID;
+//            float acc = 0;
+//            FleetMemberAPI dealer = (FleetMemberAPI) e.getSource();
+//            FleetMemberAPI target = (FleetMemberAPI) e.getTarget();
+//
+//            if(sectionSourceMap.containsKey(dealer.getId())) {
+//                sourceID = sectionSourceMap.get(dealer.getId());
+//            } else if(dealer.isFighterWing() && wingSourceMap.containsKey(dealer.getId())) {
+//                sourceID = wingSourceMap.get(dealer.getId());
+//            } else {
+//                sourceID = dealer.getId();
+//            }
+//
+//            String targetID = sectionSourceMap.containsKey(target.getId())
+//                    ? sectionSourceMap.get(target.getId())
+//                    : target.getId();
+//            float dmg = e.getHullDamage();
+//            float hp = hpTotals.containsKey(targetID)
+//                    ? hpTotals.get(targetID)
+//                    : target.getStats().getHullBonus().computeEffective(target.getHullSpec().getHitpoints());
+//
+//            if(target.isFighterWing() || target.isMothballed() || target.isCivilian() || dmg <= 1) continue;
+//
+//            //msg += "\r      " +  sourceID + " dealt " + dmg + "/" + hp + " damage to " + target.getHullId() + " (" + target.getOwner() + ")";
+//
+//            if(playerShips.contains(targetID)) {
+//                float damageFraction = dmg / hp;
+//
+//                if(ModPlugin.HULL_REGEN_SHIPS.containsKey(target.getHullId())) {
+//                    damageFraction *= ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId());
+//                    //Global.getLogger(CampaignScript.class).info("damage reduced to " + ModPlugin.HULL_REGEN_SHIPS.get(target.getHullId()) + " for " + target.getHullId());
+//                }
+//
+//                CampaignScript.recordDamageSustained(targetID, damageFraction);
+//            }
+//
+//            if(playerShips.contains(sourceID) && !playerShips.contains(targetID) && !target.isAlly()
+//                    && dealer.getOwner() != target.getOwner()) {
+//
+//                acc += (dmg / hp) * (stationDeployCosts.containsKey(targetID)
+//                        ? stationDeployCosts.get(targetID)
+//                        : Util.getShipStrength(target, false));
+//            }
+//
+//            //msg = "Damage dealt by " + source.getHullId() + " (" + source.getOwner() + ")";
+//
+//            if (playerShips.contains(sourceID)) CampaignScript.recordDamageDealt(sourceID, acc);
+//
+//            //Global.getLogger(this.getClass()).info(msg);
+//        }
+//    }
     void compileDamageDealt() {
         CombatDamageData damageData = Global.getCombatEngine().getDamageData();
 

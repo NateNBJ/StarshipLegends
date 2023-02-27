@@ -349,7 +349,7 @@ public class Reputation extends BaseHullMod {
                 } else if(!rep.getCaptainLoyaltyLevels().isEmpty()) {
                     int bestOpinion = 0;
                     Set<String> trustedOfficers = new HashSet<>();
-                    Set<String> unfoundOfficers = new HashSet<>();
+//                    Set<String> unfoundOfficers = new HashSet<>();
 
                     for(Map.Entry<String, Integer> e : rep.getCaptainLoyaltyLevels().entrySet()) {
                         boolean officerNotFound = !e.getKey().equals(Global.getSector().getPlayerPerson().getId());
@@ -364,7 +364,7 @@ public class Reputation extends BaseHullMod {
                         }
 
                         if(officerNotFound) {
-                            unfoundOfficers.add(e.getKey());
+//                            unfoundOfficers.add(e.getKey());
                             continue;
                         }
 
@@ -376,11 +376,11 @@ public class Reputation extends BaseHullMod {
                         if(e.getValue() == bestOpinion) trustedOfficers.add(e.getKey());
                     }
 
-                    for(String id : unfoundOfficers) {
-                        if(!id.contains("_core")) {
-                            rep.getCaptainLoyaltyLevels().remove(id);
-                        }
-                    }
+//                    for(String id : unfoundOfficers) {
+//                        if(!id.contains("_core")) {
+//                            rep.getCaptainLoyaltyLevels().remove(id);
+//                        }
+//                    }
 
                     if(bestOpinion > 0 && !trustedOfficers.isEmpty()) {
                         LoyaltyLevel ll = LoyaltyLevel.values()[bestOpinion + ModPlugin.LOYALTY_LIMIT];

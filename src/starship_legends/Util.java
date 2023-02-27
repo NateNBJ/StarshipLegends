@@ -13,6 +13,7 @@ import com.fs.starfarer.api.characters.MutableCharacterStatsAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.DModManager;
 import com.fs.starfarer.api.impl.campaign.ids.HullMods;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
@@ -486,5 +487,14 @@ public class Util {
         return ship.isMothballed()
                 ? (ship.getHullSpec().getMinCrew() > 0 && !ship.getVariant().hasHullMod(HullMods.AUTOMATED))
                 : (ship.getMinCrew() > 0);
+    }
+    public static FleetMemberAPI copyFleetMember(FleetMemberAPI ship) {
+        try {
+            return Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant());
+        } catch (Exception e) {
+            ModPlugin.reportCrash(e, false);
+        }
+
+        return null;
     }
 }

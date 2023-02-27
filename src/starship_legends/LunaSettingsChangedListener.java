@@ -7,8 +7,10 @@ import static starship_legends.ModPlugin.LUNALIB_ID;
 
 public class LunaSettingsChangedListener implements LunaSettingsListener {
     @Override
-    public void settingsChanged() {
-        ModPlugin.readSettings();
+    public void settingsChanged(String idOfModWithChangedSettings) {
+        if(idOfModWithChangedSettings.equals(ModPlugin.ID)) {
+            ModPlugin.readSettings();
+        }
     }
 
     public static void addToManagerIfNeeded() {

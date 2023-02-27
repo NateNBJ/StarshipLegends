@@ -26,6 +26,7 @@ import java.util.*;
 
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
+    public static final String PREFIX = "sun_sl_";
     public static final String
             TRAIT_LIST_PATH = "data/config/starship_legends/traits.csv",
             LOYALTY_LEVEL_LIST_PATH = "sun_sl/data/loyalty_levels.csv",
@@ -46,6 +47,8 @@ public class ModPlugin extends BaseModPlugin {
     static JSONObject settingsCfg = null;
     static <T> T get(String id, Class<T> type) throws Exception {
         if(Global.getSettings().getModManager().isModEnabled(LUNALIB_ID)) {
+            id = PREFIX + id;
+
             if(type == Integer.class) return type.cast(LunaSettings.getInt(ModPlugin.ID, id));
             if(type == Float.class) return type.cast(LunaSettings.getFloat(ModPlugin.ID, id));
             if(type == Boolean.class) return type.cast(LunaSettings.getBoolean(ModPlugin.ID, id));

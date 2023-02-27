@@ -241,6 +241,7 @@ public class RepRecord {
             = new Saved<Map<String, Long>>("pendingChroniclerExpirations", new HashMap<String, Long>());
     static final Saved<Map<String, Origin>> SHIP_ORIGINS = new Saved<Map<String, Origin>>("shipOrigins", new HashMap<String, Origin>());
     static final Saved<List<String>> QUEUED_STORIES = new Saved<List<String>>("queuedStories", new LinkedList<String>());
+    static final Saved<Set<String>> LOST_FAMOUS_SHIPS = new Saved<Set<String>>("lostFamousShips", new HashSet<String>());
 
     public static Map<String, RepRecord> getInstanceRegistryCopy() { return new HashMap<>(INSTANCE_REGISTRY.val); }
     public static void printRegistry() {
@@ -551,6 +552,7 @@ public class RepRecord {
         return RepRecord.existsFor(ship) && RepRecord.get(ship).getTier().ordinal() >= minTier.ordinal();
     }
     public static List<String> getQueuedStories() { return QUEUED_STORIES.val; }
+    public static Set<String> getLostFamousShips() { return LOST_FAMOUS_SHIPS.val; }
     public static void configureXStream(XStream x) {
         x.alias("sun_sl_rr", RepRecord.class);
         x.aliasAttribute(RepRecord.class, "story", "s");

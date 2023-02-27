@@ -9,7 +9,6 @@ import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.EngagementResultAPI;
 import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
-import com.fs.starfarer.api.fleet.FleetMemberType;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
 import com.fs.starfarer.api.plugins.LevelupPlugin;
@@ -191,6 +190,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 if(shipWasLost) {
                     rc.damageTakenFraction = Float.MAX_VALUE; // This lets the battle report know the ship was lost
                     xpForShip = 0;
+
+                    if(rep.getTier().ordinal() >= Trait.Tier.Famous.ordinal()) {
+                        RepRecord.getLostFamousShips().add(ship.getId());
+                    }
                 } else if(rc.foughtInBattle) {
                     float xpMultForCaptainLevel = 0;
 
@@ -312,13 +315,21 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             }
 
             for(FleetMemberAPI ship : ef.getDestroyed()) {
-                destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+                FleetMemberAPI copy = Util.copyFleetMember(ship);
+
+                if(copy == null) continue;
+
+                destroyedEnemies.add(copy);
 
                 if(RepRecord.existsFor(ship)) famousRecoverableShip = ship;
             }
 
             for(FleetMemberAPI ship : ef.getDisabled()) {
-                destroyedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+                FleetMemberAPI copy = Util.copyFleetMember(ship);
+
+                if(copy == null) continue;
+
+                destroyedEnemies.add(copy);
 
                 if(RepRecord.existsFor(ship)) famousRecoverableShip = ship;
             }
@@ -329,7 +340,11 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
 
             routedEnemies.clear();
             for(FleetMemberAPI ship : ef.getRetreated()) {
-                routedEnemies.add(Global.getFactory().createFleetMember(FleetMemberType.SHIP, ship.getVariant()));
+                FleetMemberAPI copy = Util.copyFleetMember(ship);
+
+                if(copy == null) continue;
+
+                routedEnemies.add(copy);
             }
 
             previousXP = Global.getSector().getPlayerStats().getXP();

@@ -455,7 +455,10 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 						for (FleetMemberAPI fm : Reputation.getShipsOfNote()) {
 							RepRecord rep = RepRecord.get(fm);
 
-							if (!idsOfOwnedShips.contains(fm.getId()) && rep != null) {
+							if (RepRecord.getLostFamousShips().contains(fm.getId())
+									&& !idsOfOwnedShips.contains(fm.getId())
+									&& rep != null) {
+
 								if (rep.getTier().ordinal() >= Trait.Tier.Famous.ordinal() && rep.getXp() > 0) {
 									lostShips.add(fm);
 								}
@@ -475,8 +478,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 						// This is to prevent the same unwanted ships from appearing in this event repeatedly
 						// Also prevents the same ship from being chosen while its own recovery mission is active
-						// The ship will be added back to the list once it is recovered
-						Reputation.removeShipOfNote(ship);
+						RepRecord.getLostFamousShips().remove(ship.getId());
 					}
 
 					if(params == null || ship == null) {
@@ -628,8 +630,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 						// Event generation has failed. Instead of displaying an error, the inconsequential story prose
 						// will be displayed
-						if(eligibleFleets.isEmpty()) return;
-
+						if(eligibleMarkets.isEmpty()) return;
 
 						final int MAX_ATTEMPTS = 5;
 
@@ -723,6 +724,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					if (isDerelictMission) {
 						rep = RepRecord.getOrCreate(ship);
 						ship.setOwner(1);
+						ship.setCaptain(null);
 						CampaignFleetAPI temp = Global.getFactory().createEmptyFleet(Factions.NEUTRAL, FleetTypes.PATROL_SMALL, true);
 						temp.getFleetData().addFleetMember(ship);
 

@@ -168,6 +168,22 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addSectionHeading(" Combat Performance Summary", Alignment.LMID, 10);
 
+            if(Global.getSettings().getModManager().isModEnabled("RealisticCombat")) {
+                boolean noDamageWasRegistered = true;
+
+                for(RepChange rc : changes) {
+                    if(rc.damageDealtPercent > 0) {
+                        noDamageWasRegistered = false;
+                        break;
+                    }
+                }
+
+                if(noDamageWasRegistered) {
+                    e.addPara("The method Starship Legends uses to retrieve the damage your ships deal may have been " +
+                            "interfered with.", Misc.getNegativeHighlightColor(), 10);
+                }
+            }
+
             if(showXp) {
                 e.beginTable(Global.getSector().getPlayerFaction(), 20, "Ship", 0.25f * w, "Class", 0.2f * w,
                         "Status", 0.11f * w, "Inflicted", 0.11f * w, "XP", 0.11f * w, "Loyalty", 0.11f * w,
