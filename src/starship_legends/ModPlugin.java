@@ -285,7 +285,7 @@ public class ModPlugin extends BaseModPlugin {
         String message = "";
 
         try {
-            ModSpecAPI spec = Global.getSettings().getModManager().getModSpec("sun_starship_legends");
+            ModSpecAPI spec = Global.getSettings().getModManager().getModSpec(ID);
             Version minimumVersion = new Version(spec.getGameVersion());
             Version currentVersion = new Version(Global.getSettings().getVersionString());
 
@@ -296,16 +296,17 @@ public class ModPlugin extends BaseModPlugin {
                                 "\rCurrent Version: %s",
                         spec.getName(), minimumVersion, currentVersion);
             }
-
-            SettingsAPI settings = Global.getSettings();
-            ORIGINAL_MIN_BAR_EVENTS = settings.getInt("minBarEvents");
-            ORIGINAL_MAX_BAR_EVENTS = settings.getInt("maxBarEvents");
-            ORIGINAL_BAR_EVENT_PROB_ONE_MORE = settings.getFloat("barEventProbOneMore");
         } catch (Exception e) {
             Global.getLogger(this.getClass()).error("Version comparison failed.", e);
         }
 
         if(!message.isEmpty()) throw new Exception(message);
+
+        SettingsAPI settings = Global.getSettings();
+        ORIGINAL_MIN_BAR_EVENTS = settings.getInt("minBarEvents");
+        ORIGINAL_MAX_BAR_EVENTS = settings.getInt("maxBarEvents");
+        ORIGINAL_BAR_EVENT_PROB_ONE_MORE = settings.getFloat("barEventProbOneMore");
+
 
         createTraitEffects();
     }
@@ -477,7 +478,7 @@ public class ModPlugin extends BaseModPlugin {
         if(version.val == null || version.val.equals("")) return true;
 
         Version lastSavedVersion = new Version(version.val);
-        Version currentVersion = new Version(Global.getSettings().getModManager().getModSpec("sun_starship_legends").getVersion());
+        Version currentVersion = new Version(Global.getSettings().getModManager().getModSpec(ID).getVersion());
 
         return lastSavedVersion.isOlderThan(currentVersion, true);
     }

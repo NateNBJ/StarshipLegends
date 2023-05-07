@@ -59,23 +59,22 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         switch (type) {
             case BUY_SHIP_OFFER: {
                 for (FleetMemberAPI ship : Util.findPlayerOwnedShip(Trait.Tier.Famous)) {
-                    picker.add(ship, RepRecord.get(ship).getTier() == Trait.Tier.Legendary ? 4 : 1);
+                    if(Util.isShipCrewed(ship)) {
+                        picker.add(ship, RepRecord.get(ship).getTier() == Trait.Tier.Legendary ? 4 : 1);
+                    }
                 }
 
                 while (!picker.isEmpty()) {
                     setShip(picker.pickAndRemove());
 
                     float repMult = 1 + (rep.getFractionOfBonusEffectFromTraits() - 0.5f) * rep.getTraits().size() * 0.5f;
-                    float qualMult = 1 - DModManager.getNumDMods(ship.getVariant()) * 0.2f
-                            + ship.getVariant().getSMods().size() * 0.2f;
+                    float qualMult = 1 - DModManager.getNumDMods(ship.getVariant()) * 0.2f;
 
                     if(repMult * qualMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
-                        float wouldBeBonusXp = Misc.getBonusXPForScuttling(ship)[1];
-
                         crewChange = (int) -ship.getMinCrew();
                         creditChange = (int)(crewChange * baseCrewCost
                                 + ship.getBaseBuyValue() * repMult * qualMult
-                                + wouldBeBonusXp * 0.2f);
+                                + ship.getVariant().getSMods().size() * 400000);
 
                         if(!playerFleet.getFleetData().getMembersListCopy().contains(ship)) {
                             marketWhereShipIsStored = Util.getStorageLocationOfShip(ship.getId());

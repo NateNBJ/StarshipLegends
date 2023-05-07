@@ -1103,6 +1103,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected String getPersonPost() { return Ranks.CITIZEN; }
 
 	// TODO - Update methods below (yoinked from ShipRecoverySpecial) with new Starsector versions
+	// Up to date as of 0.96a-RC7
 
 	public void prepareMember(FleetMemberAPI member, ShipRecoverySpecial.PerShipData shipData) {
 
@@ -1155,6 +1156,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				if (spec.isHidden()) continue;
 				if (spec.isHiddenEverywhere()) continue;
 				if (spec.hasTag(Tags.HULLMOD_DMOD)) continue;
+				if (spec.hasTag(Tags.HULLMOD_NO_BUILD_IN)) continue;
 				if (variant.getPermaMods().contains(spec.getId())) continue;
 				picker.add(id, spec.getCapitalCost());
 			}
@@ -1172,7 +1174,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			member.getVariant().autoGenerateWeaponGroups();
 		}
 	}
-
 	protected float getHullForCondition(ShipRecoverySpecial.ShipCondition condition) {
 		switch (condition) {
 			case PRISTINE: return 1f;
@@ -1183,7 +1184,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 		return 1;
 	}
-
 	protected int getDmodsForCondition(ShipRecoverySpecial.ShipCondition condition) {
 		if (condition == ShipRecoverySpecial.ShipCondition.PRISTINE) return 0;
 
@@ -1195,7 +1195,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 		return 1;
 	}
-
 	protected float getFighterWeaponRetainProb(ShipRecoverySpecial.ShipCondition condition) {
 		switch (condition) {
 			case PRISTINE: return 1f;
@@ -1206,7 +1205,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 		return 0f;
 	}
-
 	protected int getHitsForCondition(FleetMemberAPI member, ShipRecoverySpecial.ShipCondition condition) {
 		if (condition == ShipRecoverySpecial.ShipCondition.PRISTINE) return 0;
 		if (condition == ShipRecoverySpecial.ShipCondition.WRECKED) return 20;
@@ -1243,7 +1241,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 		return 1;
 	}
-
 }
 
 

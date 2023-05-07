@@ -1,6 +1,7 @@
 package starship_legends;
 
 import com.fs.starfarer.api.Global;
+import lunalib.lunaSettings.LunaSettings;
 import lunalib.lunaSettings.LunaSettingsListener;
 
 import static starship_legends.ModPlugin.LUNALIB_ID;
@@ -12,12 +13,11 @@ public class LunaSettingsChangedListener implements LunaSettingsListener {
             ModPlugin.readSettings();
         }
     }
-
     public static void addToManagerIfNeeded() {
         if(Global.getSettings().getModManager().isModEnabled(LUNALIB_ID)
-                && !Global.getSector().getListenerManager().hasListenerOfClass(LunaSettingsChangedListener.class)) {
+                && !LunaSettings.INSTANCE.hasListenerOfClass(LunaSettingsChangedListener.class)) {
 
-            Global.getSector().getListenerManager().addListener(new LunaSettingsChangedListener(), true);
+            LunaSettings.INSTANCE.addListener(new LunaSettingsChangedListener());
         }
     }
 }

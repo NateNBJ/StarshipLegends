@@ -127,7 +127,10 @@ public class Reputation extends BaseHullMod {
                 stats.getCRLossPerSecondPercent().modifyPercent(id, ll.getCrDecayMult());
                 if(ll.getMaxCrReduction() > 0) {
                     stats.getPeakCRDuration().modifyPercent(id, -ll.getMaxCrReduction());
-                    stats.getMaxCombatReadiness().modifyFlat(id, -0.01f * ll.getMaxCrReduction(), ll.getName() + " crew");
+
+                    if(!captain.isAICore()) {
+                        stats.getMaxCombatReadiness().modifyFlat(id, -0.01f * ll.getMaxCrReduction(), ll.getName() + " crew");
+                    }
                 }
             }
 
@@ -263,10 +266,10 @@ public class Reputation extends BaseHullMod {
                             Misc.getGrayColor());
                 }
 
-                if(showXp && rep.getTier() != Trait.Tier.Legendary) {
+                if(showXp && rep.getTraits().size() < Trait.getTraitLimit()) {
                     String xp = Util.getImpreciseNumberString(rep.getXp());
                     String req = Util.getImpreciseNumberString(RepRecord.getXpRequiredToLevelUp(fm));
-                    tooltip.addPara("Progress to next tier: " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
+                    tooltip.addPara("Progress to next pair of traits: " + xp + " / " + req + " XP", 10, Misc.getGrayColor(),
                             Misc.getGrayColor());
                 }
             }
@@ -289,7 +292,7 @@ public class Reputation extends BaseHullMod {
                         loyaltyEffectAdjustment = ll.getTraitAdjustment();
 
                         String message = requiresCrew
-                                ? "The " + (requiresCrew ? "crew" : "AI persona") + " of the " + fm.getShipName()
+                                ? "The crew of the " + fm.getShipName()
                                 + " is %s " + ll.getPreposition()
                                 + " its captain, " + cap.getNameString().trim()
                                 : "The ship's integration status is %s";
@@ -306,8 +309,10 @@ public class Reputation extends BaseHullMod {
 
 
                         if (ll.getMaxCrReduction() > 0) {
-                            message += " The maximum CR and peak performance time of the ship will be reduced by %s"
-                                    + (requiresCrew ? " while " + cap.getHeOrShe() + " remains the captain." : ".");
+                            message += requiresCrew
+                                    ? " The maximum CR and peak performance time of the ship will be reduced by %s " +
+                                        "while " + cap.getHeOrShe() + " remains the captain."
+                                    : " The peak performance time of the ship will be reduced by %s.";
                             finalValue = (int) ll.getMaxCrReduction() + "%";
                         } else if(ll.getFameGainBonus() > 0 && !rep.hasMaximumTraits()) {
                             message += " The ship also gains fame %s faster.";

@@ -407,6 +407,13 @@ public class RepRecord {
             badTraits = theme.createBadTraitPicker(rand);
         }
 
+        // Prevent duplicates and "wasting" types on trait slots that have already been assigned
+        for(Trait trait : rep.getTraits()) if(trait != null) retVal.add(trait);
+        for(Trait trait : retVal) {
+            badTraits.remove(trait.getType());
+            goodTraits.remove(trait.getType());
+        }
+
         while(retVal.size() < Trait.getTraitLimit()) {
             WeightedRandomPicker<TraitType> picker = traitIsBad[retVal.size()] ? badTraits : goodTraits;
             WeightedRandomPicker<TraitType> opposite = traitIsBad[retVal.size()] ? goodTraits : badTraits;
@@ -420,12 +427,10 @@ public class RepRecord {
 
             boolean traitIsRelevant = trait.isRelevantFor(ship, allowCrewTraits);
             boolean skipMismatch = shouldSkipCombatLogisticsMismatch(type, rand, hull.isCivilianNonCarrier());
-            boolean shipAlreadyHasTraitOfType = rep.hasTraitType(type);
 
             opposite.remove(type);
 
-
-            if(traitIsRelevant && !shipAlreadyHasTraitOfType) {
+            if(traitIsRelevant) {
                 if(skipMismatch) discardedTraits.add(type);
                 else  retVal.add(trait);
             }
@@ -436,7 +441,7 @@ public class RepRecord {
         while(retVal.size() < Trait.getTraitLimit() && !discardedTraits.isEmpty()) {
             TraitType type = discardedTraits.pickAndRemove();
             Trait trait = type.getTrait(traitIsBad[retVal.size()]);
-            retVal.add(trait);
+            if(trait != null) retVal.add(trait);
         }
 
         return retVal;
