@@ -15,10 +15,8 @@ import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static com.fs.starfarer.api.combat.WeaponAPI.WeaponType.*;
 
@@ -230,8 +228,7 @@ public class Trait implements Comparable<Trait> {
         int loyaltyEffectAdjustment = 0;
 
         if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
-            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
+            loyaltyEffectAdjustment = Util.isNonIntegratedAiCore(captain) ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
         }
 
         for(Trait trait : rep.getTraits()) {
@@ -257,8 +254,7 @@ public class Trait implements Comparable<Trait> {
         int loyaltyEffectAdjustment = 0;
 
         if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
-            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
+            loyaltyEffectAdjustment = Util.isNonIntegratedAiCore(captain) ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
         }
 
         for(Trait trait : rep.getTraits()) {
@@ -301,6 +297,9 @@ public class Trait implements Comparable<Trait> {
         ShipHullSpecAPI hull = ship.getHullSpec();
         ShieldAPI.ShieldType shieldType = hull.getShieldType();
         TraitType type = getType();
+        Set<String> permanentMods = new HashSet<>(hull.getBuiltInMods());
+        permanentMods.addAll(ship.getVariant().getSMods());
+        permanentMods.addAll(ship.getVariant().getPermaMods());
 
         for(String tag : type.getTags()) {
             switch (tag) {
@@ -335,7 +334,7 @@ public class Trait implements Comparable<Trait> {
                     if(!Util.isPhaseShip(ship)) return false;
                     break;
                 case TraitType.Tags.NO_AI:
-                    if(hull.getMinCrew() <= 0) return false;
+                    if(!Util.isShipCrewed(ship)) return false;
                     break;
                 case TraitType.Tags.ATTACK:
                     boolean hasWeaponSlot = false;
@@ -390,13 +389,13 @@ public class Trait implements Comparable<Trait> {
         }
 
         if(!type.getIncompatibleBuiltInHullmods().isEmpty()) {
-            for (String mod : hull.getBuiltInMods()) {
+            for (String mod : permanentMods) {
                 if (type.getIncompatibleBuiltInHullmods().contains(mod)) return false;
             }
         }
 
         if(!type.getRequiredBuiltInHullmods().isEmpty()) {
-            if (!hull.getBuiltInMods().containsAll(type.getRequiredBuiltInHullmods())) {
+            if (!permanentMods.containsAll(type.getRequiredBuiltInHullmods())) {
                 return false;
             }
         }

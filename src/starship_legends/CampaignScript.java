@@ -41,6 +41,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             routedEnemies = new HashSet<>();
     static FleetEncounterContext context = null;
     static TextPanelAPI textPanel = null;
+    static LocationAPI locationLastFrame = null;
 
     static Map<String, BattleRecord> battleRecords = new HashMap<>();
     static Set<FleetMemberAPI> originalShipList;
@@ -137,6 +138,7 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
             CombatPlugin.CURSED.clear();
             CombatPlugin.PHASEMAD.clear();
             previousXP = Global.getSector().getPlayerStats().getXP();
+            locationLastFrame = null;
 
             if(originalShipList != null) {
                 Set<FleetMemberAPI> survivingShips = new HashSet(Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy());
@@ -453,6 +455,14 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 long dXp = Math.min(10000, Global.getSector().getPlayerStats().getXP() - previousXP);
                 growRepForPeacefulXp(dXp);
                 previousXP = xp;
+            }
+
+            if(Global.getSector().getPlayerFleet().getContainingLocation() != locationLastFrame) {
+                locationLastFrame = Global.getSector().getPlayerFleet().getContainingLocation();
+
+                for(IntelInfoPlugin intel : Global.getSector().getIntelManager().getIntel(FamousFlagshipIntel.class)) {
+                    ((FamousFlagshipIntel)intel).checkIfFleetNeedsToBeAddedToLocation();
+                }
             }
 
             for(IntelInfoPlugin i : Global.getSector().getIntelManager().getIntel(FamousDerelictIntel.class)) {

@@ -7,6 +7,7 @@ import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.characters.FullName;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Factions;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.PersonBountyIntel;
 import com.fs.starfarer.api.impl.campaign.intel.misc.FleetLogIntel;
@@ -42,7 +43,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 		activity = event.activity;
 
 		Misc.makeImportant(fleet, "sun_sl_famous_flagship");
-		setRemoveTrigger(fleet);
+
+		if(fleet.getFaction().equals(Factions.NEUTRAL)) setRemoveTrigger(fleet);
 
 		RepRecord.setShipOrigin(ship, RepRecord.Origin.Type.FamousFlagship, faction.getDisplayName());
 	}
@@ -84,7 +86,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 			if (activity == null || activity.equals("")) activity = "somewhere ";
 
 			info.addPara(timeAgo + " you heard that a %s fleet commanded by " + commander.getNameString().trim() +
-					" was " + activity + "in " + location + ". It's not clear how much longer this will be the case.",
+							" was " + activity + "in " + location + ". It's not clear how much longer this will be the case.",
 					10, Misc.getTextColor(), faction.getColor(), bestFactionPrefix);
 
 			info.addPara(Misc.ucFirst(hisOrHer) + " flagship is %s, notable for the following traits:", 10,
@@ -174,5 +176,13 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 	@Override
 	public String getIcon() {
 		return rep != null ? rep.getTier().getIntelIcon() : super.getIcon();
+	}
+
+	public void checkIfFleetNeedsToBeAddedToLocation() {
+		// Fleets were immediately being removed from their locations and I couldn't determine what was triggering it, so this is the workaround
+		if(removeTrigger == null && fleet.isInCurrentLocation()) {
+			setRemoveTrigger(fleet);
+			fleet.getContainingLocation().addEntity(fleet);
+		}
 	}
 }

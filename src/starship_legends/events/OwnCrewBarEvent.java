@@ -141,8 +141,12 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                             && isShipViableForEvent(ship, null)
                             && !shipsWithPreexistingSuggestions.contains(ship)) {
 
-                        picker.add(ship, RepRecord.get(ship).getTraits().size()
-                                * (ship.getHullSpec().isCivilianNonCarrier() ? 0.5f : 1));
+                        float weight = RepRecord.get(ship).getTraits().size() * (1 + 0.2f * ship.getHullSpec().getHullSize().ordinal());
+
+                        if(hasCaptain) weight *= 2;
+                        else if(ship.getHullSpec().isCivilianNonCarrier()) weight *= 0.5f;
+
+                        picker.add(ship, weight);
                     }
                 }
 
@@ -251,8 +255,12 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         replacementTrait = null;
         dmod = null;
         crewTraitMismatch = false;
+        chronicleMonths = 0;
+        chronicleAlternates.clear();
     }
     void chooseStrings() {
+        if(random == null) random = new Random(seed);
+
         if (!Util.isShipCrewed(ship)) personDesc = "The lead AI specialist";
         else if (captain.isPlayer()) personDesc = "Your second-in-command";
         else personDesc = "The ship's captain";
@@ -635,7 +643,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
     public boolean shouldShowAtMarket(MarketAPI market) {
         return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES ? false : super.shouldShowAtMarket(market)
                 && (market.getFaction().getRelToPlayer().isAtWorst(RepLevel.SUSPICIOUS) || market.getFaction().isPlayerFaction())
-                && Integration.isFamousFlagshipEventAvailableAtMarket(market);
+                && Integration.isFamousFlagshipEventAvailableAtMarket(market)
+                && getChanceOfAnyCrewEvent() > 0;
     }
 
     @Override
@@ -701,12 +710,12 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             done = false;
 
             if(subEvent != OptionId.INVALID) {
-                if(captain == null || captain.isDefault() || captain.isPlayer() || !Util.isShipCrewed(ship)) {
+//                if(captain == null || captain.isDefault() || captain.isPlayer() || !Util.isShipCrewed(ship)) {
                     dialog.getVisualPanel().showFleetMemberInfo(ship);
-                } else {
-                    person = captain;
-                    dialog.getVisualPanel().showPersonInfo(person, true);
-                }
+//                } else {
+//                    person = captain;
+//                    dialog.getVisualPanel().showPersonInfo(person, true);
+//                }
 
                 chooseStrings();
 
@@ -935,6 +944,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     text.addPara("You talk with your officers for a while, but nothing significant comes of it.");
                     options.addOption("Continue", OptionId.LEAVE);
                     options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
+                    BarEventManager.getInstance().notifyWasInteractedWith(this);
                     break;
                 }
                 case ACCEPT: {

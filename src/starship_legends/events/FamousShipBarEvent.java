@@ -342,8 +342,6 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		}
 		fleet.addAssignment(FleetAssignment.GO_TO_LOCATION_AND_DESPAWN, source.getPrimaryEntity(), Float.MAX_VALUE);
 
-		source.getContainingLocation().addEntity(fleet);
-
 		newFleetWasCreated = true;
 	}
 	protected void showMap() {
@@ -398,7 +396,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				|| Integration.isFamousDerelictEventAvailableAtMarket(market);
 
 		return isAllowed
-				&& !market.getMemoryWithoutUpdate().getBoolean(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY);
+				&& !market.getMemoryWithoutUpdate().getBoolean(KEY_ACCEPTED_AT_THIS_MARKET_RECENTLY)
+				&& getChanceOfAnyStoryEvent() > 0;
 	}
 
 	@Override
@@ -641,6 +640,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 
 							try {
 								fleet = MilitaryBase.createPatrol(type, source.getFactionId(), null, source, source.getLocationInHyperspace(), this.random);
+
+								fleet.setContainingLocation(source.getContainingLocation());
 							} catch (Exception e) {
 								Global.getLogger(ModPlugin.class).warn("Failed to generate remote fleet: " + source.getFactionId());
 								ModPlugin.reportCrash(e, false);
@@ -673,6 +674,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							activity = isRoaming
 									? fleet.getFaction().isHostileTo(Factions.INDEPENDENT) ? "raiding " : "patrolling "
 									: "defending " + source.getPrimaryEntity().getName() + " ";
+
+							break;
 						}
 
 					} else {
@@ -721,6 +724,8 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 				}
 
 				if (ship != null) {
+					ship.getVariant().addTag(Tags.TAG_RETAIN_SMODS_ON_RECOVERY);
+
 					if (isDerelictMission) {
 						rep = RepRecord.getOrCreate(ship);
 						ship.setOwner(1);
@@ -889,7 +894,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							Misc.getTextColor(), Misc.getHighlightColor(), location, distance,
 							Util.getShipDescription(ship));
 
-					Util.showTraits(text, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
+					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), ship.getHullSpec().getHullSize());
 
 					LoyaltyLevel ll = rep.getLoyalty(commander);
 					String desc = "The crew of the " + ship.getShipName() + " is %s " + ll.getPreposition() + " "
@@ -953,7 +958,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								shape, getConstellationString(), timeScale.getName().toLowerCase());
 					}
 
-					Util.showTraits(text, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
+					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), ship.getHullSpec().getHullSize());
 
 					options.addOption("Ask where the " + ship.getShipName() + " might be found", OptionId.INQUIRE);
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
@@ -1053,6 +1058,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							"but a fanciful fabrication.");
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);
 					options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
+					BarEventManager.getInstance().notifyWasInteractedWith(this);
 					break;
 				}
 				case ACCEPT: {

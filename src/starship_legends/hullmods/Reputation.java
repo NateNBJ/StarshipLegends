@@ -122,14 +122,16 @@ public class Reputation extends BaseHullMod {
 
             if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
                 LoyaltyLevel ll = rep.getLoyalty(captain);
-                boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
-                loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : ll.getTraitAdjustment();
-                stats.getCRLossPerSecondPercent().modifyPercent(id, ll.getCrDecayMult());
+                String loyaltyId = id + "_loyalty";
+
+                loyaltyEffectAdjustment = Util.isNonIntegratedAiCore(captain) ? 0 : ll.getTraitAdjustment();
+                stats.getCRLossPerSecondPercent().modifyPercent(loyaltyId, ll.getCrDecayMult());
+
                 if(ll.getMaxCrReduction() > 0) {
-                    stats.getPeakCRDuration().modifyPercent(id, -ll.getMaxCrReduction());
+                    stats.getPeakCRDuration().modifyPercent(loyaltyId, -ll.getMaxCrReduction());
 
                     if(!captain.isAICore()) {
-                        stats.getMaxCombatReadiness().modifyFlat(id, -0.01f * ll.getMaxCrReduction(), ll.getName() + " crew");
+                        stats.getMaxCombatReadiness().modifyFlat(loyaltyId, -0.01f * ll.getMaxCrReduction(), ll.getName() + " crew");
                     }
                 }
             }
@@ -283,7 +285,7 @@ public class Reputation extends BaseHullMod {
                             ? Misc.getNegativeHighlightColor()
                             : Misc.getHighlightColor();
 
-                    if(cap.isAICore() && !Misc.isUnremovable(cap)) {
+                    if(Util.isNonIntegratedAiCore(cap)) {
                         tooltip.beginImageWithText(cap.getPortraitSprite(), 64).addPara(
                                 "The AI core does not affect the performance of the " + fm.getShipName()
                                 + " because it is not fully integrated.", 3);

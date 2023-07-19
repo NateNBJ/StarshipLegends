@@ -245,7 +245,8 @@ public class FanclubBarEvent extends BaseShipBarEvent {
             return ModPlugin.REMOVE_ALL_DATA_AND_FEATURES ? false : super.shouldShowAtMarket(market)
                     && (market.getFaction().getRelToPlayer().isAtWorst(RepLevel.WELCOMING) || market.getFaction().isPlayerFaction())
                     && Integration.isFamousFlagshipEventAvailableAtMarket(market)
-                    && Global.getSector().getPlayerStats().getLevel() > (rand.nextInt(8) + 7);
+                    && Global.getSector().getPlayerStats().getLevel() > (rand.nextInt(8) + 7)
+                    && getChanceOfAnyFanclubEvent() > 0;
         } catch (Exception e) {
             ModPlugin.reportCrash(e);
             return false;
@@ -300,10 +301,14 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         try {
             super.init(dialog, memoryMap);
 
+            boolean shipToSellRemovedFromFleet = !getPlayerFleet().getFleetData().getMembersListCopy().contains(ship)
+                    && subEvent == OptionId.BUY_SHIP_OFFER
+                    && marketWhereShipIsStored == null;
+
             done = false;
             captainShown = false;
 
-            if(ship == null || rep == null) subEvent = OptionId.INVALID;
+            if(ship == null || rep == null || shipToSellRemovedFromFleet) subEvent = OptionId.INVALID;
 
             if(subEvent != OptionId.INVALID) {
                 if(captain == null || captain.isDefault() || captain.isPlayer()) {
@@ -325,7 +330,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         try {
             if (!(optionData instanceof FanclubBarEvent.OptionId)) return;
 
-            ShipHullSpecAPI hull = ship.getHullSpec();
+            ShipHullSpecAPI hull = ship == null ? null : ship.getHullSpec();
             OptionPanelAPI options = dialog.getOptionPanel();
             TextPanelAPI text = dialog.getTextPanel();
             options.clearOptions();
@@ -424,21 +429,28 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                     text.addPara("You talk with the group of spacers for a while, but nothing significant comes of it.");
                     options.addOption("Continue", OptionId.LEAVE);
                     options.setShortcut(OptionId.LEAVE, Keyboard.KEY_ESCAPE, false, false, false, true);
+                    BarEventManager.getInstance().notifyWasInteractedWith(this);
                     break;
                 }
                 case ACCEPT: {
                     if(subEvent == OptionId.CREW_JOIN_OFFER && ship != null) {
-                        rep.adjustLoyaltyXp(100000, captain);
                         text.addPara("The spacers celebrate with a bawdy clash of toasts and shouts when you tell "
                                         + "them you could use a few more deckhands, and their spokesperson reassures "
                                         + "you that you won't regret hiring them. When it becomes clear that they plan "
                                         + "to celebrate for several more hours, you excuse yourself, explaining that "
                                         + "you need to make arrangements for their onboarding with your quartermaster",
                                 Misc.getTextColor());
-                        text.addPara("The spacers have been assigned to the " + ship.getShipName()
-                                        + ", bringing the crew closer to becoming "
-                                        + rep.getLoyalty(captain).getOneBetter().getName().toLowerCase() + ".",
-                                Misc.getGrayColor());
+
+                        if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM
+                                && getPlayerFleet().getFleetData().getMembersListCopy().contains(ship)
+                                && ship != null && ship.getCaptain() != null && !ship.getCaptain().isDefault()) {
+
+                            rep.adjustLoyaltyXp(100000, captain);
+                            text.addPara("The spacers have been assigned to the " + ship.getShipName()
+                                            + ", bringing the crew closer to becoming "
+                                            + rep.getLoyalty(captain).getOneBetter().getName().toLowerCase() + ".",
+                                    Misc.getGrayColor());
+                        }
                     } else if(subEvent == OptionId.BUY_SHIP_OFFER) {
                         text.addPara("The overdressed fleet commander smiles and raises " + getHisOrHer()
                                         + " glass with a flourish. \"To our shared prosperity!\" " + getHeOrShe()

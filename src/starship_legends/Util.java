@@ -352,8 +352,7 @@ public class Util {
         int loyaltyEffectAdjustment = 0;
 
         if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && captain != null && !captain.isDefault()) {
-            boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
-            loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
+            loyaltyEffectAdjustment = isNonIntegratedAiCore(captain) ? 0 : rep.getLoyalty(captain).getTraitAdjustment();
         }
 
         for(Trait trait : rep.getTraits()) {
@@ -406,7 +405,7 @@ public class Util {
         float fp = ship.getFleetPointCost();
         float strength;
 
-        if(ship.isFighterWing() || !ship.canBeDeployedForCombat() || ship.getHullSpec().isCivilianNonCarrier() || ship.isMothballed()) {
+        if(!isPlayerShip && (ship.isFighterWing() || !ship.canBeDeployedForCombat() || ship.getHullSpec().isCivilianNonCarrier() || ship.isMothballed())) {
             strength = 0;
         } else if(ship.isStation()) {
             ShipVariantAPI variant = ship.getVariant();
@@ -487,6 +486,12 @@ public class Util {
         return ship.isMothballed()
                 ? (ship.getHullSpec().getMinCrew() > 0 && !ship.getVariant().hasHullMod(HullMods.AUTOMATED))
                 : (ship.getMinCrew() > 0);
+    }
+    public static boolean isNonIntegratedAiCore(PersonAPI captain) {
+        return captain.isAICore()
+                && !captain.isPlayer()
+                && !captain.getAICoreId().equals("sotf_sierracore_officer")
+                && !Misc.isUnremovable(captain);
     }
     public static FleetMemberAPI copyFleetMember(FleetMemberAPI ship) {
         try {

@@ -1,5 +1,6 @@
 package starship_legends.events;
 
+import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.campaign.InteractionDialogAPI;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
@@ -21,6 +22,12 @@ public class BaseShipBarEvent extends BaseBarEventWithPerson {
     FleetMemberAPI ship = null;
     PersonAPI captain = null;
     RepRecord rep = null;
+
+    protected CampaignFleetAPI getPlayerFleet() {
+        if(playerFleet == null) playerFleet = Global.getSector().getPlayerFleet();
+
+        return playerFleet;
+    }
 
     void setShip(@NotNull FleetMemberAPI ship) {
         this.ship = ship;

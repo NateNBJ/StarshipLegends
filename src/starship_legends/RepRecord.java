@@ -10,7 +10,6 @@ import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.loading.VariantSource;
-import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import com.thoughtworks.xstream.XStream;
 import org.lazywizard.console.Console;
@@ -596,7 +595,7 @@ public class RepRecord {
         int xpRequiredToLevelUp = RepRecord.getXpRequiredToLevelUp(rc.ship);
         float fameXpEarned = xpEarned * (1 + ModPlugin.FAME_BONUS_PER_PLAYER_LEVEL * Global.getSector().getPlayerStats().getLevel());
         boolean officerIsApplicable = ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM && rc.captain != null
-                && !rc.captain.isDefault() && !getTraits().isEmpty() && (!rc.captain.isAICore() || Misc.isUnremovable(rc.captain));
+                && !rc.captain.isDefault() && !getTraits().isEmpty() && !Util.isNonIntegratedAiCore(rc.captain);
 
         if(officerIsApplicable) fameXpEarned *= 1 + getLoyalty(rc.captain).getFameGainBonus() / 100f;
 
@@ -832,9 +831,8 @@ public class RepRecord {
         return total <= 0 ? 0 : goodness / total;
     }
     public float getLoyaltyRateMult(PersonAPI captain) {
-        boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
-        int loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : getLoyalty(captain).getTraitAdjustment();
+        int loyaltyEffectAdjustment = Util.isNonIntegratedAiCore(captain) ? 0 : getLoyalty(captain).getTraitAdjustment();
 
         for(Trait trait : getTraits()) {
             if (traitsLeft <= 0) break;
@@ -850,9 +848,8 @@ public class RepRecord {
         return 1;
     }
     public float getLoyaltyLossChanceMult(PersonAPI captain) {
-        boolean isNonIntegratedAiCore = captain.isAICore() && !Misc.isUnremovable(captain);
         int traitsLeft = Math.min(getTraits().size(), Trait.getTraitLimit());
-        int loyaltyEffectAdjustment = isNonIntegratedAiCore ? 0 : getLoyalty(captain).getTraitAdjustment();
+        int loyaltyEffectAdjustment = Util.isNonIntegratedAiCore(captain) ? 0 : getLoyalty(captain).getTraitAdjustment();
 
         for(Trait trait : getTraits()) {
             if (traitsLeft <= 0) break;

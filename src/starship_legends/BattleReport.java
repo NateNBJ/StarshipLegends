@@ -145,7 +145,7 @@ public class BattleReport extends BaseIntelPlugin {
                     + " Note that the veracity of the information provided here should not be taken as"
                     + " categorically true as it is subject to the perceptions of those surveyed.";
             float w = width - RIGHT_MARGIN;
-            float totalHeight = 280 + Math.max(0, changes.size() - 3) * 20
+            float totalHeight = 290 + Math.max(0, changes.size() - 3) * 20
                     + getShipListHeight(w, destroyed) + getShipListHeight(w, routed);
             TooltipMakerAPI outer = panel.createUIElement(width, height, true);
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);
@@ -186,11 +186,11 @@ public class BattleReport extends BaseIntelPlugin {
 
             if(showXp) {
                 e.beginTable(Global.getSector().getPlayerFaction(), 20, "Ship", 0.25f * w, "Class", 0.2f * w,
-                        "Status", 0.11f * w, "Inflicted", 0.11f * w, "XP", 0.11f * w, "Loyalty", 0.11f * w,
+                        "Status", 0.11f * w, "Inflicted*", 0.11f * w, "XP", 0.11f * w, "Loyalty", 0.11f * w,
                         "Reputation", 0.11f * w);
             } else {
                 e.beginTable(Global.getSector().getPlayerFaction(), 20, "Ship", 0.29f * w, "Class", 0.23f * w,
-                        "Status", 0.12f * w, "Inflicted", 0.12f * w, "Loyalty", 0.12f * w, "Reputation", 0.12f * w);
+                        "Status", 0.12f * w, "Inflicted*", 0.12f * w, "Loyalty", 0.12f * w, "Reputation", 0.12f * w);
             }
 
             boolean changesWereFound = false;
@@ -240,7 +240,7 @@ public class BattleReport extends BaseIntelPlugin {
                         else repColor = Misc.getTextColor();
                     }
 
-                    if(rc.captain != null && !rc.captain.isDefault() && !(rc.captain.isAICore() && !Misc.isUnremovable(rc.captain))) {
+                    if(rc.captain != null && !rc.captain.isDefault() && !Util.isNonIntegratedAiCore(rc.captain)) {
                         loyalty = Util.isShipCrewed(rc.ship)
                             ? rc.getLoyaltyLevel().getName()
                             : rc.getLoyaltyLevel().getAiIntegrationStatusName();
@@ -278,11 +278,15 @@ public class BattleReport extends BaseIntelPlugin {
                             Alignment.MID, loyaltyColor, loyalty,
                             Alignment.MID, repColor, reputation
                     );
-
                 }
             }
 
             e.addTable("", 0, 3);
+
+            e.addPara("*Inflicted damage is displayed as a percentage the ship's own estimated strength. " +
+                    "If a ship destroys an enemy half as strong, it will be rated as inflicting 50% damage. " +
+                    "If a ship deals 33% damage to a ship twice as strong, it will be rated as inflicting 66% damage.",
+                    Misc.getGrayColor(), 10);
 
             if(changesWereFound) {
                 e.addSectionHeading(" Notes on Crew Disposition and Ship Performance", Alignment.LMID, 20);
