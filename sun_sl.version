@@ -1,11 +1,12 @@
 {
     "masterVersionFile":"https://raw.githubusercontent.com/NateNBJ/StarshipLegends/master/sun_sl.version",
+    "directDownloadURL":"https://github.com/NateNBJ/StarshipLegends/releases/latest/download/Starship.Legends.zip",
     "modName":"Starship Legends",
     "modThreadId":15321,
     "modVersion":
     {
         "major":2,
-        "minor":2,
-        "patch":2,
+        "minor":3,
+        "patch":0,
     },
 }
