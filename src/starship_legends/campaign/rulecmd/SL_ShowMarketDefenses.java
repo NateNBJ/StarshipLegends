@@ -1,14 +1,19 @@
 package starship_legends.campaign.rulecmd;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.*;
+import com.fs.starfarer.api.campaign.BattleAPI;
+import com.fs.starfarer.api.campaign.CampaignFleetAPI;
+import com.fs.starfarer.api.campaign.InteractionDialogAPI;
+import com.fs.starfarer.api.campaign.SectorEntityToken;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.MarketCMD;
 import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.Nex_MarketCMD;
 import com.fs.starfarer.api.util.Misc;
-import starship_legends.*;
+import starship_legends.FactionConfig;
+import starship_legends.ModPlugin;
+import starship_legends.Util;
 import starship_legends.hullmods.Reputation;
 
 import java.util.ArrayList;
@@ -18,16 +23,13 @@ import java.util.Map;
 public class SL_ShowMarketDefenses extends MarketCMD {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
-        PersonAPI commander = null;
-        List<CampaignFleetAPI> pulledIn = new ArrayList();
-
-        if(!ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) {
-            commander = guessCommander(pulledIn);
-        }
-
         if(Global.getSettings().getModManager().isModEnabled("nexerelin")) {
             try {
-                if(!(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) return false;
+                if(!ruleId.equals("IINexTitanStrikeFollowup")
+                    && !(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) {
+
+                    return false;
+                }
             } catch (Exception e) {
                 ModPlugin.reportCrash(e, false);
                 if(!super.execute(ruleId, dialog, params, memoryMap)) return false;
@@ -39,6 +41,9 @@ public class SL_ShowMarketDefenses extends MarketCMD {
         if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return true;
 
         try {
+            List<CampaignFleetAPI> pulledIn = new ArrayList();
+            PersonAPI commander = guessCommander(pulledIn);
+
             FactionConfig.clearEnemyFleetRep();
 
             if (commander == null || commander.isDefault()) return false;
