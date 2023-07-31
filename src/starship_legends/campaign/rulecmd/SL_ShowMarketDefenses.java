@@ -23,10 +23,11 @@ import java.util.Map;
 public class SL_ShowMarketDefenses extends MarketCMD {
     @Override
     public boolean execute(String ruleId, InteractionDialogAPI dialog, List<Misc.Token> params, Map<String, MemoryAPI> memoryMap) {
+        if(ruleId.equals("IINexTitanStrikeFollowup")) return false;
+
         if(Global.getSettings().getModManager().isModEnabled("nexerelin")) {
             try {
-                if(!ruleId.equals("IINexTitanStrikeFollowup")
-                    && !(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) {
+                if(!(new Nex_MarketCMD(dialog.getInteractionTarget()).execute(ruleId, dialog, params, memoryMap))) {
 
                     return false;
                 }
@@ -41,6 +42,8 @@ public class SL_ShowMarketDefenses extends MarketCMD {
         if (ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return true;
 
         try {
+            if(market == null) init(dialog.getInteractionTarget());
+
             List<CampaignFleetAPI> pulledIn = new ArrayList();
             PersonAPI commander = guessCommander(pulledIn);
 
