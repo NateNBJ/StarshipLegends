@@ -7,6 +7,9 @@
 		# Prevents references to crew in the faction's fleets, sometimes substituting
 		#	"crew" with "AI persona"
 		"useCrewlessTraitNames":false,
+	
+		# Replaces default trait names with ones that are better suited to organic void critters
+		"useBiologicalTraitNames":false,
 		
 		# Changes the short description prior to listing traits. Enter %s where the
 		#	commander's name should be, if you want it to apear at all
