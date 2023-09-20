@@ -14,6 +14,7 @@ import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import org.lwjgl.input.Keyboard;
 import starship_legends.ModPlugin;
+import starship_legends.Util;
 
 import java.awt.*;
 import java.util.HashSet;
@@ -83,13 +84,14 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
 
         float pad = 3f;
         float opad = 10f;
+        boolean biological = Util.isShipBiological(barEvent.ship);
 
         float initPad = pad;
         if (mode == ListInfoMode.IN_DESC) initPad = opad;
 
         bullet(info);
-        info.addPara("Current: %s", initPad, tc, h, barEvent.trait.getName(barEvent.requiresCrew));
-        info.addPara("Alternate: %s", initPad, tc, h, barEvent.replacementTrait.getName(barEvent.requiresCrew));
+        info.addPara("Current: %s", initPad, tc, h, barEvent.trait.getName(barEvent.requiresCrew, biological));
+        info.addPara("Alternate: %s", initPad, tc, h, barEvent.replacementTrait.getName(barEvent.requiresCrew, biological));
         unindent(info);
     }
 

@@ -24,7 +24,7 @@ public class ListTraitEffects implements BaseCommand {
             List<String> traits = new LinkedList<>();
 
             for(Trait trait : Util.getTraitsMatchingDescription(args)) {
-                traits.add(trait.getName(true)
+                traits.add(trait.getName(true, false)
                         + ": " + trait.getEffectValueString(trait.getType().getBaseBonus() * trait.getEffectSign())
                         + " " + trait.getType().getEffectDescription() + " per level");
             }

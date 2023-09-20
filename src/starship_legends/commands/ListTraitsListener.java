@@ -30,7 +30,7 @@ public class ListTraitsListener implements CommandListener {
 
             List<String> traits = new LinkedList<>();
 
-            for(Trait trait : Util.getTraitsMatchingDescription(args)) traits.add(trait.getName(true));
+            for(Trait trait : Util.getTraitsMatchingDescription(args)) traits.add(trait.getName(true, false));
 
             Collections.sort(traits);
 

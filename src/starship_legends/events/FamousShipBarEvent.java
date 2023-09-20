@@ -894,7 +894,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 							Misc.getTextColor(), Misc.getHighlightColor(), location, distance,
 							Util.getShipDescription(ship));
 
-					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), ship.getHullSpec().getHullSize());
+					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), Util.isShipBiological(ship), ship.getHullSpec().getHullSize());
 
 					LoyaltyLevel ll = rep.getLoyalty(commander);
 					String desc = "The crew of the " + ship.getShipName() + " is %s " + ll.getPreposition() + " "
@@ -958,7 +958,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								shape, getConstellationString(), timeScale.getName().toLowerCase());
 					}
 
-					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), ship.getHullSpec().getHullSize());
+					Util.showTraits(text, rep, null, Util.isShipCrewed(ship), Util.isShipBiological(ship), ship.getHullSpec().getHullSize());
 
 					options.addOption("Ask where the " + ship.getShipName() + " might be found", OptionId.INQUIRE);
 					options.addOption("Carry on with more important matters", OptionId.LEAVE);

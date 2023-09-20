@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class BaseShipBarEvent extends BaseBarEventWithPerson {
     CampaignFleetAPI playerFleet = null;
-    boolean requiresCrew = false, shipShown = false;
+    boolean requiresCrew = false, shipShown = false, biological = false;
 
     FleetMemberAPI ship = null;
     PersonAPI captain = null;
@@ -34,6 +34,7 @@ public class BaseShipBarEvent extends BaseBarEventWithPerson {
         this.rep = RepRecord.get(ship);
         this.captain = ship.getCaptain();
         this.requiresCrew = Util.isShipCrewed(ship);
+        this.biological = Util.isShipBiological(ship);
     }
     void showShip() {
         //Global.getSector().getCampaignUI().showCoreUITab(CoreUITabId.REFIT, ship);
@@ -41,7 +42,7 @@ public class BaseShipBarEvent extends BaseBarEventWithPerson {
         dialog.getVisualPanel().showFleetMemberInfo(ship);
 
         text.addPara("The " + ship.getShipName() + " is known for the following traits:");
-        Util.showTraits(text, rep, captain, requiresCrew, ship.getHullSpec().getHullSize());
+        Util.showTraits(text, rep, captain, requiresCrew, biological, ship.getHullSpec().getHullSize());
 
         if(captain != null && !captain.isDefault() && rep != null) {
             LoyaltyLevel ll = rep.getLoyalty(captain);

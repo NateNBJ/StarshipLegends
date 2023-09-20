@@ -31,6 +31,7 @@ public class RepChange {
 
         public void createIntelInfo(TooltipMakerAPI info, ListInfoMode mode) {
             boolean requiresCrew = Util.isShipCrewed(ship);
+            boolean biological = Util.isShipBiological(ship);
             ShipHullSpecAPI hull = rc.ship.getHullSpec().getBaseHull() == null
                     ? rc.ship.getHullSpec()
                     : rc.ship.getHullSpec().getBaseHull();
@@ -41,8 +42,8 @@ public class RepChange {
 
             info.addPara("The " + rc.ship.getShipName() + " (" + hull.getHullName()
                     + ") is now known for:", 0);
-            rc.addTraitBulletToTooltip(info, trait1, requiresCrew);
-            rc.addTraitBulletToTooltip(info, trait2, requiresCrew);
+            rc.addTraitBulletToTooltip(info, trait1, requiresCrew, biological);
+            rc.addTraitBulletToTooltip(info, trait2, requiresCrew, biological);
         }
     }
 
@@ -142,15 +143,15 @@ public class RepChange {
         return showNotification;
     }
 
-    public void addTraitBulletToTooltip(TooltipMakerAPI tooltip, Trait trait, boolean requiresCrew) {
+    public void addTraitBulletToTooltip(TooltipMakerAPI tooltip, Trait trait, boolean requiresCrew, boolean biological) {
         tooltip.addPara("  - " + "%s %s %s", 0,
             new Color[] {
                 Misc.getTextColor(),
                 trait.getEffectSign() > 0 ? Misc.getPositiveHighlightColor() : Misc.getNegativeHighlightColor(),
                 Misc.getGrayColor()
             },
-            trait.getDescPrefix(requiresCrew),
-            trait.getName(requiresCrew),
+            trait.getDescPrefix(requiresCrew, biological),
+            trait.getName(requiresCrew, biological),
             trait.getParentheticalDescription()
         );
     }
@@ -161,6 +162,7 @@ public class RepChange {
         int lines = 1;
         int PAD = 0;
         boolean requiresCrew = Util.isShipCrewed(ship);
+        boolean biological = Util.isShipBiological(ship);
 
         tooltip.addPara(" " + ship.getShipName() + ":", PAD);
 //        RepRecord rep = RepRecord.getOrCreate(ship);
@@ -170,8 +172,8 @@ public class RepChange {
 
         if(hasNewTraitPair()) {
             String
-                    pref1 = trait1.getDescPrefix(requiresCrew).toLowerCase(),
-                    pref2 = "and" + trait2.getDescPrefix(requiresCrew, pref1).toLowerCase();
+                    pref1 = trait1.getDescPrefix(requiresCrew, biological).toLowerCase(),
+                    pref2 = "and" + trait2.getDescPrefix(requiresCrew, biological, pref1).toLowerCase();
 
             // Leave the double space below. Otherwise the highlight color to the left of "and" will sometimes bleed over to it for some reason...
             tooltip.addPara(BaseIntelPlugin.BULLET + "Now known for %s %s %s %s %s %s", PAD,
@@ -184,10 +186,10 @@ public class RepChange {
                         Misc.getGrayColor()
                 },
                 pref1,
-                trait1.getLowerCaseName(requiresCrew),
+                trait1.getLowerCaseName(requiresCrew, biological),
                 trait1.getParentheticalDescription(),
                 pref2,
-                trait2.getLowerCaseName(requiresCrew),
+                trait2.getLowerCaseName(requiresCrew, biological),
                 trait2.getParentheticalDescription()
             );
 

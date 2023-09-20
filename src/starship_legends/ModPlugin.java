@@ -400,7 +400,7 @@ public class ModPlugin extends BaseModPlugin {
                             Trait trait = rep.getTraits().get(i);
 
                             if(!trait.isRelevantFor(ship)) {
-                                log("Removing " + trait.getName(true) + " from the " + ship.getShipName()
+                                log("Removing " + trait.getName(true, false) + " from the " + ship.getShipName()
                                         + " (" + ship.getHullId() + ") for not being relevant to the ship");
                                 rep.getTraits().get(i).typeID = destinedTraits.get(i).typeID;
                             }
@@ -441,7 +441,7 @@ public class ModPlugin extends BaseModPlugin {
                         Set<TraitType> found = new HashSet<>();
 
                         for (Trait t : new ArrayList<>(rep.getTraits())) {
-                            if (found.contains(t.getType()) || t.getName(true).isEmpty()) {
+                            if (found.contains(t.getType()) || t.getName(true, false).isEmpty()) {
                                 rep.getTraits().remove(t);
                             } else found.add(t.getType());
                         }
@@ -706,7 +706,7 @@ public class ModPlugin extends BaseModPlugin {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
                 Trait trait = TraitType.get("cr_cap").getTrait(effectPercent < 0);
-                String traitName = trait.getName(Util.isShipCrewed(ship));
+                String traitName = trait.getName(Util.isShipCrewed(ship), Util.isShipBiological(ship));
                 stats.getMaxCombatReadiness().modifyFlat(id, effectPercent * 0.01f, traitName);
             }
         });

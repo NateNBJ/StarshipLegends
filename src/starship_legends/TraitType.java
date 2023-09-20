@@ -23,6 +23,7 @@ public class TraitType {
                 SHIELD = "shield",
                 CLOAK = "cloak",
                 NO_AI = "no_ai",
+                NO_BIO = "no_bio",
                 FLAT_EFFECT = "flat_effect",
                 FLAT_PERCENT = "flat_percent",
                 COMBAT = "combat",
@@ -56,7 +57,8 @@ public class TraitType {
 
 
     private String id, desc, bonusName, malusName, bonusDesc, malusDesc,
-            bonusNameAI, malusNameAI, bonusDescAI, malusDescAI;
+            bonusNameAI, malusNameAI, bonusDescAI, malusDescAI,
+            bonusNameBio, malusNameBio, bonusDescBio, malusDescBio;
     private Set<String> tags = new HashSet<>(), requiredBuiltIns = new HashSet<>(), incompatibleBuiltIns = new HashSet<>();
     private float baseBonus, baseChance;
     private Trait bonus, malus;
@@ -76,12 +78,24 @@ public class TraitType {
     public boolean canBeNegative() {
         return malus != null;
     }
-    public String getName(boolean isMalus, boolean requiresCrew) {
+    public String getName(boolean isMalus, boolean requiresCrew, boolean biological) {
+        if(biological) {
+            String name = isMalus ? malusNameBio : bonusNameBio;
+
+            if(name != null && !name.isEmpty()) return name;
+        }
+
         return isMalus
                 ? (!requiresCrew && !malusNameAI.isEmpty()) ? malusNameAI : malusName
                 : (!requiresCrew && !bonusNameAI.isEmpty()) ? bonusNameAI : bonusName;
     }
-    public String getDescriptionPrefix(boolean isMalus, boolean requiresCrew) {
+    public String getDescriptionPrefix(boolean isMalus, boolean requiresCrew, boolean biological) {
+        if(biological) {
+            String desc = isMalus ? malusDescBio : bonusDescBio;
+
+            if(desc != null && !desc.isEmpty()) return desc;
+        }
+            
         return isMalus
                 ? (!requiresCrew && !malusDescAI.isEmpty()) ? malusDescAI : malusDesc
                 : (!requiresCrew && !bonusDescAI.isEmpty()) ? bonusDescAI : bonusDesc;
@@ -98,6 +112,10 @@ public class TraitType {
         malusNameAI = data.getString("malus_name_ai");
         bonusDescAI = data.getString("bonus_desc_ai");
         malusDescAI = data.getString("malus_desc_ai");
+        bonusNameBio = data.optString("bonus_name_bio", "");
+        malusNameBio = data.optString("malus_name_bio", "");
+        bonusDescBio = data.optString("bonus_desc_bio", "");
+        malusDescBio = data.optString("malus_desc_bio", "");
         desc = data.getString("desc");
         baseBonus = (float)data.getDouble("base_bonus");
         applicableToFleets = data.getBoolean("applicable_to_fleets");

@@ -94,7 +94,8 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 
 			info.addPara("", 0);
 
-			Util.showTraits(info, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
+			Util.showTraits(info, rep, null, !FactionConfig.get(faction).isCrewlessTraitNamesUsed(),
+					FactionConfig.get(faction).isBiologicalTraitNamesUsed(), ship.getHullSpec().getHullSize());
 
 			LoyaltyLevel ll = rep.getLoyalty(commander);
 			String desc = "The crew of the " + ship.getShipName() + " is %s " + ll.getPreposition() + " "

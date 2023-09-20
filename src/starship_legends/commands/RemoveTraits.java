@@ -24,9 +24,9 @@ public class RemoveTraits implements BaseCommand {
             message += " is not known for ";
         }
 
-        message += trait.getDescPrefix(Util.isShipCrewed(ship)).toLowerCase() + " %s.";
+        message += trait.getDescPrefix(Util.isShipCrewed(ship), Util.isShipBiological(ship)).toLowerCase() + " %s.";
 
-        Console.showMessage(String.format(message, trait.getName(true).toUpperCase()));
+        Console.showMessage(String.format(message, trait.getName(Util.isShipCrewed(ship), Util.isShipBiological(ship)).toUpperCase()));
     }
 
     @Override

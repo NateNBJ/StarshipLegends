@@ -57,6 +57,7 @@ public class FactionConfig {
     final String factionID;
 
     boolean useCrewlessTraitNames = false;
+    boolean useBiologicalTraitNames = false;
     boolean allowFamousFlagshipsInFleets = true;
     boolean allowFamousFlagshipBarEvent = false;
     boolean allowFamousDerelictBarEvent = false;
@@ -70,6 +71,7 @@ public class FactionConfig {
     void readData(JSONObject data) throws JSONException {
         if(data.has("descriptionOverride")) descriptionOverride = data.getString("descriptionOverride");
         if(data.has("useCrewlessTraitNames")) useCrewlessTraitNames = data.getBoolean("useCrewlessTraitNames");
+        if(data.has("useBiologicalTraitNames")) useBiologicalTraitNames = data.getBoolean("useBiologicalTraitNames");
         if(data.has("allowFamousFlagshipsInFleets")) allowFamousFlagshipsInFleets = data.getBoolean("allowFamousFlagshipsInFleets");
         if(data.has("allowFamousFlagshipBarEvent")) allowFamousFlagshipBarEvent = data.getBoolean("allowFamousFlagshipBarEvent");
         if(data.has("allowFamousDerelictBarEvent")) allowFamousDerelictBarEvent = data.getBoolean("allowFamousDerelictBarEvent");
@@ -155,8 +157,6 @@ public class FactionConfig {
         } else return ModPlugin.TRAITS_FOR_FLEETS_WITH_NO_COMMANDER;
     }
     void chooseSettingsBasedOnFactionProperties() {
-        //useCrewlessTraitNames = true;
-
         if(!getFaction().isShowInIntelTab()) {
             descriptionOverride = "The ships in this fleet have the following traits:";
             allowFamousFlagshipsInFleets = false;
@@ -299,6 +299,14 @@ public class FactionConfig {
         this.useCrewlessTraitNames = useCrewlessTraitNames;
     }
 
+    public boolean isBiologicalTraitNamesUsed() {
+        return useBiologicalTraitNames;
+    }
+
+    public void useUseBiologicalTraitNames(boolean useBiologicalTraitNames) {
+        this.useBiologicalTraitNames = useBiologicalTraitNames;
+    }
+
     public boolean isFamousFlagshipAllowedInFleets() {
         return allowFamousFlagshipsInFleets;
     }
@@ -436,6 +444,6 @@ public class FactionConfig {
             panel.addPara(desc);
         }
 
-        Util.showTraits(panel, rep, commander, !useCrewlessTraitNames, ShipAPI.HullSize.DEFAULT);
+        Util.showTraits(panel, rep, commander, !useCrewlessTraitNames, useBiologicalTraitNames, ShipAPI.HullSize.DEFAULT);
     }
 }

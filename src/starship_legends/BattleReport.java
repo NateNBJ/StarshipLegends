@@ -145,7 +145,7 @@ public class BattleReport extends BaseIntelPlugin {
                     + " Note that the veracity of the information provided here should not be taken as"
                     + " categorically true as it is subject to the perceptions of those surveyed.";
             float w = width - RIGHT_MARGIN;
-            float totalHeight = 290 + Math.max(0, changes.size() - 3) * 20
+            float totalHeight = 310 + Math.max(0, changes.size() - 3) * 20
                     + getShipListHeight(w, destroyed) + getShipListHeight(w, routed);
             TooltipMakerAPI outer = panel.createUIElement(width, height, true);
             CustomPanelAPI inner = panel.createCustomPanel(width, totalHeight + noteCount * NOTE_HEIGHT, null);

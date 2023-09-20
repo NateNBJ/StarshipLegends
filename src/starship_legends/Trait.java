@@ -26,7 +26,7 @@ public class Trait implements Comparable<Trait> {
 
         int xpRequired = 1;
         float effectMultiplier = 0;
-        String name = "ERROR", crewedFlavorText = "ERROR", aiFlavorText = "ERROR";
+        String name = "ERROR", crewedFlavorText = "ERROR", aiFlavorText = "ERROR", bioFlavorText = "ERROR";
 
         public int getXpRequired() { return xpRequired; }
         public float getEffectMultiplier() {
@@ -39,7 +39,9 @@ public class Trait implements Comparable<Trait> {
         public String getDisplayName() {
             return name;
         }
-        public String getFlavorText(boolean shipRequiresCrew) {
+        public String getFlavorText(boolean shipRequiresCrew, boolean shipIsBiological) {
+            if(shipIsBiological) return bioFlavorText;
+
             return shipRequiresCrew ? crewedFlavorText : aiFlavorText;
 
 //            if (shipRequiresCrew) {
@@ -105,6 +107,7 @@ public class Trait implements Comparable<Trait> {
             name = cfg.getString("name");
             crewedFlavorText = cfg.getString("crewedFlavorText");
             aiFlavorText = cfg.getString("aiFlavorText");
+            bioFlavorText = cfg.getString("bioFlavorText");
 
             if(xpRequired <= 0) xpRequired = Integer.MAX_VALUE;
         }
@@ -136,17 +139,17 @@ public class Trait implements Comparable<Trait> {
     }
 
     public TraitType getType() { return TraitType.get(typeID); }
-    public String getName(boolean requiresCrew) {
-        return getType().getName(effectSign < 0, requiresCrew);
+    public String getName(boolean requiresCrew, boolean biological) {
+        return getType().getName(effectSign < 0, requiresCrew, biological);
     }
-    public String getLowerCaseName(boolean requiresCrew) {
-        return getType().getName(effectSign < 0, requiresCrew).toLowerCase().replace("ai persona", "AI persona");
+    public String getLowerCaseName(boolean requiresCrew, boolean biological) {
+        return getType().getName(effectSign < 0, requiresCrew, biological).toLowerCase().replace("ai persona", "AI persona");
     }
-    public String getDescPrefix(boolean requiresCrew) {
-        return getType().getDescriptionPrefix(effectSign < 0, requiresCrew);
+    public String getDescPrefix(boolean requiresCrew, boolean biological) {
+        return getType().getDescriptionPrefix(effectSign < 0, requiresCrew, biological);
     }
-    public String getDescPrefix(boolean requiresCrew, String previousPrefix) {
-        String retVal = getType().getDescriptionPrefix(effectSign < 0, requiresCrew).toLowerCase();
+    public String getDescPrefix(boolean requiresCrew, boolean biological, String previousPrefix) {
+        String retVal = getType().getDescriptionPrefix(effectSign < 0, requiresCrew, biological).toLowerCase();
         String firstWordOfPrev = previousPrefix.split(" ")[0].toLowerCase();
 
         if(retVal.startsWith(firstWordOfPrev)) retVal = retVal.replace(firstWordOfPrev, "").trim();
@@ -188,34 +191,34 @@ public class Trait implements Comparable<Trait> {
             default: return null;
         }
     }
-    public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
+    public void addParagraphTo(TooltipMakerAPI tooltip, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, boolean biological, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
 
         if(tier == Tier.Rumored) {
-            tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+            tooltip.addPara(bullet + getName(requiresCrew, biological) + ": %s " + getType().getEffectDescription(),
                     1, Misc.getGrayColor(), getHighlightColor(),
                     getEffectValueString(getEffectSign() * getType().getBaseBonus() * 0.0000001f));
         } else {
             float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
                     * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
-            tooltip.addPara(bullet + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+            tooltip.addPara(bullet + getName(requiresCrew, biological) + ": %s " + getType().getEffectDescription(),
                     1, getHighlightColor(), getEffectValueString(effect));
         }
     }
-    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
-        addParagraphTo(textPanel, tier, loyaltyEffectAdjustment, requiresCrew, hullSize, useBullet, isFleetTrait, "");
+    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, boolean biological, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait) {
+        addParagraphTo(textPanel, tier, loyaltyEffectAdjustment, requiresCrew, biological, hullSize, useBullet, isFleetTrait, "");
     }
-    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait, String prefix) {
+    public void addParagraphTo(TextPanelAPI textPanel, Tier tier, int loyaltyEffectAdjustment, boolean requiresCrew, boolean biological, ShipAPI.HullSize hullSize, boolean useBullet, boolean isFleetTrait, String prefix) {
         String bullet = useBullet ? BaseIntelPlugin.BULLET : "  ";
 
         if(tier == Tier.Rumored) {
-            textPanel.addPara(bullet + prefix + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+            textPanel.addPara(bullet + prefix + getName(requiresCrew, biological) + ": %s " + getType().getEffectDescription(),
                     Misc.getGrayColor(), getHighlightColor(),
                     getEffectValueString(getEffectSign() * getType().getBaseBonus() * 0.0000001f));
         } else {
             float effect = Math.max(ModPlugin.MINIMUM_EFFECT_REDUCTION_PERCENT, getEffect(tier, loyaltyEffectAdjustment, hullSize)
                     * (isFleetTrait ? ModPlugin.FLEET_TRAIT_EFFECT_MULT : 1));
-            textPanel.addPara(bullet + prefix + getName(requiresCrew) + ": %s " + getType().getEffectDescription(),
+            textPanel.addPara(bullet + prefix + getName(requiresCrew, biological) + ": %s " + getType().getEffectDescription(),
                     getHighlightColor(), getEffectValueString(effect));
         }
     }
@@ -223,6 +226,7 @@ public class Trait implements Comparable<Trait> {
         RepRecord rep = RepRecord.get(ship);
         PersonAPI captain = ship.getCaptain();
         boolean requiresCrew = Util.isShipCrewed(ship);
+        boolean biological = Util.isShipBiological(ship);
         ShipAPI.HullSize size = ship.getHullSpec().getHullSize();
         int traitsLeft = rep.getTraits().size();
         int loyaltyEffectAdjustment = 0;
@@ -238,10 +242,10 @@ public class Trait implements Comparable<Trait> {
 
             if(this.equals(trait)) {
                 textPanel.addPara("%s currently " + trait.getDescription(tier, loyaltyEffectAdjustment, size),
-                        Misc.getGrayColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
+                        Misc.getGrayColor(), Misc.getHighlightColor(), trait.getName(requiresCrew, biological));
 
                 textPanel.addPara("%s would " + traitToCompare.getDescription(tier, loyaltyEffectAdjustment, size).replace("ses ", "se "),
-                        Misc.getGrayColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+                        Misc.getGrayColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew, biological));
             }
         }
     }
@@ -249,6 +253,7 @@ public class Trait implements Comparable<Trait> {
         RepRecord rep = RepRecord.get(ship);
         PersonAPI captain = ship.getCaptain();
         boolean requiresCrew = Util.isShipCrewed(ship);
+        boolean biological = Util.isShipBiological(ship);
         ShipAPI.HullSize size = ship.getHullSpec().getHullSize();
         int traitsLeft = rep.getTraits().size();
         int loyaltyEffectAdjustment = 0;
@@ -265,9 +270,9 @@ public class Trait implements Comparable<Trait> {
             if(this.equals(trait)) {
 //                info.setBulletedListMode(BaseIntelPlugin.BULLET);
                 info.addPara("%s currently " + trait.getDescription(tier, loyaltyEffectAdjustment, size),
-                        10, Misc.getTextColor(), Misc.getHighlightColor(), trait.getName(requiresCrew));
+                        10, Misc.getTextColor(), Misc.getHighlightColor(), trait.getName(requiresCrew, biological));
                 info.addPara("%s would " + traitToCompare.getDescription(tier, loyaltyEffectAdjustment, size).replace("ses ", "se "),
-                        10, Misc.getTextColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew));
+                        10, Misc.getTextColor(), Misc.getHighlightColor(), traitToCompare.getName(requiresCrew, biological));
 //                info.setBulletedListMode(null);
             }
         }
@@ -335,6 +340,9 @@ public class Trait implements Comparable<Trait> {
                     break;
                 case TraitType.Tags.NO_AI:
                     if(!Util.isShipCrewed(ship)) return false;
+                    break;
+                case TraitType.Tags.NO_BIO:
+                    if(!Util.isShipBiological(ship)) return false;
                     break;
                 case TraitType.Tags.ATTACK:
                     boolean hasWeaponSlot = false;

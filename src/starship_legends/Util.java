@@ -261,7 +261,7 @@ public class Util {
             for(Trait trait : Trait.getAll()) {
                 if(sign != 0 && sign != trait.getEffectSign()) continue;
 
-                if(desc.isEmpty() || trait.getLowerCaseName(true).equals(desc)) {
+                if(desc.isEmpty() || trait.getLowerCaseName(true, false).equals(desc)) {
                     matches.add(trait);
                 } else {
                     boolean hasAllTags = true;
@@ -346,7 +346,7 @@ public class Util {
 
         return commander;
     }
-    public static void showTraits(TooltipMakerAPI tooltip, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {
+    public static void showTraits(TooltipMakerAPI tooltip, RepRecord rep, PersonAPI captain, boolean requiresCrew, boolean biological, ShipAPI.HullSize size) {
         //int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
         int traitsLeft = rep.getTraits().size();
         int loyaltyEffectAdjustment = 0;
@@ -360,16 +360,16 @@ public class Util {
 
             Trait.Tier tier = RepRecord.getTierFromTraitCount(traitsLeft--);
 
-            trait.addParagraphTo(tooltip, tier, loyaltyEffectAdjustment, requiresCrew, size, false,
+            trait.addParagraphTo(tooltip, tier, loyaltyEffectAdjustment, requiresCrew, biological, size, false,
                     rep.equals(FactionConfig.getEnemyFleetRep()));
         }
     }
-    public static void showTraits(TextPanelAPI textPanel, RepRecord rep, PersonAPI captain, boolean requiresCrew, ShipAPI.HullSize size) {
+    public static void showTraits(TextPanelAPI textPanel, RepRecord rep, PersonAPI captain, boolean requiresCrew, boolean biological, ShipAPI.HullSize size) {
         if(textPanel == null) return;
 
         TooltipMakerAPI tooltip = textPanel.beginTooltip();
 
-        showTraits(tooltip, rep, captain, requiresCrew, size);
+        showTraits(tooltip, rep, captain, requiresCrew, biological, size);
 
         textPanel.addTooltip();
     }
@@ -492,6 +492,9 @@ public class Util {
                 && !captain.isPlayer()
                 && !captain.getAICoreId().equals("sotf_sierracore_officer")
                 && !Misc.isUnremovable(captain);
+    }
+    public static boolean isShipBiological(FleetMemberAPI fleetMember) {
+        return Integration.biologicalShips.contains(fleetMember.getHullId());
     }
     public static FleetMemberAPI copyFleetMember(FleetMemberAPI ship) {
         try {

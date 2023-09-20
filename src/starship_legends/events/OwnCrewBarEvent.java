@@ -271,14 +271,27 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         else officerTypeStr = "leadership";
 
         if (trait != null && replacementTrait != null) {
-            pref1 = replacementTrait.getDescPrefix(requiresCrew).toLowerCase();
-            pref2 = trait.getDescPrefix(requiresCrew, pref1).toLowerCase();
+            pref1 = replacementTrait.getDescPrefix(requiresCrew, biological).toLowerCase();
+            pref2 = trait.getDescPrefix(requiresCrew, biological, pref1).toLowerCase();
         }
 
         if(chronicleMonths > 0) {
             chronicleAlternates.clear();
 
-            if(!Util.isShipCrewed(ship)) {
+            if(biological) {
+                alternateShipTypeDesc = "organic ship";
+                chroniclerDesc = "a biologist who is interested in publishing observations " +
+                        "of space-faring megafauna in practical settings. The researcher";
+                shortChroniclerDesc = "the biologist";
+
+                for(FleetMemberAPI fm : playerFleet.getFleetData().getMembersListCopy()) {
+                    ShipHullSpecAPI spec = fm.getHullSpec();
+
+                    if(Util.isShipBiological(fm) && (spec.isCivilianNonCarrier() == ship.getHullSpec().isCivilianNonCarrier())) {
+                        chronicleAlternates.add(fm);
+                    }
+                }
+            } else if(!Util.isShipCrewed(ship)) {
                 alternateShipTypeDesc = "autonomous ship";
                 chroniclerDesc = "an artificial intelligence researcher who is interested in publishing observations " +
                         "of autonomous ships in practical settings. The researcher";
@@ -540,8 +553,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         if(trait != null && replacementTrait != null) {
             text.addPara("The " + ship.getShipName() + " is now known for " + pref1 + " %s instead of" + pref2 + " %s",
                     Misc.getTextColor(), Misc.getHighlightColor(),
-                    replacementTrait.getLowerCaseName(requiresCrew),
-                    trait.getLowerCaseName(requiresCrew)
+                    replacementTrait.getLowerCaseName(requiresCrew, biological),
+                    trait.getLowerCaseName(requiresCrew, biological)
             );
         }
 
@@ -608,18 +621,18 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         }
 
         info.addPara(getSidegradeProse(true), opad, new Color[]{ h, h },
-                replacementTrait.getLowerCaseName(requiresCrew),
-                trait.getLowerCaseName(requiresCrew));
+                replacementTrait.getLowerCaseName(requiresCrew, biological),
+                trait.getLowerCaseName(requiresCrew, biological));
         info.addShipList(1, 1, 64, Color.WHITE, shipList, opad);
 
         if(event.approved) {
             info.addPara("You approved the suggestion, and the " + ship.getShipName() + " is now known for "
                             + pref1 + " %s instead of" + pref2 + " %s.", opad, tc, h,
-                    replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
+                    replacementTrait.getLowerCaseName(requiresCrew, biological), trait.getLowerCaseName(requiresCrew, biological));
         } else if(event.isEnding()) {
             info.addPara("You rejected the suggestion. The " + ship.getShipName() + " will remain known for "
-                            + trait.getDescPrefix(requiresCrew).toLowerCase() + " %s.", opad, tc, h,
-                    trait.getLowerCaseName(requiresCrew));
+                            + trait.getDescPrefix(requiresCrew, biological).toLowerCase() + " %s.", opad, tc, h,
+                    trait.getLowerCaseName(requiresCrew, biological));
         } else {
             trait.addComparisonParagraphsTo(info, ship, replacementTrait);
         }
@@ -752,12 +765,26 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                     Set<String> tags = replacementTrait.getTags();
                     String evenTheCrewMaybe = requiresCrew && !trait.getTags().contains(TraitType.Tags.CREW)
                             ? ", even the crew" : "";
+                    String shipDesc = biological ? "impressive creature" : "fine ship";
                     String str = personDesc + " eventually leans forward, seeming to become more sober. "
-                            + "\"The " + ship.getShipName() + " is a fine ship, but I think people underestimate it"
+                            + "\"The " + ship.getShipName() + " is a " + shipDesc + ", but I think people underestimate it"
                             + evenTheCrewMaybe + ". You're aware that it has a reputation for "
-                            + trait.getDescPrefix(requiresCrew).toLowerCase() + " %s? ";
+                            + trait.getDescPrefix(requiresCrew, biological).toLowerCase() + " %s? ";
 
-                    if(trait.getType().getId().equals("phase_mad")) {
+                    if(biological) {
+                        str += "Well, I figured out what the problem is and I've already cultivated an enzyme that " +
+                                "would fix it. I won't go into details about the biological processes involved so " +
+                                "we can all keep our drinks down. The important thing is that it will work. " +
+                                "The only catch is that ";
+
+                        if(requiresCrew) {
+                            str += "it will cause substantial discomfort for the crew.";
+                        } else {
+                            str += "it will disrupt the integration status of the control module somewhat.";
+                        }
+
+                        str += " Do you think I should go through with it?\"";
+                    } else if(trait.getType().getId().equals("phase_mad")) {
                         str += "Well, I've found a solution. Nothing can be done about the unusually high amount of "
                                 + "brainwave interference caused by the ship's phase field, but I've discovered a "
                                 + "neural augmentation analeptic developed by the Tri-Tachyon corporation "
@@ -839,10 +866,10 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                         }
                     }
 
-                    text.addPara(str, Misc.getTextColor(), h, trait.getName(requiresCrew).toLowerCase(), maxCrewCost + "");
+                    text.addPara(str, Misc.getTextColor(), h, trait.getName(requiresCrew, biological).toLowerCase(), maxCrewCost + "");
 
                     text.setFontSmallInsignia();
-                    text.addPara("%s " + trait.getDescription(), g, h, trait.getName(requiresCrew));
+                    text.addPara("%s " + trait.getDescription(), g, h, trait.getName(requiresCrew, biological));
 
                     if(ModPlugin.ENABLE_OFFICER_LOYALTY_SYSTEM) {
                         showLoyaltyCostWarning();
@@ -885,7 +912,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 }
                 case SIDEGRADE_TRAIT: {
                     text.addPara(getSidegradeProse(false), Misc.getTextColor(), Misc.getHighlightColor(),
-                            replacementTrait.getLowerCaseName(requiresCrew), trait.getLowerCaseName(requiresCrew));
+                            replacementTrait.getLowerCaseName(requiresCrew, biological), trait.getLowerCaseName(requiresCrew, biological));
 
                     text.setFontSmallInsignia();
                     trait.addComparisonParagraphsTo(text, ship, replacementTrait);

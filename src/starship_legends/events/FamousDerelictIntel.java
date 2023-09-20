@@ -415,7 +415,8 @@ public class FamousDerelictIntel extends FleetLogIntel {
 
 			info.addPara("", 0);
 
-			Util.showTraits(info, rep, null, !FactionConfig.get(Factions.NEUTRAL).isCrewlessTraitNamesUsed(), ship.getHullSpec().getHullSize());
+			Util.showTraits(info, rep, null, !FactionConfig.get(Factions.NEUTRAL).isCrewlessTraitNamesUsed(),
+					Util.isShipBiological(ship), ship.getHullSpec().getHullSize());
 
 			switch (granularity) {
 				case CONSTELATION:

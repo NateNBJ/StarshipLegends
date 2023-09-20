@@ -247,6 +247,7 @@ public class Reputation extends BaseHullMod {
             int traitsLeft = Math.min(rep.getTraits().size(), Trait.getTraitLimit());
             int loyaltyEffectAdjustment = 0;
             boolean requiresCrew = Util.isShipCrewed(fm);
+            boolean biological = Util.isShipBiological(fm);
             boolean showXp = Global.getSettings().isDevMode()
                     ? ModPlugin.SHOW_SHIP_XP_IN_DEV_MODE
                     : ModPlugin.SHOW_SHIP_XP;
@@ -258,9 +259,9 @@ public class Reputation extends BaseHullMod {
                         + "\n Traits: " + rep.getTraits()
                         + "\n Please notify the mod author with this information.";
 
-                tooltip.addPara(tier.getFlavorText(requiresCrew) + details, 10, Misc.getNegativeHighlightColor());
+                tooltip.addPara(tier.getFlavorText(requiresCrew, biological) + details, 10, Misc.getNegativeHighlightColor());
             } else {
-                tooltip.addPara(tier.getFlavorText(requiresCrew), 10, Misc.getGrayColor(), Misc.getGrayColor(),
+                tooltip.addPara(tier.getFlavorText(requiresCrew, biological), 10, Misc.getGrayColor(), Misc.getGrayColor(),
                         fm.getShipName());
 
                 if(Global.getSettings().isDevMode()) {
@@ -426,7 +427,7 @@ public class Reputation extends BaseHullMod {
                     previousTier = currentTier;
                 }
 
-                trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, hullSize, false, false);
+                trait.addParagraphTo(tooltip, currentTier, loyaltyEffectAdjustment, requiresCrew, biological, hullSize, false, false);
             }
 
             int rumoredTraitsToShow = Global.getSettings().isDevMode() ?
@@ -442,7 +443,7 @@ public class Reputation extends BaseHullMod {
                 while (traitIndex <= traitIndexOfLastRumoredTraitToShow && destinedTraits.size() > traitIndex) {
                     Trait trait = destinedTraits.get(traitIndex);
                     trait.addParagraphTo(tooltip, Trait.Tier.Rumored, loyaltyEffectAdjustment,
-                            requiresCrew, hullSize, false, false);
+                            requiresCrew, biological, hullSize, false, false);
                     traitIndex += 1;
                 }
             }

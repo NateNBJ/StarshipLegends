@@ -5,11 +5,14 @@ import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class Integration {
     static Map<String, Boolean> derelictAvailabilityOverride = new HashMap();
     static Map<String, Boolean> flagshipAvailabilityOverride = new HashMap();
+    static Set<String> biologicalShips = new HashSet<>();
 
     public static boolean isFamousDerelictEventAvailableAtMarket(MarketAPI market) {
         FactionConfig cfg = FactionConfig.get(market.getFactionId());
@@ -74,5 +77,8 @@ public class Integration {
                 registerTraitEffect(pair.getKey(), pair.getValue());
             }
         }
+    }
+    public static void registerBiologicalShip(String hullID) {
+        if(hullID != null) biologicalShips.add(hullID);
     }
 }

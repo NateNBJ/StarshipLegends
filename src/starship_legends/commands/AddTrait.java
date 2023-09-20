@@ -97,7 +97,7 @@ public class AddTrait implements BaseCommand {
             RepRecord.updateRepHullMod(ship);
 
             Console.showMessage("The " + ship.getShipName() + " is now known for "
-                    + newTrait.getDescPrefix(true).toLowerCase() + " " + newTrait.getName(true).toUpperCase());
+                    + newTrait.getDescPrefix(true, false).toLowerCase() + " " + newTrait.getName(true, false).toUpperCase());
             return true;
         }
     }
