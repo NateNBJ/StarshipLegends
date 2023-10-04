@@ -909,6 +909,7 @@ public class ModPlugin extends BaseModPlugin {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
                 stats.getRecoilPerShotMult().modifyPercent(id, effectPercent);
+                stats.getMaxRecoilMult().modifyPercent(id, effectPercent);
             }
         });
         Integration.registerTraitEffect("turret_rotation", new TraitType.Effect() {
