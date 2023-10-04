@@ -79,7 +79,7 @@ public class TraitType {
         return malus != null;
     }
     public String getName(boolean isMalus, boolean requiresCrew, boolean biological) {
-        if(biological) {
+        if(biological && (!requiresCrew || !tags.contains(Tags.CREW))) {
             String name = isMalus ? malusNameBio : bonusNameBio;
 
             if(name != null && !name.isEmpty()) return name;
@@ -90,7 +90,7 @@ public class TraitType {
                 : (!requiresCrew && !bonusNameAI.isEmpty()) ? bonusNameAI : bonusName;
     }
     public String getDescriptionPrefix(boolean isMalus, boolean requiresCrew, boolean biological) {
-        if(biological) {
+        if(biological && (!requiresCrew || !tags.contains(Tags.CREW))) {
             String desc = isMalus ? malusDescBio : bonusDescBio;
 
             if(desc != null && !desc.isEmpty()) return desc;

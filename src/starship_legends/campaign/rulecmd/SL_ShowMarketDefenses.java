@@ -44,6 +44,9 @@ public class SL_ShowMarketDefenses extends MarketCMD {
         try {
             if(market == null) init(dialog.getInteractionTarget());
 
+            // Fleet traits are not supported for ongoing battles involving stations, so don't do anything if that's the case
+            if(getInteractionTargetForFIDPI().getBattle() != null) return false;
+
             List<CampaignFleetAPI> pulledIn = new ArrayList();
             PersonAPI commander = guessCommander(pulledIn);
 

@@ -494,7 +494,7 @@ public class Util {
                 && !Misc.isUnremovable(captain);
     }
     public static boolean isShipBiological(FleetMemberAPI fleetMember) {
-        return Integration.biologicalShips.contains(fleetMember.getHullId());
+        return Integration.biologicalShips.contains(fleetMember.getHullSpec().getBaseHullId());
     }
     public static FleetMemberAPI copyFleetMember(FleetMemberAPI ship) {
         try {
