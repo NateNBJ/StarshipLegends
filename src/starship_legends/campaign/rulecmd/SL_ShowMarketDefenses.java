@@ -44,8 +44,14 @@ public class SL_ShowMarketDefenses extends MarketCMD {
         try {
             if(market == null) init(dialog.getInteractionTarget());
 
-            // Fleet traits are not supported for ongoing battles involving stations, so don't do anything if that's the case
-            if(getInteractionTargetForFIDPI().getBattle() != null) return false;
+            try {
+                // Fleet traits are not supported for ongoing battles involving stations, so don't do anything if that's the case
+                if(getInteractionTargetForFIDPI().getBattle() != null) return true;
+                // "Consider military options" started failing for some reason after the line above was added.
+                // Don't know why. Probably getInteractionTargetForFIDPI returning null. Couldn't reproduce. No stack trace provided.
+            } catch(Exception e) {
+                return true;
+            }
 
             List<CampaignFleetAPI> pulledIn = new ArrayList();
             PersonAPI commander = guessCommander(pulledIn);
