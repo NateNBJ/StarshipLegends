@@ -54,7 +54,10 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
     public boolean isValid() { return barEvent != null && barEvent.subEvent != OwnCrewBarEvent.OptionId.INVALID; }
     public boolean shouldRemoveIntel() {
         float days = getDaysSincePlayerVisible();
-        return isEnded() || days >= DURATION;
+        return isEnded()
+                || days >= DURATION
+                || (!approved && !barEvent.rep.hasTrait(barEvent.trait))
+                || (!approved && barEvent.rep.hasTrait(barEvent.replacementTrait));
     }
     public String getName() {
         ShipHullSpecAPI hull = barEvent.ship.getHullSpec().getBaseHull() == null
@@ -133,12 +136,12 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
             barEvent.doApproveActions();
             approved = true;
             endAfterDelay();
-            ui.recreateIntelUI();
+            ui.updateUIForItem(this);
         } else if (buttonId == BUTTON_DISMISS) {
             setImportant(false);
 			//endImmediately();
             endAfterDelay();
-			ui.recreateIntelUI();
+            ui.updateUIForItem(this);
 		}
 	}
 

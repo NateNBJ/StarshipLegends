@@ -25,6 +25,9 @@ import java.awt.*;
 import java.util.List;
 import java.util.*;
 
+import static starship_legends.events.OwnCrewBarEvent.OptionId.INVALID;
+import static starship_legends.events.OwnCrewBarEvent.OptionId.LEAVE;
+
 public class OwnCrewBarEvent extends BaseShipBarEvent {
     public enum OptionId {
         FLIP_TRAIT,
@@ -45,7 +48,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 + ModPlugin.REPAIR_DMOD_BAR_EVENT_CHANCE;
     }
 
-    OptionId subEvent = OptionId.INVALID;
+    OptionId subEvent = INVALID;
     String officerTypeStr, pref1, pref2, personDesc;
 
     int supplyCost = 0, loyaltyCost = 0, crewCost = 0;
@@ -524,8 +527,15 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         CargoAPI cargo = Global.getSector().getPlayerFleet().getCargo();
 
         if(trait != null && replacementTrait != null) {
-            rep.getTraits().add(rep.getTraitPosition(trait), replacementTrait);
-            rep.getTraits().remove(trait);
+            int traitIndex = rep.getTraitPosition(trait);
+
+            if(traitIndex > -1) {
+                rep.getTraits().add(traitIndex, replacementTrait);
+                rep.getTraits().remove(trait);
+            } else if(!rep.hasMaximumTraits() && !rep.hasTrait(replacementTrait)) {
+                // If the original trait was already removed somehow, then still add the replacement trait
+                rep.getTraits().add(replacementTrait);
+            }
         }
 
         if(dmod != null) {
@@ -641,7 +651,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
         subEvent = OptionId.SIDEGRADE_TRAIT;
         regen(null);
 
-        if(subEvent == OptionId.INVALID) return false;
+        if(subEvent == INVALID) return false;
 
         if(captain != null && !captain.isDefault() && !captain.isPlayer() && Util.isShipCrewed(ship)) {
             person = captain;
@@ -678,7 +688,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
         if (Global.getSettings().isDevMode()) random = new Random();
 
-        if(subEvent == OptionId.INVALID) {
+        if(subEvent == INVALID) {
             WeightedRandomPicker<OptionId> picker = new WeightedRandomPicker(getRandom());
             picker.add(OptionId.FLIP_TRAIT, ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE);
             picker.add(OptionId.SIDEGRADE_TRAIT, ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE);
@@ -694,7 +704,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
                 }
             }
         } else if(!tryCreateEvent(subEvent)) {
-            subEvent = OptionId.INVALID;
+            subEvent = INVALID;
         }
     }
 
@@ -722,7 +732,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
             done = false;
 
-            if(subEvent != OptionId.INVALID) {
+            if(subEvent != INVALID) {
 //                if(captain == null || captain.isDefault() || captain.isPlayer() || !Util.isShipCrewed(ship)) {
                     dialog.getVisualPanel().showFleetMemberInfo(ship);
 //                } else {
@@ -758,6 +768,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             Color h = Misc.getHighlightColor();
 
             if(random == null) random = new Random(seed);
+            if(!rep.hasTrait(trait) && optionData != LEAVE) optionData = INVALID;
 
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {
