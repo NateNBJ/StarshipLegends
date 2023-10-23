@@ -505,4 +505,11 @@ public class Util {
 
         return null;
     }
+    public static boolean isAnyShipInPlayerFleetNotable() {
+        for(FleetMemberAPI fm : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+            if(RepRecord.existsFor(fm)) return true;
+        }
+
+        return false;
+    }
 }

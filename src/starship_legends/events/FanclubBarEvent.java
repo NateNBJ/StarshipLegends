@@ -39,6 +39,8 @@ public class FanclubBarEvent extends BaseShipBarEvent {
     }
 
     public static float getChanceOfAnyFanclubEvent() {
+        if(!Util.isAnyShipInPlayerFleetNotable()) return 0;
+
         return ModPlugin.LOYAL_CREW_JOINS_BAR_EVENT_CHANCE
                 + ModPlugin.BUY_SHIP_OFFER_BAR_EVENT_CHANCE
                 + ModPlugin.JOIN_WITH_SHIP_BAR_EVENT_CHANCE;

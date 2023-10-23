@@ -42,6 +42,8 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
     }
 
     public static float getChanceOfAnyCrewEvent() {
+        if(!Util.isAnyShipInPlayerFleetNotable()) return 0;
+
         return ModPlugin.TRAIT_UPGRADE_BAR_EVENT_CHANCE
                 + ModPlugin.CHRONICLER_JOINS_BAR_EVENT_CHANCE
                 + ModPlugin.TRAIT_SIDEGRADE_BAR_EVENT_CHANCE
@@ -768,7 +770,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             Color h = Misc.getHighlightColor();
 
             if(random == null) random = new Random(seed);
-            if(!rep.hasTrait(trait) && optionData != LEAVE) optionData = INVALID;
+            if((rep == null || !rep.hasTrait(trait)) && optionData != LEAVE) optionData = INVALID;
 
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {
