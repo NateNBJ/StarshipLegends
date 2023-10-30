@@ -264,7 +264,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         super.regen(market);
         reset();
 
-        if (Global.getSettings().isDevMode()) random = new Random();
+//        if (Global.getSettings().isDevMode()) random = new Random();
 
         WeightedRandomPicker<OptionId> picker = new WeightedRandomPicker(getRandom());
         picker.add(OptionId.BUY_SHIP_OFFER, ModPlugin.BUY_SHIP_OFFER_BAR_EVENT_CHANCE);

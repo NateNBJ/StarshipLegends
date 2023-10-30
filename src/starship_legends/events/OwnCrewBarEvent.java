@@ -25,8 +25,7 @@ import java.awt.*;
 import java.util.List;
 import java.util.*;
 
-import static starship_legends.events.OwnCrewBarEvent.OptionId.INVALID;
-import static starship_legends.events.OwnCrewBarEvent.OptionId.LEAVE;
+import static starship_legends.events.OwnCrewBarEvent.OptionId.*;
 
 public class OwnCrewBarEvent extends BaseShipBarEvent {
     public enum OptionId {
@@ -688,7 +687,7 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
         reset();
 
-        if (Global.getSettings().isDevMode()) random = new Random();
+//        if (Global.getSettings().isDevMode()) random = new Random();
 
         if(subEvent == INVALID) {
             WeightedRandomPicker<OptionId> picker = new WeightedRandomPicker(getRandom());
@@ -768,9 +767,10 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
             options.clearOptions();
             Color g = Misc.getGrayColor();
             Color h = Misc.getHighlightColor();
+            boolean isTraitOption = optionData == FLIP_TRAIT || optionData == SIDEGRADE_TRAIT;
 
             if(random == null) random = new Random(seed);
-            if((rep == null || !rep.hasTrait(trait)) && optionData != LEAVE) optionData = INVALID;
+            if(isTraitOption && (rep == null || !rep.hasTrait(trait))) optionData = INVALID;
 
             switch ((OptionId) optionData) {
                 case FLIP_TRAIT: {

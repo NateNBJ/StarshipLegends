@@ -411,7 +411,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 			super.regen(market);
 			reset();
 
-			if (Global.getSettings().isDevMode()) random = new Random();
+//			if (Global.getSettings().isDevMode()) random = new Random();
 
 			isPlayerShipStory = random.nextFloat() * getChanceOfAnyStoryEvent() <= getChanceOfPlayerShipLegend();
 
