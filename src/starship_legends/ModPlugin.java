@@ -562,9 +562,10 @@ public class ModPlugin extends BaseModPlugin {
 
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
-                stats.getHullDamageTakenMult().modifyPercent(id, -effectPercent);
-                stats.getShieldDamageTakenMult().modifyPercent(id, -effectPercent);
-                stats.getArmorDamageTakenMult().modifyPercent(id, -effectPercent);
+                float invertedEffectPercent = effectPercent < 0 ? -effectPercent : 10000f / (100f + effectPercent) - 100f;
+                stats.getHullDamageTakenMult().modifyPercent(id, invertedEffectPercent);
+                stats.getShieldDamageTakenMult().modifyPercent(id, invertedEffectPercent);
+                stats.getArmorDamageTakenMult().modifyPercent(id, invertedEffectPercent);
             }
         });
         Integration.registerTraitEffect("ammo_regen", new TraitType.Effect() {
@@ -756,7 +757,7 @@ public class ModPlugin extends BaseModPlugin {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
                 stats.getDynamic().getMod(Stats.INDIVIDUAL_SHIP_RECOVERY_MOD).modifyPercent(id, effectPercent);
-                stats.getBreakProb().modifyPercent(id, -effectPercent);
+                stats.getBreakProb().modifyPercent(id, Math.max(-100f, -effectPercent));
             }
         });
         Integration.registerTraitEffect("maneuverability", new TraitType.Effect() {
@@ -795,7 +796,8 @@ public class ModPlugin extends BaseModPlugin {
         Integration.registerTraitEffect("emp_resistance", new TraitType.Effect() {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
-                stats.getEmpDamageTakenMult().modifyPercent(id, -effectPercent);
+                float invertedEffectPercent = effectPercent < 0 ? -effectPercent : 10000f / (100f + effectPercent) - 100f;
+                stats.getEmpDamageTakenMult().modifyPercent(id, invertedEffectPercent);
             }
         });
         Integration.registerTraitEffect("shield_stability", new TraitType.Effect() {
@@ -900,8 +902,9 @@ public class ModPlugin extends BaseModPlugin {
         Integration.registerTraitEffect("repair", new TraitType.Effect() {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
-                stats.getCombatEngineRepairTimeMult().modifyPercent(id, -effectPercent);
-                stats.getCombatWeaponRepairTimeMult().modifyPercent(id, -effectPercent);
+                float invertedEffectPercent = effectPercent < 0 ? -effectPercent : 10000f / (100f + effectPercent) - 100f;
+                stats.getCombatEngineRepairTimeMult().modifyPercent(id, invertedEffectPercent);
+                stats.getCombatWeaponRepairTimeMult().modifyPercent(id, invertedEffectPercent);
                 stats.getRepairRatePercentPerDay().modifyPercent(id, effectPercent);
             }
         });
