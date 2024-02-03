@@ -9,6 +9,8 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Tags;
+import com.fs.starfarer.api.loading.HullModSpecAPI;
 import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.util.WeightedRandomPicker;
 import com.thoughtworks.xstream.XStream;
@@ -292,6 +294,7 @@ public class RepRecord {
 
         Trait.Tier tier = RepRecord.get(ship).getTier();
         ShipVariantAPI v;
+        List<String> dmods = new ArrayList<>();
 
         if(tier == Trait.Tier.UNKNOWN) {
             Reputation.removeShipOfNote(ship);
@@ -306,8 +309,20 @@ public class RepRecord {
             ship.setVariant(v, false, false);
         } else v = ship.getVariant();
 
+        // Adjustments to DMOD_EFFECT_MULT only take effect for DMODs that were added after the rep hullmod, so we'll ensure that they're added after
+        for(String hullmod_id : v.getHullMods()) {
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(hullmod_id);
+
+            if(spec.hasTag(Tags.HULLMOD_DMOD)) {
+                dmods.add(hullmod_id);
+            }
+        }
+        for(String dmod_id : dmods) v.removePermaMod(dmod_id);
+
         Util.removeRepHullmodFromVariant(v);
         v.addPermaMod(tier.getHullModID());
+
+        for(String dmod_id : dmods) v.addPermaMod(dmod_id);
 
         List<String> slots = v.getModuleSlots();
 

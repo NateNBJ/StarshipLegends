@@ -9,6 +9,7 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import org.lazywizard.console.Console;
@@ -416,6 +417,8 @@ public class Reputation extends BaseHullMod {
                     }
                 }
             }
+
+            tooltip.addSectionHeading("Reputation", Alignment.MID, 10);
 
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;

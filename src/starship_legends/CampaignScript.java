@@ -11,6 +11,7 @@ import com.fs.starfarer.api.fleet.FleetGoal;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.FleetEncounterContext;
 import com.fs.starfarer.api.impl.campaign.FleetInteractionDialogPluginImpl;
+import com.fs.starfarer.api.impl.campaign.tutorial.TutorialMissionIntel;
 import com.fs.starfarer.api.plugins.LevelupPlugin;
 import com.fs.starfarer.api.util.Misc;
 import starship_legends.events.FamousDerelictIntel;
@@ -469,7 +470,10 @@ public class CampaignScript extends BaseCampaignEventListener implements EveryFr
                 ((FamousDerelictIntel)i).updateFleetActions();
             }
 
-            if(!Global.getSector().isPaused() && ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS > 0) {
+            if(!Global.getSector().isPaused()
+                    && ModPlugin.AVERAGE_DAYS_BETWEEN_TRAIT_SIDEGRADE_SUGGESTIONS > 0
+                    && !TutorialMissionIntel.isTutorialInProgress()) {
+
                 long ts = Global.getSector().getClock().getTimestamp();
                 boolean incrementTS = false;
 

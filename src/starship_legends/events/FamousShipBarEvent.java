@@ -1109,7 +1109,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected String getPersonPost() { return Ranks.CITIZEN; }
 
 	// TODO - Update methods below (yoinked from ShipRecoverySpecial) with new Starsector versions
-	// Up to date as of 0.96a-RC7
+	// Up to date as of 0.97a
 
 	public void prepareMember(FleetMemberAPI member, ShipRecoverySpecial.PerShipData shipData) {
 
