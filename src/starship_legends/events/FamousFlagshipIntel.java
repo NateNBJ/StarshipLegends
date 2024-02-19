@@ -76,8 +76,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 		try {
 			info.addImage(commander.getPortraitSprite(), width, 128, 10);
 
-			String hisOrHer =
-					commander.getGender() == FullName.Gender.MALE ? "his" : "her",
+			String hisOrHer = commander.getGender() == FullName.Gender.MALE ? "his" : "her",
 					timeAgo = Misc.ucFirst(Misc.getAgoStringForTimestamp(timestamp).toLowerCase());
 
 			String bestFactionPrefix = faction.getEntityNamePrefix();
@@ -176,7 +175,7 @@ public class FamousFlagshipIntel extends FleetLogIntel {
 
 	@Override
 	public String getIcon() {
-		return rep != null ? rep.getTier().getIntelIcon() : super.getIcon();
+		return rep != null && rep.getTier() != Trait.Tier.UNKNOWN ? rep.getTier().getIntelIcon() : super.getIcon();
 	}
 
 	public void checkIfFleetNeedsToBeAddedToLocation() {

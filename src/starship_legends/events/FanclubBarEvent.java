@@ -73,10 +73,12 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                     float qualMult = 1 - DModManager.getNumDMods(ship.getVariant()) * 0.2f;
 
                     if(repMult * qualMult >= 1 && !(ship.isFlagship() && playerFleet.getFleetData().getNumMembers() < 2)) {
-                        crewChange = (int) -ship.getMinCrew();
+                        boolean isRemote = !playerFleet.getFleetData().getMembersListCopy().contains(ship);
+
+                        crewChange = isRemote ? 0 : (int) -ship.getMinCrew();
                         creditChange = (int)(crewChange * baseCrewCost
                                 + ship.getBaseBuyValue() * repMult * qualMult
-                                + ship.getVariant().getSMods().size() * 400000);
+                                + ship.getVariant().getSMods().size() * 100000 * (ship.getHullSpec().getHullSize().ordinal() - 1));
 
                         if(!playerFleet.getFleetData().getMembersListCopy().contains(ship)) {
                             marketWhereShipIsStored = Util.getStorageLocationOfShip(ship.getId());
@@ -364,7 +366,7 @@ public class FanclubBarEvent extends BaseShipBarEvent {
                             + shipNotInFleetMaybe
                             + "After a short bout of haggling, it becomes clear that " + getHeOrShe() + " would be "
                             + "willing to purchase the " + ship.getShipName()
-                            + (crewChange < 0 ? ", along with the contracts for a skeleton crew of %s," : "")
+                            + (crewChange < 0 ? ", along with the contracts for %s members of its crew," : "")
                             + " for %s. You think " + getHeOrShe() + " might be a little optimistic about what the "
                             + "ship is capable of.";
                     String credits = Misc.getDGSCredits(creditChange);

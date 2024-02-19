@@ -188,6 +188,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected boolean isValidDerelictIntel() {
 		boolean isValid = rep != null && ship != null && derelict != null && orbitedBody != null && wreckData != null
+				&& rep.getTier() != Trait.Tier.UNKNOWN
 				&& timeScale != null && granularity != null && derelict.getConstellation() != null
 				&& (!granularity.equals(CONSTELATION) || derelict.getConstellation().getSystems().size() > 1)
 				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE);
@@ -227,6 +228,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		if(!fleetHasValidAssignment(fleet) && flagshipType.equals("Remote")) setAssignmentForRemoteFleet();
 
 		boolean isValid = rep != null && ship != null && faction != null && fleet != null && !fleet.isDespawning()
+				&& rep.getTier() != Trait.Tier.UNKNOWN
 				&& commander != null && fleetHasValidAssignment(fleet)
 				&& !ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.UNBOARDABLE);
 
