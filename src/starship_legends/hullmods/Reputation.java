@@ -33,6 +33,7 @@ public class Reputation extends BaseHullMod {
 
     static transient Saved<HashSet<FleetMemberAPI>> shipsOfNote = new Saved<>("shipsOfNote", new HashSet<FleetMemberAPI>());
     public static transient HashMap<String, FleetMemberAPI> moduleMap = new HashMap<>(); // TODO - Remove this nonsense if Alex fixes getFleetMember
+    public static float priorHullAdjustment = 0; // For a hack used to force traits that adjust hull to stack their effects
 
     public static final String ENEMY_HULLMOD_ID = "sun_sl_enemy_reputation";
     public static final Color BORDER_COLOR = new Color(147, 102, 50, 0);
@@ -137,6 +138,8 @@ public class Reputation extends BaseHullMod {
                 }
             }
 
+            priorHullAdjustment = 0;
+
             for(Trait trait : rep.getTraits()) {
                 if(traitsLeft <= 0) break;
 
@@ -145,6 +148,8 @@ public class Reputation extends BaseHullMod {
 
                 trait.applyEffect(stats, ship, isFighter, id, e);
             }
+
+            priorHullAdjustment = 0;
         } catch (Exception e) { ModPlugin.reportCrash(e); }
     }
     public static void applyEffects(FleetMemberAPI ship, ShipAPI.HullSize size, PersonAPI captain, MutableShipStatsAPI stats, boolean isFighter, String id) {

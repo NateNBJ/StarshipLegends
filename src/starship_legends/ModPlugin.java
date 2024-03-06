@@ -627,10 +627,12 @@ public class ModPlugin extends BaseModPlugin {
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
                 int dmods = 0;
                 for(String modId : ship.getVariant().getPermaMods()) {
-                if(Global.getSettings().getHullModSpec(modId).hasTag("dmod")) dmods++;
+                    if(Global.getSettings().getHullModSpec(modId).hasTag("dmod")) dmods++;
                 }
 
-                stats.getHullBonus().modifyPercent(id, effectPercent * dmods);
+                Reputation.priorHullAdjustment += effectPercent * dmods;
+
+                stats.getHullBonus().modifyPercent(id, Reputation.priorHullAdjustment);
             }
         });
         Integration.registerTraitEffect("missile_guidance", new TraitType.Effect() {
@@ -772,7 +774,9 @@ public class ModPlugin extends BaseModPlugin {
         Integration.registerTraitEffect("hull_integrity", new TraitType.Effect() {
             @Override
             public void apply(MutableShipStatsAPI stats, FleetMemberAPI ship, String id, float effectPercent) {
-                stats.getHullBonus().modifyPercent(id, effectPercent);
+                Reputation.priorHullAdjustment += effectPercent;
+
+                stats.getHullBonus().modifyPercent(id, Reputation.priorHullAdjustment);
             }
         });
         Integration.registerTraitEffect("shield_strength", new TraitType.Effect() {
