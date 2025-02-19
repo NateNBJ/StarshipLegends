@@ -420,8 +420,14 @@ public class FamousDerelictIntel extends FleetLogIntel {
 
 			switch (granularity) {
 				case CONSTELATION:
-					placeDesc = "somewhere in the %s constellation";
-					place = derelict.getConstellation().getName();
+					placeDesc = "somewhere in the %s";
+
+					try {
+						place = derelict.getConstellation().getNameWithLowercaseType();
+					} catch(Exception e) {
+						// It's possible for getting the name of a constellation to fail
+						place = "depths of a distant constellation";
+					}
 					break;
 				case SYSTEM:
 					placeDesc = "somewhere in the %s";

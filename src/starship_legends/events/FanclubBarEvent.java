@@ -61,7 +61,15 @@ public class FanclubBarEvent extends BaseShipBarEvent {
         switch (type) {
             case BUY_SHIP_OFFER: {
                 for (FleetMemberAPI ship : Util.findPlayerOwnedShip(Trait.Tier.Famous)) {
-                    if(Util.isShipCrewed(ship)) {
+                    boolean tooSpecialForThisEvent = false;
+
+                    try {
+                        tooSpecialForThisEvent = ship.getHullSpec().getHints().contains(ShipHullSpecAPI.ShipTypeHints.HIDE_IN_CODEX);
+                    } catch(Exception e) {
+                        tooSpecialForThisEvent = true;
+                    }
+
+                    if(Util.isShipCrewed(ship) && !tooSpecialForThisEvent) {
                         picker.add(ship, RepRecord.get(ship).getTier() == Trait.Tier.Legendary ? 4 : 1);
                     }
                 }

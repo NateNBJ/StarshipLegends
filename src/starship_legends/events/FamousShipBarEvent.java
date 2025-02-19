@@ -315,7 +315,14 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		return eligibleEntities.pick(random);
 	}
 	protected String getConstellationString() {
-		return derelict.getConstellation() == null ? "Core Worlds" : derelict.getConstellation().getName();
+		if(derelict.getConstellation() == null) return "Core Worlds";
+
+		try {
+			return derelict.getConstellation().getNameWithLowercaseType();
+		} catch(Exception e) {
+			// It's possible for getting the name of a constellation to fail
+			return "depths of a distant constellation";
+		}
 	}
 	protected boolean fleetHasValidAssignment(CampaignFleetAPI flt) {
 		if(flt == null) return false;
@@ -942,7 +949,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 										"events, the ship was eventually recovered by someone else. It was they who lost " +
 										" the " + ship.getShipName() + " to the battle the storyteller is describing. " +
 										"Your old ship is purportedly still in one piece " + shapeDesc +
-										". Supposedly, it is now drifting through the void somewhere in the %s constellation. " +
+										". Supposedly, it is now drifting through the void somewhere in the %s. " +
 										"After making a few queries on your TriPad, you determine that this is, in fact, " +
 										"quite plausible. You recall that the ship was known for the following traits:",
 								Misc.getTextColor(), Misc.getHighlightColor(), Util.getShipDescription(ship, false), ship.getShipName(),
@@ -952,7 +959,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 										"a gruesome and gratuitously detailed description of the destruction of a " + lossRecency + " %s with a " +
 										"name you think you may have heard before: the %s. After yet more " +
 										"dismemberment and carnage, " + getHeOrShe() + " reveals that the ship is still in one piece " +
-										shapeDesc + ". Supposedly, it's drifting lifelessly somewhere in the %s constellation %s later. " +
+										shapeDesc + ". Supposedly, it's drifting lifelessly somewhere in the %s %s later. " +
 										"After making a few queries on your TriPad, you determine that this is, in fact, " +
 										"quite plausible. You also learn " +
 										"that the ship is known for the following traits:", Misc.getTextColor(),
@@ -980,7 +987,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 								", I'm afraid\" the storyteller explains wistfully. " +
 								"\"No one has seen the " + ship.getShipName() + " in " + timeScale.getName().toLowerCase() +
 								", and you're not the first to try to find it. I don't doubt that it's out there " +
-								"somewhere in the " + getConstellationString() + " constellation, but I " +
+								"somewhere in the " + getConstellationString() + ", but I " +
 								"don't like your odds of finding it.";
 						accept = "Try to find the long-lost derelict in spite of " + getHisOrHer() + " warning";
 						reject = "Heed " + getHisOrHer() + " advice and forget about this fool's errand";

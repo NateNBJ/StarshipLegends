@@ -165,7 +165,9 @@ public class Reputation extends BaseHullMod {
     @Override
     public void applyEffectsBeforeShipCreation(ShipAPI.HullSize hullSize, MutableShipStatsAPI stats, String id) {
         try {
-            if(!ModPlugin.settingsHaveBeenRead() || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES)
+            if(!ModPlugin.settingsHaveBeenRead()
+                    || ModPlugin.REMOVE_ALL_DATA_AND_FEATURES
+                    || Global.getSector().getPlayerFleet() == null)
                 return;
 
             FleetMemberAPI ship = getFleetMember(stats);
@@ -205,7 +207,7 @@ public class Reputation extends BaseHullMod {
 
     @Override
     public void applyEffectsToFighterSpawnedByShip(ShipAPI fighter, ShipAPI ship, String id) {
-        if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES) return;
+        if(ModPlugin.REMOVE_ALL_DATA_AND_FEATURES || Global.getSector().getPlayerFleet() == null) return;
 
         PersonAPI liege = ship.getOriginalOwner() == 0 ? ship.getCaptain() : ship.getFleetMember().getFleetCommanderForStats();
 

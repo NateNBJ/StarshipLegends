@@ -232,6 +232,8 @@ public class CombatPlugin implements EveryFrameCombatPlugin {
         FleetMemberAPI dealer = dmgBy.getMember();
 
         for(Map.Entry<FleetMemberAPI, CombatDamageData.DamageToFleetMember> e : dmgBy.getDamage().entrySet()) {
+            if(e.getKey() == null) continue;
+
             FleetMemberAPI target = e.getKey();
             String targetID = sectionSourceMap.containsKey(target.getId())
                     ? sectionSourceMap.get(target.getId())
