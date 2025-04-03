@@ -733,6 +733,11 @@ public class OwnCrewBarEvent extends BaseShipBarEvent {
 
             done = false;
 
+            // In case the player restores the ship normally between bar visits...
+            if(ship == null || (ship.getVariant() != null && subEvent == REMOVE_DMOD && DModManager.getNumDMods(ship.getVariant()) == 0)) {
+                subEvent = INVALID;
+            }
+
             if(subEvent != INVALID) {
 //                if(captain == null || captain.isDefault() || captain.isPlayer() || !Util.isShipCrewed(ship)) {
                     dialog.getVisualPanel().showFleetMemberInfo(ship);

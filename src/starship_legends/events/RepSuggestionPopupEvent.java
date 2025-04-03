@@ -7,10 +7,7 @@ import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
-import com.fs.starfarer.api.ui.ButtonAPI;
-import com.fs.starfarer.api.ui.IntelUIAPI;
-import com.fs.starfarer.api.ui.SectorMapAPI;
-import com.fs.starfarer.api.ui.TooltipMakerAPI;
+import com.fs.starfarer.api.ui.*;
 import com.fs.starfarer.api.util.Misc;
 import org.lwjgl.input.Keyboard;
 import starship_legends.ModPlugin;
@@ -111,8 +108,13 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
 
             if(!isEnding()) {
                 float days = DURATION - getDaysSincePlayerVisible();
+
+                info.addSectionHeading("All current traits", Alignment.MID, opad * 2);
+                info.addSpacer(opad);
+                Util.showTraits(info, barEvent.rep, barEvent.captain, barEvent.requiresCrew, barEvent.biological, barEvent.ship.getHullSpec().getHullSize());
+
                 info.addPara("This opportunity will be available for %s more " + getDaysString(days) + ".",
-                        opad, tc, h, getDays(days));
+                        opad * 2, tc, h, getDays(days));
 
                 ButtonAPI button = addGenericButton(info, width, "Approve the suggestion", BUTTON_ACCEPT);
                 button.setShortcut(Keyboard.KEY_T, true);
@@ -129,8 +131,8 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
         return false;
     }
 
-	@Override
-	public void buttonPressConfirmed(Object buttonId, IntelUIAPI ui) {
+    @Override
+    public void buttonPressConfirmed(Object buttonId, IntelUIAPI ui) {
         if(buttonId == BUTTON_ACCEPT) {
             setImportant(false);
             barEvent.doApproveActions();
@@ -139,11 +141,11 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
             ui.updateUIForItem(this);
         } else if (buttonId == BUTTON_DISMISS) {
             setImportant(false);
-			//endImmediately();
+            //endImmediately();
             endAfterDelay();
             ui.updateUIForItem(this);
-		}
-	}
+        }
+    }
 
     @Override
     public String getIcon() {

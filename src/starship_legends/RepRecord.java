@@ -596,7 +596,7 @@ public class RepRecord {
     public RepRecord(FleetMemberAPI ship, String themeKey, boolean themeKeyIsFactionId) {
         if(ship != null) INSTANCE_REGISTRY.val.put(ship.getId(), this);
 
-        if(themeKey == null) {
+        if(themeKey == null && ship != null) {
             Random rand = Util.getUniqueShipRng(ship);
             this.themeKey = RepTheme.pickRandomTheme(rand).getKey();
         } else {

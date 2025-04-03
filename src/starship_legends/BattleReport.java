@@ -5,6 +5,7 @@ import com.fs.starfarer.api.campaign.BattleAPI;
 import com.fs.starfarer.api.campaign.FactionAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Tags;
 import com.fs.starfarer.api.impl.campaign.intel.BaseIntelPlugin;
 import com.fs.starfarer.api.ui.*;
 import com.fs.starfarer.api.util.Misc;
@@ -359,7 +360,7 @@ public class BattleReport extends BaseIntelPlugin {
 
     public Set<String> getIntelTags(SectorMapAPI map) {
         Set<String> tags = super.getIntelTags(map);
-        tags.add("Reports");
+        tags.add(Tags.INTEL_FLEET_LOG);
 
         if(enemyFaction != null && enemyFaction.isShowInIntelTab()) tags.add(enemyFaction.getId());
         return tags;
