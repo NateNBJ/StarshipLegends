@@ -12,8 +12,8 @@ import com.fs.starfarer.api.util.Misc;
 import com.thoughtworks.xstream.XStream;
 
 import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 public class BattleReport extends BaseIntelPlugin {
     public static Comparator<RepChange> CHANGE_RELEVANCE_COMPARATOR = new Comparator<RepChange>() {
@@ -286,7 +286,7 @@ public class BattleReport extends BaseIntelPlugin {
 
             e.addPara("*Inflicted damage is displayed as a percentage the ship's own estimated strength. " +
                     "If a ship destroys an enemy half as strong, it will be rated as inflicting 50% damage. " +
-                    "If a ship deals 33% damage to a ship twice as strong, it will be rated as inflicting 66% damage.",
+                    "If a ship deals 33% hull damage to a ship twice as strong, it will be rated as inflicting 66% damage.",
                     Misc.getGrayColor(), 10);
 
             if(changesWereFound) {

@@ -21,8 +21,8 @@ import starship_legends.events.OwnCrewBarEventCreator;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 public class ModPlugin extends BaseModPlugin {
     public static final String ID = "sun_starship_legends";
@@ -90,6 +90,7 @@ public class ModPlugin extends BaseModPlugin {
             MIN_INITIAL_NEGATIVE_TRAITS = getInt("minInitialNegativeTraits");
             MIN_NEGATIVE_TRAITS = getFloat("minNegativeTraits");
             LOYALTY_IMPROVEMENT_RATE_MULT = getFloat("loyaltyImprovementRateMult");
+            FLAT_LOYALTY_XP_PER_BATTLE = getInt("flatLoyaltyXpPerBattle");
             BASE_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("baseLoyaltyLevelsLostWhenDisabled");
             MAX_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("maxLoyaltyLevelsLostWhenDisabled");
             MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = getInt("minLoyaltyLevelsLostWhenDisabled");
@@ -187,7 +188,8 @@ public class ModPlugin extends BaseModPlugin {
             MIN_LOYALTY_LEVELS_LOST_WHEN_DISABLED = 0,
             RUMORED_TRAITS_SHOWN = 2,
             RUMORED_TRAITS_SHOWN_IN_DEV_MODE = 8,
-            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5;
+            TRAITS_FOR_FLEETS_WITH_MAX_LEVEL_COMMANDER = 5,
+            FLAT_LOYALTY_XP_PER_BATTLE = 10000;
 
     public static float
             ORIGINAL_MIN_BAR_EVENTS = 1,

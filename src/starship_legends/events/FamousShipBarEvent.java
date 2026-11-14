@@ -37,8 +37,8 @@ import starship_legends.*;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 import static starship_legends.events.FamousDerelictIntel.LocationGranularity.CONSTELATION;
 
@@ -437,6 +437,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 					}
 
 					if(this.ship != null) break;
+					else RepRecord.getQueuedStories().remove(0);
 				}
 			}
 
@@ -1118,7 +1119,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	protected String getPersonPost() { return Ranks.CITIZEN; }
 
 	// TODO - Update methods below (yoinked from ShipRecoverySpecial) with new Starsector versions
-	// Up to date as of 0.97a
+	// Up to date as of 0.98.5a
 
 	public void prepareMember(FleetMemberAPI member, ShipRecoverySpecial.PerShipData shipData) {
 
@@ -1126,7 +1127,7 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 		int dmods = getDmodsForCondition(shipData.condition);
 
 		int reduction = (int) playerFleet.getStats().getDynamic().getValue(Stats.SHIP_DMOD_REDUCTION, 0);
-		reduction = random.nextInt(reduction + 1);
+		reduction = random.nextInt(Math.abs(reduction) + 1) * (int)Math.signum(reduction);
 		dmods -= reduction;
 
 
@@ -1201,6 +1202,16 @@ public class FamousShipBarEvent extends BaseBarEventWithPerson {
 	}
 	protected int getDmodsForCondition(ShipRecoverySpecial.ShipCondition condition) {
 		if (condition == ShipRecoverySpecial.ShipCondition.PRISTINE) return 0;
+
+		boolean reduceQuality = Misc.isExtended() && Global.getSettings().getBoolean("ext_reduceDerelictQuality");
+		if (reduceQuality) {
+			switch (condition) {
+				case GOOD: return 1 + random.nextInt(1);
+				case AVERAGE: return 2 + random.nextInt(2);
+				case BATTERED: return 3 + random.nextInt(3);
+				case WRECKED: return 4 + random.nextInt(2);
+			}
+		}
 
 		switch (condition) {
 			case GOOD: return 1;

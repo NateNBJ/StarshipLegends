@@ -640,7 +640,7 @@ public class RepRecord {
 
         if (officerIsApplicable && rc.deployed) {
             LoyaltyLevel ll = getLoyalty(rc.captain);
-            float loyaltyXpEarned = xpEarned * getLoyaltyRateMult(rc.captain);
+            float loyaltyXpEarned = (xpEarned + ModPlugin.FLAT_LOYALTY_XP_PER_BATTLE) * getLoyaltyRateMult(rc.captain);
             int loyaltyXp = 0;
 
             if(ll != LoyaltyLevel.INSPIRED) {

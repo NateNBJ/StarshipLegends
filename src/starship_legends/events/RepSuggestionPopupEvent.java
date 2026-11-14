@@ -163,4 +163,11 @@ public class RepSuggestionPopupEvent  extends BaseIntelPlugin {
     public String getCommMessageSound() {
         return super.getCommMessageSound();
     }
+
+    @Override
+    public String getSortString() {
+        if(barEvent != null && barEvent.ship != null) {
+            return "rspe_" + barEvent.ship.getId() + super.getSortString();
+        } else return super.getSortString();
+    }
 }
