@@ -1,0 +1,11 @@
+Version 2.7.0
+
+- Updated for Starsector 0.98.5a
+- Fixed: Reputation hullmods no longer show up in the codex
+- Fixed a freeze that could occur when an invalid ship was selected for a bar event
+- Added a flat loyalty boost for participating in any battle. This should help with early-game loyalty struggles
+- Added a setting to adjust the flat loyalty boost: "Flat Loyalty XP Per Battle"
+- Improved sorting of trait suggestion intel items so that they're always grouped together
+
+
+Version changes for older updates can be found at https://github.com/NateNBJ/StarshipLegends/releases
