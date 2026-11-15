@@ -512,4 +512,7 @@ public class Util {
 
         return false;
     }
+    public static boolean isShipWithInfinitePPT(ShipHullSpecAPI hull) {
+        return hull.getNoCRLossTime() >= 9999999 || hull.getCRLossPerSecond() <= 0;
+    }
 }

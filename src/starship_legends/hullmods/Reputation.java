@@ -16,8 +16,8 @@ import org.lazywizard.console.Console;
 import starship_legends.*;
 
 import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 
 public class Reputation extends BaseHullMod {
@@ -301,25 +301,27 @@ public class Reputation extends BaseHullMod {
                         tooltip.addImageWithText(8);
                     } else {
                         loyaltyEffectAdjustment = ll.getTraitAdjustment();
+                        float pptMult = Util.isShipWithInfinitePPT(fm.getHullSpec()) ? 0 : ll.getCrDecayMult() ;
 
                         String message = requiresCrew
                                 ? "The crew of the " + fm.getShipName()
                                 + " is %s " + ll.getPreposition()
                                 + " its captain, " + cap.getNameString().trim()
                                 : "The ship's integration status is %s";
-                        String upOrDown = ll.getCrDecayMult() < 0 ? "reducing" : "increasing";
+                        String upOrDown = pptMult < 0 ? "reducing" : "increasing";
                         String finalValue = "";
                         String decay = "";
 
-                        if(ll.getCrDecayMult() != 0) decay = (int) Math.abs(ll.getCrDecayMult()) + "%";
+                        if(pptMult != 0) decay = (int) Math.abs(pptMult) + "%";
 
                         // Extra format keys are added in order to skip them for the sake of values that might come later
-                        if (ll.getCrDecayMult() == 0 && loyaltyEffectAdjustment == 0) message += "%s%s.";
+                        if (pptMult == 0 && loyaltyEffectAdjustment == 0) message += "%s%s.";
+                        else if (pptMult == 0) message += ", %s%s the ship's traits."; // Valid only for ships with infinite PPT
                         else if (loyaltyEffectAdjustment == 0) message += ", " + upOrDown + " CR decay rate by %s%s.";
                         else message += ", " + upOrDown + " CR decay rate by %s and %s the ship's traits.";
 
 
-                        if (ll.getMaxCrReduction() > 0) {
+                        if (ll.getMaxCrReduction() > 0 && !Util.isShipWithInfinitePPT(fm.getHullSpec())) {
                             message += requiresCrew
                                     ? " The maximum CR and peak performance time of the ship will be reduced by %s " +
                                         "while " + cap.getHeOrShe() + " remains the captain."

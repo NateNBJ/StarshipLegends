@@ -38,7 +38,8 @@ public class TraitType {
                 HYBRID = "hybrid",
                 DMOD = "dmod",
                 SYSTEM = "system",
-                DEFENSE = "defense";
+                DEFENSE = "defense",
+                PPT = "ppt";
     }
     private static final WeightedRandomPicker<TraitType>
             PICKER = new WeightedRandomPicker<>(),

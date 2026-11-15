@@ -15,8 +15,8 @@ import org.json.JSONObject;
 import starship_legends.hullmods.Reputation;
 
 import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 import static com.fs.starfarer.api.combat.WeaponAPI.WeaponType.*;
 
@@ -334,6 +334,8 @@ public class Trait implements Comparable<Trait> {
                     if(Util.getFractionOfFittingSlots(hull, COMPOSITE, BALLISTIC, MISSILE) < 0.3f) return false;
                 case TraitType.Tags.HYBRID:
                     if(Util.getFractionOfFittingSlots(hull, HYBRID, ENERGY, BALLISTIC) < 0.4f) return false;
+                case TraitType.Tags.PPT:
+                    if(Util.isShipWithInfinitePPT(hull)) return false;
                 case TraitType.Tags.FLUX:
                     switch (hull.getHullId()) {
                         case "swp_excelsior":
