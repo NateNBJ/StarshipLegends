@@ -1,3 +1,9 @@
+Version 2.7.1
+
+- Fixed ships with infinite peak performance time (PPT) being able to get traits that adjust PPT
+- Fixed reputation hullmod descriptions mentioning adjustments to PPT for ships with infinite PPT
+
+
 Version 2.7.0
 
 - Updated for Starsector 0.98.5a
